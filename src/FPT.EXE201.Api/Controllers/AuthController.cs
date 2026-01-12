@@ -1,0 +1,70 @@
+﻿using System.Security.Claims;
+using FPT.EXE201.Application.DTOs.Auth;
+using FPT.EXE201.Application.DTOs.Common;
+using FPT.EXE201.Application.Exceptions;
+using FPT.EXE201.Application.IServices;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace FPT.EXE201.Api.Controllers
+{
+    [Route("api/[controller]")]
+    [Tags("Authentication")]
+    public class AuthController : BaseApiController
+    {
+        private readonly IAuthService _authService;
+
+        public AuthController(IAuthService authService)
+        {
+            _authService = authService;
+        }
+
+        /// <summary>
+        /// Register new user account
+        /// </summary>
+        [HttpPost("register")]
+        [AllowAnonymous]
+        [ProducesResponseType(typeof(ApiResponse<AuthResponseDto>), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status409Conflict)]
+        public async Task<IActionResult> Register([FromBody] RegisterRequestDto request, CancellationToken ct)
+        {
+            var response = await _authService.RegisterAsync(request, ct);
+            return Created(response, "User registered successfully");
+        }
+
+        /// <summary>
+        /// Login with email/phone and password
+        /// </summary>
+        [HttpPost("login")]
+        [AllowAnonymous]
+        [ProducesResponseType(typeof(ApiResponse<AuthResponseDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> Login([FromBody] LoginRequestDto request, CancellationToken ct)
+        {
+            var response = await _authService.LoginAsync(request, ct);
+            return Success(response, "Login successful");
+        }
+
+        /// <summary>
+        /// Get current authenticated user information
+        /// </summary>
+        [HttpGet("me")]
+        [Authorize]
+        [ProducesResponseType(typeof(ApiResponse<UserResponseDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetMe(CancellationToken ct)
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
+                ?? User.FindFirst("userId")?.Value;
+
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+                throw new UnauthorizedException("Invalid token");
+
+            var user = await _authService.GetMeAsync(userId, ct);
+            return Success(user, "User information retrieved successfully");
+        }
+    }
+}
