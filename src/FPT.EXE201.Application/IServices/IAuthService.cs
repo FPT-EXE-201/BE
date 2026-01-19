@@ -15,12 +15,37 @@ namespace FPT.EXE201.Application.IServices
         /// <summary>
         /// Register new user account
         /// </summary>
-        Task<AuthResponseDto> RegisterAsync(RegisterRequestDto request, CancellationToken ct = default);
+        Task<AuthResponseDto> RegisterAsync(
+            RegisterRequestDto request, 
+            string? ipAddress = null, 
+            string? userAgent = null, 
+            CancellationToken ct = default);
 
         /// <summary>
         /// Login with email/phone and password
         /// </summary>
-        Task<AuthResponseDto> LoginAsync(LoginRequestDto request, CancellationToken ct = default);
+        Task<AuthResponseDto> LoginAsync(
+            LoginRequestDto request, 
+            string? ipAddress = null, 
+            string? userAgent = null, 
+            CancellationToken ct = default);
+
+        /// <summary>
+        /// Refresh access token using refresh token
+        /// </summary>
+        Task<RefreshTokenResponseDto> RefreshTokenAsync(
+            RefreshTokenRequestDto request, 
+            string? ipAddress = null, 
+            string? userAgent = null, 
+            CancellationToken ct = default);
+
+        /// <summary>
+        /// Logout and revoke refresh token for current device
+        /// </summary>
+        /// <param name="userId">User ID from access token claims</param>
+        /// <param name="refreshTokenId">Refresh token ID from access token claims</param>
+        /// <param name="ct">Cancellation token</param>
+        Task LogoutAsync(Guid userId, Guid refreshTokenId, CancellationToken ct = default);
 
         /// <summary>
         /// Get current user info by userId

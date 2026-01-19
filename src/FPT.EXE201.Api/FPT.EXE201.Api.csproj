@@ -4,8 +4,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <GenerateDocumentationFile>True</GenerateDocumentationFile>
-    <DocumentationFile>D:\Source Code\Source C#\FPT-EXE-201\src\FPT.EXE201.Api\bin\Debug\net8.0\FPT.EXE201.Api.xml</DocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

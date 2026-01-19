@@ -16,6 +16,10 @@ namespace FPT.EXE201.Application
         IUserRepository Users { get; }
         IUserProfileRepository UserProfiles { get; }
         ILanguageRepository Languages { get; }
+        IRefreshTokenRepository RefreshTokens { get; }
+        IRoleRepository Roles { get; }
+        IPermissionRepository Permissions { get; }
+        IUserRoleRepository UserRoles { get; }
 
         // Transaction methods
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

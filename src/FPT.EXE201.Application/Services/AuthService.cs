@@ -21,21 +21,28 @@ namespace FPT.EXE201.Application.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly IPasswordHasher _passwordHasher;
         private readonly IJwtTokenService _jwtTokenService;
+        private readonly IUserRoleService _userRoleService;
         private readonly IMapper _mapper;
 
         public AuthService(
             IUnitOfWork unitOfWork,
             IPasswordHasher passwordHasher,
             IJwtTokenService jwtTokenService,
+            IUserRoleService userRoleService,
             IMapper mapper)
         {
             _unitOfWork = unitOfWork;
             _passwordHasher = passwordHasher;
             _jwtTokenService = jwtTokenService;
+            _userRoleService = userRoleService;
             _mapper = mapper;
         }
 
-        public async Task<AuthResponseDto> RegisterAsync(RegisterRequestDto request, CancellationToken ct = default)
+        public async Task<AuthResponseDto> RegisterAsync(
+            RegisterRequestDto request, 
+            string? ipAddress = null, 
+            string? userAgent = null, 
+            CancellationToken ct = default)
         {
             // 1. Normalize email for storage
             var emailNormalized = NormalizeEmail(request.Email);
@@ -76,19 +83,36 @@ namespace FPT.EXE201.Application.Services
             // 8. Attach profile to user for response mapping
             user.Profile = profile;
 
-            // 9. Generate token and return response using AutoMapper
-            var token = _jwtTokenService.GenerateAccessToken(user);
+            // 9. Query user permissions and roles (newly registered user may have no roles yet)
+            var permissions = await _userRoleService.GetUserPermissionCodesAsync(user.Id, ct);
+            var roles = await _userRoleService.GetUserRoleCodesAsync(user.Id, ct);
+
+            // 10. Issue refresh token first (need tokenId for access token claims)
+            var (refreshToken, tokenId, _) = await _jwtTokenService.IssueRefreshTokenAsync(
+                user.Id, 
+                ipAddress, 
+                userAgent, 
+                ct: ct);
+            await _unitOfWork.SaveChangesAsync(ct);
+
+            // 11. Generate access token WITH permissions and roles
+            var accessToken = _jwtTokenService.GenerateAccessTokenWithPermissions(user, permissions, roles, tokenId);
 
             return new AuthResponseDto
             {
-                AccessToken = token,
+                AccessToken = accessToken,
+                RefreshToken = refreshToken,
                 TokenType = "Bearer",
                 ExpiresIn = _jwtTokenService.GetTokenExpirationSeconds(),
                 User = _mapper.Map<UserResponseDto>(user)
             };
         }
 
-        public async Task<AuthResponseDto> LoginAsync(LoginRequestDto request, CancellationToken ct = default)
+        public async Task<AuthResponseDto> LoginAsync(
+            LoginRequestDto request, 
+            string? ipAddress = null, 
+            string? userAgent = null, 
+            CancellationToken ct = default)
         {
             // 1. Determine if input is email or phone
             User? user = null;
@@ -134,14 +158,26 @@ namespace FPT.EXE201.Application.Services
             // 5. Update last login time
             user.LastLoginAt = DateTime.UtcNow;
             _unitOfWork.Users.Update(user);
+
+            // 6. Query user permissions and roles (Approach 2 - 1 time only at login)
+            var permissions = await _userRoleService.GetUserPermissionCodesAsync(user.Id, ct);
+            var roles = await _userRoleService.GetUserRoleCodesAsync(user.Id, ct);
+
+            // 7. Issue refresh token first (need tokenId for access token claims)
+            var (refreshToken, tokenId, _) = await _jwtTokenService.IssueRefreshTokenAsync(
+                user.Id, 
+                ipAddress, 
+                userAgent, 
+                ct: ct);
             await _unitOfWork.SaveChangesAsync(ct);
 
-            // 6. Generate token and return response using AutoMapper
-            var token = _jwtTokenService.GenerateAccessToken(user);
+            // 8. Generate access token WITH permissions and roles
+            var accessToken = _jwtTokenService.GenerateAccessTokenWithPermissions(user, permissions, roles, tokenId);
 
             return new AuthResponseDto
             {
-                AccessToken = token,
+                AccessToken = accessToken,
+                RefreshToken = refreshToken,
                 TokenType = "Bearer",
                 ExpiresIn = _jwtTokenService.GetTokenExpirationSeconds(),
                 User = _mapper.Map<UserResponseDto>(user)
@@ -160,6 +196,41 @@ namespace FPT.EXE201.Application.Services
 
             // Map to UserResponseDto using AutoMapper
             return _mapper.Map<UserResponseDto>(user);
+        }
+
+        public async Task<RefreshTokenResponseDto> RefreshTokenAsync(
+            RefreshTokenRequestDto request, 
+            string? ipAddress = null, 
+            string? userAgent = null, 
+            CancellationToken ct = default)
+        {
+            // Rotate the refresh token (validates and issues new one)
+            var (newRefreshToken, newTokenId, user) = await _jwtTokenService.RotateRefreshTokenAsync(
+                request.RefreshToken,
+                ipAddress,
+                userAgent,
+                ct);
+
+            // Query latest permissions and roles (in case admin assigned new roles)
+            var permissions = await _userRoleService.GetUserPermissionCodesAsync(user.Id, ct);
+            var roles = await _userRoleService.GetUserRoleCodesAsync(user.Id, ct);
+
+            // Generate new access token WITH latest permissions and roles
+            var newAccessToken = _jwtTokenService.GenerateAccessTokenWithPermissions(user, permissions, roles, newTokenId);
+
+            return new RefreshTokenResponseDto
+            {
+                AccessToken = newAccessToken,
+                RefreshToken = newRefreshToken,
+                TokenType = "Bearer",
+                ExpiresIn = _jwtTokenService.GetTokenExpirationSeconds()
+            };
+        }
+
+        public async Task LogoutAsync(Guid userId, Guid refreshTokenId, CancellationToken ct = default)
+        {
+            // Revoke the refresh token by ID (from access token claims)
+            await _jwtTokenService.RevokeByIdAsync(refreshTokenId, ct);
         }
 
         #region Helper Methods

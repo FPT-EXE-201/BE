@@ -1,6 +1,7 @@
 ﻿using FPT.EXE201.Infrastructure;
 using FPT.EXE201.Application;
 using FPT.EXE201.Api.Filters;
+using FPT.EXE201.Infrastructure.Persistence;
 using FluentValidation.AspNetCore;
 using Serilog;
 using Serilog.Formatting.Compact;
@@ -44,8 +45,53 @@ try
 
     builder.Services.AddApplication();
 
-    // Add Authorization policies
+    // Add Authorization
     builder.Services.AddAuthorization();
+
+    // ========================
+    // CORS Configuration
+    // ========================
+    builder.Services.AddCors(options =>
+    {
+        // Development Mode - Allow All Origins (for testing)
+        options.AddPolicy("AllowAll", policy =>
+        {
+            policy.AllowAnyOrigin()
+                  .AllowAnyMethod()
+                  .AllowAnyHeader();
+        });
+
+        // Production Mode - Specific Domains (Commented - uncomment when you have domain)
+        /*
+        options.AddPolicy("Production", policy =>
+        {
+            policy.WithOrigins(
+                    "https://yourdomain.com",           // Your production frontend
+                    "https://www.yourdomain.com",       // WWW version
+                    "https://admin.yourdomain.com",     // Admin panel
+                    "https://api.yourdomain.com"        // API domain
+                )
+                .AllowAnyMethod()
+                .AllowAnyHeader()
+                .AllowCredentials();  // Enable if using cookies/authentication
+        });
+        */
+
+        // Mobile App - If you have mobile app
+        /*
+        options.AddPolicy("MobileApp", policy =>
+        {
+            policy.WithOrigins(
+                    "capacitor://localhost",     // Capacitor iOS/Android
+                    "ionic://localhost",         // Ionic
+                    "http://localhost"           // React Native
+                )
+                .AllowAnyMethod()
+                .AllowAnyHeader()
+                .AllowCredentials();
+        });
+        */
+    });
 
     // Add services to the container with Global Exception Filter
     builder.Services.AddControllers(options =>
@@ -169,10 +215,30 @@ app.UseSerilogRequestLogging(options =>
 
 app.UseHttpsRedirection();
 
+// Enable CORS (must be before Authentication/Authorization)
+app.UseCors("AllowAll");  // Development mode - allow all origins
+// app.UseCors("Production");  // Uncomment for production with specific domains
+
 app.UseAuthentication(); // Must come before UseAuthorization
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Seed database
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<AppDbContext>();
+        await DatabaseSeeder.SeedAsync(context);
+        Log.Information("Database seeding completed successfully");
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "An error occurred while seeding the database");
+    }
+}
 
 Log.Information("FPT.EXE201 API started successfully");
 app.Run();

@@ -17,6 +17,11 @@ public static class DependencyInjection
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<ILanguageService, LanguageService>();
         services.AddScoped<IUserProfileService, UserProfileService>();
+        
+        // RBAC Services
+        services.AddScoped<IRoleService, RoleService>();
+        services.AddScoped<IPermissionService, PermissionService>();
+        services.AddScoped<IUserRoleService, UserRoleService>();
         #endregion
 
         return services;

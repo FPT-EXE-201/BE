@@ -14,6 +14,12 @@ namespace FPT.EXE201.Infrastructure.Persistence
         public DbSet<User> Users { get; set; }
         public DbSet<UserProfile> UserProfiles { get; set; }
         public DbSet<Language> Languages { get; set; }
+        public DbSet<Role> Roles { get; set; }
+        public DbSet<Permission> Permissions { get; set; }
+        public DbSet<RolePermission> RolePermissions { get; set; }
+        public DbSet<UserRole> UserRoles { get; set; }
+        public DbSet<AuthRefreshToken> AuthRefreshTokens { get; set; }
+        public DbSet<AuditEvent> AuditEvents { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -58,13 +64,38 @@ namespace FPT.EXE201.Infrastructure.Persistence
 
             foreach (var entry in entries)
             {
-                if (entry.Entity is Domain.Common.BaseEntity entity)
+                // Handle BaseEntity
+                if (entry.Entity is BaseEntity baseEntity)
                 {
                     if (entry.State == EntityState.Added)
                     {
-                        entity.CreatedAt = DateTime.UtcNow;
+                        baseEntity.CreatedAt = DateTime.UtcNow;
                     }
-                    entity.UpdatedAt = DateTime.UtcNow;
+                    baseEntity.UpdatedAt = DateTime.UtcNow;
+                }
+                // Handle AuthRefreshToken
+                else if (entry.Entity is AuthRefreshToken refreshToken)
+                {
+                    if (entry.State == EntityState.Added)
+                    {
+                        refreshToken.CreatedAt = DateTime.UtcNow;
+                    }
+                    refreshToken.UpdatedAt = DateTime.UtcNow;
+                }
+                // Handle AuditEvent (only CreatedAt)
+                else if (entry.Entity is AuditEvent auditEvent && entry.State == EntityState.Added)
+                {
+                    auditEvent.CreatedAt = DateTime.UtcNow;
+                }
+                // Handle RolePermission (only CreatedAt)
+                else if (entry.Entity is RolePermission rolePermission && entry.State == EntityState.Added)
+                {
+                    rolePermission.CreatedAt = DateTime.UtcNow;
+                }
+                // Handle UserRole (only CreatedAt)
+                else if (entry.Entity is UserRole userRole && entry.State == EntityState.Added)
+                {
+                    userRole.CreatedAt = DateTime.UtcNow;
                 }
             }
         }

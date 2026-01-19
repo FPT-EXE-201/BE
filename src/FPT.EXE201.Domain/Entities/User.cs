@@ -22,7 +22,8 @@ namespace FPT.EXE201.Domain.Entities
         public bool IsPhoneVerified { get; set; }
         public DateTime? LastLoginAt { get; set; }
 
-        // Navigation property
+        // Navigation properties
         public UserProfile? Profile { get; set; }
+        public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
     }
 }

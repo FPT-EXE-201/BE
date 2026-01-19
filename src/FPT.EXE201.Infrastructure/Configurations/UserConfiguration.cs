@@ -80,6 +80,12 @@ namespace FPT.EXE201.Infrastructure.Configurations
                 .WithOne(p => p.User)
                 .HasForeignKey<UserProfile>(p => p.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // User -> UserRoles (One-to-Many)
+            builder.HasMany(e => e.UserRoles)
+                .WithOne(ur => ur.User)
+                .HasForeignKey(ur => ur.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

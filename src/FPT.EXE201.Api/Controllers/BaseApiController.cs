@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using FPT.EXE201.Application.DTOs.Common;
 using Microsoft.AspNetCore.Mvc;
 
@@ -41,6 +42,21 @@ public abstract class BaseApiController : ControllerBase
     protected IActionResult NoContentResponse()
     {
         return NoContent();
+    }
+
+    /// <summary>
+    /// Get current authenticated user's ID from JWT claims
+    /// </summary>
+    /// <returns>Current user's Guid ID</returns>
+    /// <exception cref="UnauthorizedAccessException">Thrown when user is not authenticated or claim is invalid</exception>
+    protected Guid GetCurrentUserId()
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+        {
+            throw new UnauthorizedAccessException("User not authenticated");
+        }
+        return userId;
     }
 
     // ============================================================================

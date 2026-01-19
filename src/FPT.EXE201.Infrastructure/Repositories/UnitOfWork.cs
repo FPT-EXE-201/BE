@@ -22,6 +22,10 @@ namespace FPT.EXE201.Infrastructure.Repositories
         private IUserRepository? _users;
         private IUserProfileRepository? _userProfiles;
         private ILanguageRepository? _languages;
+        private IRefreshTokenRepository? _refreshTokens;
+        private IRoleRepository? _roles;
+        private IPermissionRepository? _permissions;
+        private IUserRoleRepository? _userRoles;
 
         public UnitOfWork(AppDbContext context)
         {
@@ -31,6 +35,10 @@ namespace FPT.EXE201.Infrastructure.Repositories
         public IUserRepository Users => _users ??= new UserRepository(_context);
         public IUserProfileRepository UserProfiles => _userProfiles ??= new UserProfileRepository(_context);
         public ILanguageRepository Languages => _languages ??= new LanguageRepository(_context);
+        public IRefreshTokenRepository RefreshTokens => _refreshTokens ??= new RefreshTokenRepository(_context);
+        public IRoleRepository Roles => _roles ??= new RoleRepository(_context);
+        public IPermissionRepository Permissions => _permissions ??= new PermissionRepository(_context);
+        public IUserRoleRepository UserRoles => _userRoles ??= new UserRoleRepository(_context);
 
         public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {

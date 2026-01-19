@@ -1,9 +1,11 @@
 ﻿using FPT.EXE201.Application;
+using FPT.EXE201.Application.Authorization;
 using FPT.EXE201.Application.IRepositories;
 using FPT.EXE201.Infrastructure.Persistence;
 using FPT.EXE201.Infrastructure.Repositories;
 using FPT.EXE201.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -41,6 +43,9 @@ namespace FPT.EXE201.Infrastructure
             services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<ILanguageRepository, LanguageRepository>();
             services.AddScoped<IUserProfileRepository, UserProfileRepository>();
+            services.AddScoped<IRoleRepository, RoleRepository>();
+            services.AddScoped<IPermissionRepository, PermissionRepository>();
+            services.AddScoped<IUserRoleRepository, UserRoleRepository>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IJwtTokenService, JwtTokenService>();
             services.AddScoped<IPasswordHasher, PasswordHasher>();
@@ -70,6 +75,10 @@ namespace FPT.EXE201.Infrastructure
                     ClockSkew = TimeSpan.Zero
                 };
             });
+
+            // Add Authorization with Permission-based Policies
+            services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
+            services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
 
             return services;
         }
