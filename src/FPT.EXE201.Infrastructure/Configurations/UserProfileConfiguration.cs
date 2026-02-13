@@ -23,7 +23,8 @@ namespace FPT.EXE201.Infrastructure.Configurations
 
             builder.Property(e => e.FullName)
                 .HasColumnName("full_name")
-                .HasMaxLength(200);
+                .HasMaxLength(200)
+                .UseCollation("utf8mb4_unicode_ci");
 
             builder.Property(e => e.DateOfBirth)
                 .HasColumnName("date_of_birth")
@@ -31,13 +32,15 @@ namespace FPT.EXE201.Infrastructure.Configurations
 
             builder.Property(e => e.AvatarUrl)
                 .HasColumnName("avatar_url")
-                .HasMaxLength(500);
+                .HasMaxLength(500)
+                .UseCollation("utf8mb4_unicode_ci");
 
             builder.Property(e => e.PreferredLang)
                 .HasColumnName("preferred_lang")
                 .IsRequired()
                 .HasMaxLength(10)
-                .HasDefaultValue("vi");
+                .HasDefaultValue("vi")
+                .UseCollation("utf8mb4_unicode_ci");
 
             builder.Property(e => e.CreatedAt)
                 .HasColumnName("created_at")

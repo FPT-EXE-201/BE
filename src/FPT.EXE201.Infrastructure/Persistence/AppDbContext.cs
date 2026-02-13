@@ -1,5 +1,6 @@
 using FPT.EXE201.Domain.Common;
 using FPT.EXE201.Domain.Entities;
+using FPT.EXE201.Infrastructure.Persistence.Seeders;
 using Microsoft.EntityFrameworkCore;
 
 namespace FPT.EXE201.Infrastructure.Persistence
@@ -21,12 +22,29 @@ namespace FPT.EXE201.Infrastructure.Persistence
         public DbSet<AuthRefreshToken> AuthRefreshTokens { get; set; }
         public DbSet<AuditEvent> AuditEvents { get; set; }
 
+        // Week 3 — Pregnancy Core
+        public DbSet<Pregnancy> Pregnancies { get; set; }
+        public DbSet<RefPregnancyCondition> RefPregnancyConditions { get; set; }
+        public DbSet<RefPregnancyConditionTranslation> RefPregnancyConditionTranslations { get; set; }
+        public DbSet<PregnancyCondition> PregnancyConditions { get; set; }
+        public DbSet<PrenatalVisit> PrenatalVisits { get; set; }
+        public DbSet<RefTestType> RefTestTypes { get; set; }
+        public DbSet<RefTestTypeTranslation> RefTestTypeTranslations { get; set; }
+        public DbSet<PrenatalTest> PrenatalTests { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
+            // Configure charset for Vietnamese support (utf8mb4 for full Unicode support)
+            modelBuilder.HasCharSet("utf8mb4");
+
             // Apply all entity configurations from current assembly
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+
+            // Week 3 Seeders
+            PregnancyConditionSeeder.Seed(modelBuilder);
+            TestTypeSeeder.Seed(modelBuilder);
 
             // Apply soft delete query filter for all entities inheriting from BaseEntity
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())

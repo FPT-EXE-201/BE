@@ -19,11 +19,13 @@ namespace FPT.EXE201.Infrastructure.Configurations
             // Properties - snake_case columns
             builder.Property(e => e.Email)
                 .HasColumnName("email")
-                .HasMaxLength(255);
+                .HasMaxLength(255)
+                .UseCollation("utf8mb4_unicode_ci");
 
             builder.Property(e => e.Phone)
                 .HasColumnName("phone")
-                .HasMaxLength(20);
+                .HasMaxLength(20)
+                .UseCollation("utf8mb4_unicode_ci");
 
             builder.Property(e => e.PasswordHash)
                 .HasColumnName("password_hash")
@@ -34,7 +36,8 @@ namespace FPT.EXE201.Infrastructure.Configurations
                 .HasColumnName("status")
                 .IsRequired()
                 .HasMaxLength(50)
-                .HasConversion<string>(); // Store enum as string
+                .HasConversion<string>() // Store enum as string
+                .UseCollation("utf8mb4_unicode_ci");
 
             builder.Property(e => e.IsEmailVerified)
                 .HasColumnName("is_email_verified")

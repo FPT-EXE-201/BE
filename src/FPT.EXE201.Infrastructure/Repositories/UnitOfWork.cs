@@ -27,6 +27,14 @@ namespace FPT.EXE201.Infrastructure.Repositories
         private IPermissionRepository? _permissions;
         private IUserRoleRepository? _userRoles;
 
+        // Week 3 — Pregnancy Core
+        private IPregnancyRepository? _pregnancies;
+        private IPregnancyConditionRepository? _pregnancyConditions;
+        private IPrenatalVisitRepository? _prenatalVisits;
+        private IPrenatalTestRepository? _prenatalTests;
+        private IRefPregnancyConditionRepository? _refPregnancyConditions;
+        private IRefTestTypeRepository? _refTestTypes;
+
         public UnitOfWork(AppDbContext context)
         {
             _context = context;
@@ -39,6 +47,14 @@ namespace FPT.EXE201.Infrastructure.Repositories
         public IRoleRepository Roles => _roles ??= new RoleRepository(_context);
         public IPermissionRepository Permissions => _permissions ??= new PermissionRepository(_context);
         public IUserRoleRepository UserRoles => _userRoles ??= new UserRoleRepository(_context);
+
+        // Week 3 — Pregnancy Core
+        public IPregnancyRepository Pregnancies => _pregnancies ??= new PregnancyRepository(_context);
+        public IPregnancyConditionRepository PregnancyConditions => _pregnancyConditions ??= new PregnancyConditionRepository(_context);
+        public IPrenatalVisitRepository PrenatalVisits => _prenatalVisits ??= new PrenatalVisitRepository(_context);
+        public IPrenatalTestRepository PrenatalTests => _prenatalTests ??= new PrenatalTestRepository(_context);
+        public IRefPregnancyConditionRepository RefPregnancyConditions => _refPregnancyConditions ??= new RefPregnancyConditionRepository(_context);
+        public IRefTestTypeRepository RefTestTypes => _refTestTypes ??= new RefTestTypeRepository(_context);
 
         public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {

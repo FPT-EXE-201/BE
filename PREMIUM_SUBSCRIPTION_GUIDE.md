@@ -1,6 +1,9 @@
 # Premium Subscription Implementation Guide
 
-## 📋 Chiến lược Premium
+> **Status**: FUTURE FEATURE — chưa implement, chỉ có Role PREMIUM đã seed.  
+> **Xem thêm**: `RBAC_IMPLEMENTATION_GUIDE.md`, `AUTH_FLOW_GUIDE.md`
+
+## Chiến lược Premium
 
 ### **Đã implement:**
 ✅ Role `PREMIUM` với 5 permissions:
@@ -118,8 +121,9 @@ public class SubscriptionService : ISubscriptionService
 
     public async Task<bool> IsPremiumActiveAsync(Guid userId, CancellationToken ct = default)
     {
-        // Check nếu user có role PREMIUM
-        return await _userRoleService.HasPermissionAsync(userId, "premium.access", ct);
+        // Check nếu user có active subscription
+        var subscription = await _unitOfWork.Subscriptions.GetActiveByUserIdAsync(userId, ct);
+        return subscription != null;
     }
 
     // Background job - chạy mỗi ngày để check expired subscriptions
@@ -198,25 +202,14 @@ if (isPremium) {
 ### **Backend check trong controller:**
 ```csharp
 [HttpPost("generate-ai-meal-plan")]
-[RequirePermission("ai_features.access")] // ← Chỉ premium users
+[RequirePermission("ai_features.access")] // ← Chỉ premium users (check từ JWT claims)
 public async Task<IActionResult> GenerateAIMealPlan()
 {
     // AI logic here
 }
 ```
 
-### **Backend check trong service:**
-```csharp
-public async Task<MealPlanDto> GenerateMealPlanAsync(Guid userId)
-{
-    var isPremium = await _userRoleService.HasPermissionAsync(userId, "ai_features.access");
-    
-    if (!isPremium)
-        throw new ForbiddenException("AI features require premium subscription");
-    
-    // Generate meal plan with AI...
-}
-```
+> **Lưu ý**: Với Approach 2 (permissions in JWT), premium check xảy ra tại Controller qua `[RequirePermission]`. Service KHÔNG cần gọi `HasPermissionAsync()` — nếu request đã vào được Controller action nghĩa là có permission.
 
 ---
 
@@ -258,13 +251,14 @@ CREATE TABLE subscriptions (
   user_id CHAR(36) NOT NULL,
   plan VARCHAR(20) NOT NULL,
   price DECIMAL(10,2) NOT NULL,
-  start_date DATETIME(3) NOT NULL,
-  end_date DATETIME(3) NOT NULL,
+  start_date DATETIME(6) NOT NULL,
+  end_date DATETIME(6) NOT NULL,
   status VARCHAR(20) NOT NULL,
   payment_provider VARCHAR(50),
   payment_transaction_id VARCHAR(255),
-  created_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
-  updated_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
+  created_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),
+  updated_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),
+  deleted_at DATETIME(6) NULL,
   FOREIGN KEY (user_id) REFERENCES users(id)
 );
 ```
@@ -281,9 +275,11 @@ CREATE TABLE subscriptions (
 
 ---
 
-**Next Steps:**
+**Remaining Steps:**
 1. ✅ Role PREMIUM đã được seed
-2. ⏳ Tạo Subscription entity & migration
-3. ⏳ Implement SubscriptionService
-4. ⏳ Integrate payment gateway (Stripe/VNPay)
-5. ⏳ Setup background job check expiry
+2. ⬜ Tạo Subscription entity & migration
+3. ⬜ Implement SubscriptionService
+4. ⬜ Integrate payment gateway (Stripe/VNPay)
+5. ⬜ Setup background job check expiry
+
+> **Ghi chú timeline**: Feature này nằm sau Week 8+. Xem `DEVELOPMENT_WORKFLOW_GUIDE.md` §6 (Roadmap).

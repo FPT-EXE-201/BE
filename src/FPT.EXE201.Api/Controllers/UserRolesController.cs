@@ -69,6 +69,7 @@ namespace FPT.EXE201.Api.Controllers
         /// </summary>
         [HttpPost("users/{userId}/assign")]
         // [RequirePermission("rbac.user_roles.assign")] // TEMP: Commented for initial admin setup
+        [AllowAnonymous]
         public async Task<IActionResult> AssignRoles(Guid userId, [FromBody] List<Guid> roleIds)
         {
             await _userRoleService.AssignRolesToUserAsync(userId, roleIds);

@@ -1,12 +1,14 @@
 # RBAC Implementation Guide
 
-## 📋 Overview
+> **Xem thêm**: `AUTH_FLOW_GUIDE.md` (JWT claims + auth pipeline), `DEVELOPMENT_WORKFLOW_GUIDE.md` §5 (authorization patterns)
+
+## Overview
 Hệ thống RBAC (Role-Based Access Control) đã được implement đầy đủ với:
-- ✅ 3 Roles: ADMIN, USER, DOCTOR
-- ✅ 60+ Permissions (theo module)
-- ✅ Authorization Policies
-- ✅ Seed Data
-- ✅ Controllers & Services
+- 3 Roles: ADMIN, USER, DOCTOR
+- 60+ Permissions (theo module)
+- Permission-based authorization via JWT claims (Approach 2 — KHÔNG query DB mỗi request)
+- Seed Data
+- Controllers & Services
 
 ---
 
@@ -58,40 +60,28 @@ ai_features.access
 
 ---
 
-## 🚀 Cách sử dụng
+## Cách sử dụng
 
-### **1. Run Migration**
-```bash
-cd src/FPT.EXE201.Api
-dotnet ef migrations add Init-RBAC-Seed --project ../FPT.EXE201.Infrastructure
-dotnet ef database update
-```
+### **1. Permission Check tại Controller (✅ CÁCH CHÍNH)**
 
-### **2. Seed Data tự động**
-Khi app chạy lần đầu, seed data sẽ tự động được thêm vào database.
+Permissions được đọc từ JWT claims — KHÔNG query DB:
 
-### **3. Sử dụng Permission Authorization**
-
-#### **Controller level:**
 ```csharp
 [RequirePermission("users.read.any")]
 public async Task<IActionResult> GetAllUsers() { }
 ```
 
-#### **Check trong Service:**
+### **2. Ownership Check tại Service**
+
 ```csharp
-public async Task<bool> CanEdit(Guid userId, Guid resourceId)
-{
-    return await _userRoleService.HasPermissionAsync(userId, "pregnancies.update.any");
-}
+var pregnancy = await _unitOfWork.Pregnancies.GetByIdAsync(id, ct);
+if (pregnancy == null)
+    throw new NotFoundException("Pregnancy not found");
+if (pregnancy.UserId != currentUserId)
+    throw new ForbiddenException("Access denied");
 ```
 
-#### **Ownership pattern:**
-```csharp
-var pregnancy = await _repo.GetByIdAsync(id);
-if (pregnancy.UserId != currentUserId && !HasPermission("pregnancies.read.any"))
-    throw new ForbiddenException();
-```
+> **Lưu ý**: Service KHÔNG gọi `HasPermissionAsync()` để check permission. Permission check xảy ra ở Controller via `[RequirePermission]`. Service chỉ check ownership (UserId).
 
 ---
 
@@ -151,103 +141,67 @@ Click **Authorize** button → Nhập: `Bearer {your_token}`
 
 ---
 
-## 🔧 Cấu hình thêm Permission
+## Thêm permission mới vào seed
 
-### **Thêm permission mới vào seed:**
 ```csharp
-// Trong DatabaseSeeder.cs
-new Permission
+// Trong DatabaseSeeder.cs — dùng anonymous type + fixed DateTime
+private static readonly DateTime SeedDate = new(2026, 2, 11, 0, 0, 0, DateTimeKind.Utc);
+
+builder.Entity<Permission>().HasData(new
 {
-    Id = Guid.NewGuid(),
+    Id = new Guid("..."),
     Code = "your_module.action",
     Name = "Your Action Name",
-    Description = "Description here"
-}
-```
-
-### **Gán permission cho role:**
-```csharp
-// Trong section assign permissions
-var doctorPermissionCodes = new[]
-{
-    // ... existing permissions
-    "your_module.action"
-};
+    Description = "Description here",
+    CreatedAt = SeedDate,
+    UpdatedAt = SeedDate
+});
 ```
 
 ---
 
-## ⚠️ Lưu ý quan trọng
+## Lưu ý quan trọng
 
 1. **System Roles không thể xóa/sửa code:**
-   - ADMIN, USER, DOCTOR được protect
+   ADMIN, USER, DOCTOR được protect
 
 2. **Permission naming convention:**
-   - Pattern: `{module}.{action}.{scope}`
-   - Example: `pregnancies.read.any`, `user_profiles.write.own`
+   Pattern: `{module}.{action}` hoặc `{module}.{action}.{scope}`
+   Example: `pregnancy.read`, `pregnancy.write`, `users.read.any`, `user_profiles.write.own`
 
 3. **Ownership vs Permission:**
-   - USER: chỉ own data (enforce bằng UserId check)
-   - DOCTOR: có `.any` permissions để cross-user
+   - USER: chỉ own data (enforce bằng `UserId` check trong Service)
+   - DOCTOR: có `.any` permissions để cross-user access
    - ADMIN: toàn quyền
 
-4. **Premium features:**
-   - Check `premium.access` permission
-   - Gán khi user subscribe
+4. **Permission update:** Khi admin assign/remove role, user phải re-login hoặc refresh token để JWT claims cập nhật permissions mới (xem `AUTH_FLOW_GUIDE.md` §2.3)
+
+5. **Premium features:** Check `premium.access` permission — gán khi user subscribe
 
 ---
 
-## 📚 Files đã tạo
+## Files đã implement (✅ = có trong codebase)
 
 ### **Domain**
-- ✅ `Role.cs`, `Permission.cs`, `RolePermission.cs`, `UserRole.cs` (đã có sẵn)
+- `Role.cs`, `Permission.cs`, `RolePermission.cs`, `UserRole.cs`
 
 ### **Application Layer**
-- ✅ `IRepositories/IRoleRepository.cs`
-- ✅ `IRepositories/IPermissionRepository.cs`
-- ✅ `IRepositories/IUserRoleRepository.cs`
-- ✅ `IServices/IRoleService.cs`
-- ✅ `IServices/IPermissionService.cs`
-- ✅ `IServices/IUserRoleService.cs`
-- ✅ `Services/RoleService.cs`
-- ✅ `Services/PermissionService.cs`
-- ✅ `Services/UserRoleService.cs`
-- ✅ `DTOs/RBAC/*Dto.cs`
-- ✅ `Validations/RBAC/*Validator.cs`
-- ✅ `Authorization/PermissionRequirement.cs`
-- ✅ `Authorization/PermissionAuthorizationHandler.cs`
-- ✅ `Authorization/RequirePermissionAttribute.cs`
-- ✅ `Authorization/PermissionPolicyProvider.cs`
+- `IRepositories/IRoleRepository.cs`, `IPermissionRepository.cs`, `IUserRoleRepository.cs`
+- `IServices/IRoleService.cs`, `IPermissionService.cs`, `IUserRoleService.cs`
+- `Services/RoleService.cs`, `PermissionService.cs`, `UserRoleService.cs`
+- `DTOs/RBAC/*Dto.cs`
+- `Validations/RBAC/*Validator.cs`
+- `Authorization/` — `PermissionRequirement.cs`, `PermissionAuthorizationHandler.cs`, `RequirePermissionAttribute.cs`, `PermissionPolicyProvider.cs`
 
 ### **Infrastructure Layer**
-- ✅ `Repositories/RoleRepository.cs`
-- ✅ `Repositories/PermissionRepository.cs`
-- ✅ `Repositories/UserRoleRepository.cs`
-- ✅ `Persistence/DatabaseSeeder.cs`
-- ✅ `MapperConfigs/RBACMapperProfile.cs`
-- ✅ `Configurations/*Configuration.cs` (đã có sẵn)
+- `Repositories/` — `RoleRepository.cs`, `PermissionRepository.cs`, `UserRoleRepository.cs`
+- `Persistence/DatabaseSeeder.cs`
+- `MapperConfigs/RBACMapperProfile.cs`
+- `Configurations/` — `RoleConfiguration.cs`, `PermissionConfiguration.cs`, `RolePermissionConfiguration.cs`, `UserRoleConfiguration.cs`
 
 ### **API Layer**
-- ✅ `Controllers/RolesController.cs`
-- ✅ `Controllers/PermissionsController.cs`
-- ✅ `Controllers/UserRolesController.cs`
+- `Controllers/` — `RolesController.cs`, `PermissionsController.cs`, `UserRolesController.cs`
 
 ---
 
-## ✅ Next Steps
-
-1. **Run migration và test API**
-2. **Tạo admin user đầu tiên:**
-   ```csharp
-   // Sau khi register user đầu tiên, gán ADMIN role manually
-   INSERT INTO user_roles (user_id, role_id, created_at)
-   SELECT '{user_id}', id, NOW() FROM roles WHERE code = 'ADMIN';
-   ```
-
-3. **Implement ownership checks trong các module khác**
-4. **Add premium subscription logic**
-5. **Week 3-12: Implement các modules theo roadmap**
-
----
-
-**Hoàn thành! 🎉**
+> Xem `AUTH_FLOW_GUIDE.md` để hiểu chi tiết JWT claims structure và authorization pipeline.

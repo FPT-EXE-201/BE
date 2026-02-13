@@ -21,6 +21,14 @@ namespace FPT.EXE201.Application
         IPermissionRepository Permissions { get; }
         IUserRoleRepository UserRoles { get; }
 
+        // Week 3 — Pregnancy Core
+        IPregnancyRepository Pregnancies { get; }
+        IPregnancyConditionRepository PregnancyConditions { get; }
+        IPrenatalVisitRepository PrenatalVisits { get; }
+        IPrenatalTestRepository PrenatalTests { get; }
+        IRefPregnancyConditionRepository RefPregnancyConditions { get; }
+        IRefTestTypeRepository RefTestTypes { get; }
+
         // Transaction methods
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
         Task BeginTransactionAsync(CancellationToken cancellationToken = default);

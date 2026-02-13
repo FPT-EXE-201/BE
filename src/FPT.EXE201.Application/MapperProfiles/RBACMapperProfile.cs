@@ -2,7 +2,7 @@ using AutoMapper;
 using FPT.EXE201.Application.DTOs.RBAC;
 using FPT.EXE201.Domain.Entities;
 
-namespace FPT.EXE201.Infrastructure.MapperConfigs
+namespace FPT.EXE201.Application.MapperProfiles
 {
     /// <summary>
     /// AutoMapper profile for RBAC entities (auto-scanned by AddAutoMapper)

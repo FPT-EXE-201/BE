@@ -97,6 +97,14 @@ try
     builder.Services.AddControllers(options =>
     {
         options.Filters.Add<GlobalExceptionFilter>();
+    })
+    .AddJsonOptions(options =>
+    {
+        // Serialize enums as strings instead of numbers (e.g., "Active" instead of 1)
+        options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+        
+        // Optional: Use camelCase for enum values (e.g., "active" instead of "Active")
+        // options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
     });
 
     // Add FluentValidation

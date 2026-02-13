@@ -18,12 +18,14 @@ namespace FPT.EXE201.Infrastructure.Configurations
             builder.Property(e => e.Code)
                 .HasColumnName("code")
                 .IsRequired()
-                .HasMaxLength(10);
+                .HasMaxLength(10)
+                .UseCollation("utf8mb4_unicode_ci");
 
             builder.Property(e => e.Name)
                 .HasColumnName("name")
                 .IsRequired()
-                .HasMaxLength(100);
+                .HasMaxLength(100)
+                .UseCollation("utf8mb4_unicode_ci");
 
             builder.Property(e => e.IsActive)
                 .HasColumnName("is_active")

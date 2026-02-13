@@ -20,6 +20,7 @@ namespace FPT.EXE201.Infrastructure.Migrations
                 .HasAnnotation("ProductVersion", "8.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
+            MySqlModelBuilderExtensions.HasCharSet(modelBuilder, "utf8mb4");
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
             modelBuilder.Entity("FPT.EXE201.Domain.Entities.AuditEvent", b =>
@@ -172,7 +173,8 @@ namespace FPT.EXE201.Infrastructure.Migrations
                     b.Property<string>("Code")
                         .HasMaxLength(10)
                         .HasColumnType("varchar(10)")
-                        .HasColumnName("code");
+                        .HasColumnName("code")
+                        .UseCollation("utf8mb4_unicode_ci");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)")
@@ -188,7 +190,8 @@ namespace FPT.EXE201.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)")
-                        .HasColumnName("name");
+                        .HasColumnName("name")
+                        .UseCollation("utf8mb4_unicode_ci");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime(6)")
@@ -230,7 +233,8 @@ namespace FPT.EXE201.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(80)
                         .HasColumnType("varchar(80)")
-                        .HasColumnName("code");
+                        .HasColumnName("code")
+                        .UseCollation("utf8mb4_unicode_ci");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -245,13 +249,15 @@ namespace FPT.EXE201.Infrastructure.Migrations
                     b.Property<string>("Description")
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)")
-                        .HasColumnName("description");
+                        .HasColumnName("description")
+                        .UseCollation("utf8mb4_unicode_ci");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(120)
                         .HasColumnType("varchar(120)")
-                        .HasColumnName("name");
+                        .HasColumnName("name")
+                        .UseCollation("utf8mb4_unicode_ci");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
@@ -271,6 +277,923 @@ namespace FPT.EXE201.Infrastructure.Migrations
                     b.ToTable("permissions", (string)null);
                 });
 
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.Pregnancy", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("id");
+
+                    b.Property<DateOnly?>("ActualDeliveryDate")
+                        .HasColumnType("DATE")
+                        .HasColumnName("actual_delivery_date");
+
+                    b.Property<string>("BabyGender")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("varchar(10)")
+                        .HasDefaultValue("Unknown")
+                        .HasColumnName("baby_gender");
+
+                    b.Property<string>("BabyNickname")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("baby_nickname");
+
+                    b.Property<string>("CoverImageUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("cover_image_url");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<int?>("CurrentGestationalWeek")
+                        .HasColumnType("int")
+                        .HasColumnName("current_week");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("DeliveryMethod")
+                        .HasMaxLength(15)
+                        .HasColumnType("varchar(15)")
+                        .HasColumnName("delivery_method");
+
+                    b.Property<string>("DueDateSource")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(15)
+                        .HasColumnType("varchar(15)")
+                        .HasDefaultValue("LMP")
+                        .HasColumnName("due_date_source");
+
+                    b.Property<DateOnly?>("EstimatedConceptionDate")
+                        .HasColumnType("DATE")
+                        .HasColumnName("conception_date");
+
+                    b.Property<DateOnly?>("ExpectedDeliveryDate")
+                        .HasColumnType("DATE")
+                        .HasColumnName("edd_date");
+
+                    b.Property<int?>("Gravida")
+                        .HasColumnType("int")
+                        .HasColumnName("gravida");
+
+                    b.Property<decimal?>("HeightCm")
+                        .HasColumnType("DECIMAL(5,2)")
+                        .HasColumnName("height_cm");
+
+                    b.Property<DateOnly?>("LastMenstrualPeriodDate")
+                        .HasColumnType("DATE")
+                        .HasColumnName("lmp_date");
+
+                    b.Property<string>("MotherBloodType")
+                        .HasMaxLength(10)
+                        .HasColumnType("varchar(10)")
+                        .HasColumnName("mother_blood_type");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("notes");
+
+                    b.Property<int?>("Para")
+                        .HasColumnType("int")
+                        .HasColumnName("para");
+
+                    b.Property<decimal?>("PrePregnancyWeightKg")
+                        .HasColumnType("DECIMAL(5,2)")
+                        .HasColumnName("pre_pregnancy_weight_kg");
+
+                    b.Property<int>("PregnancyNumber")
+                        .HasColumnType("int")
+                        .HasColumnName("pregnancy_no");
+
+                    b.Property<string>("PregnancyType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(15)
+                        .HasColumnType("varchar(15)")
+                        .HasDefaultValue("Singleton")
+                        .HasColumnName("pregnancy_type");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("idx_pregnancies_status");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("idx_pregnancies_user");
+
+                    b.HasIndex("UserId", "PregnancyNumber")
+                        .IsUnique()
+                        .HasDatabaseName("uk_pregnancies_user_no");
+
+                    b.ToTable("pregnancies", (string)null);
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.PregnancyCondition", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ConditionId")
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("condition_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<DateOnly?>("DiagnosedDate")
+                        .HasColumnType("DATE")
+                        .HasColumnName("diagnosed_at");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("notes");
+
+                    b.Property<Guid>("PregnancyId")
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("pregnancy_id");
+
+                    b.Property<string>("Severity")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("severity");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConditionId")
+                        .HasDatabaseName("idx_pregnancy_conditions_condition");
+
+                    b.HasIndex("PregnancyId")
+                        .HasDatabaseName("idx_pregnancy_conditions_pregnancy");
+
+                    b.HasIndex("PregnancyId", "ConditionId")
+                        .IsUnique()
+                        .HasDatabaseName("uk_pregnancy_condition");
+
+                    b.ToTable("pregnancy_conditions", (string)null);
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.PrenatalTest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("ImageUrlsJson")
+                        .HasColumnType("JSON")
+                        .HasColumnName("image_urls");
+
+                    b.Property<bool>("IsAbnormalResult")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TINYINT(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("abnormal_flag");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("notes");
+
+                    b.Property<Guid>("PregnancyId")
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("pregnancy_id");
+
+                    b.Property<DateOnly>("TestDate")
+                        .HasColumnType("DATE")
+                        .HasColumnName("test_date");
+
+                    b.Property<Guid>("TestTypeId")
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("test_type_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("VisitId")
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("visit_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PregnancyId")
+                        .HasDatabaseName("idx_prenatal_tests_pregnancy");
+
+                    b.HasIndex("TestDate")
+                        .HasDatabaseName("idx_prenatal_tests_date");
+
+                    b.HasIndex("TestTypeId");
+
+                    b.HasIndex("VisitId")
+                        .HasDatabaseName("idx_prenatal_tests_visit");
+
+                    b.ToTable("prenatal_tests", (string)null);
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.PrenatalVisit", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid?>("DoctorId")
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("doctor_id");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasColumnName("location");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("notes");
+
+                    b.Property<Guid>("PregnancyId")
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("pregnancy_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("updated_at");
+
+                    b.Property<DateTime>("VisitDateTime")
+                        .HasColumnType("DATETIME")
+                        .HasColumnName("visit_at");
+
+                    b.Property<string>("VisitType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("visit_type");
+
+                    b.Property<string>("VitalsJson")
+                        .HasColumnType("JSON")
+                        .HasColumnName("vitals_json");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PregnancyId")
+                        .HasDatabaseName("idx_prenatal_visits_pregnancy");
+
+                    b.HasIndex("VisitDateTime")
+                        .HasDatabaseName("idx_prenatal_visits_date");
+
+                    b.ToTable("prenatal_visits", (string)null);
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.RefPregnancyCondition", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TINYINT(1)")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("uk_ref_conditions_code");
+
+                    b.ToTable("ref_pregnancy_conditions", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("a0000001-0000-0000-0000-000000000001"),
+                            Code = "GESTATIONAL_DIABETES",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("a0000001-0000-0000-0000-000000000002"),
+                            Code = "PREECLAMPSIA",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("a0000001-0000-0000-0000-000000000003"),
+                            Code = "ANEMIA",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("a0000001-0000-0000-0000-000000000004"),
+                            Code = "HYPEREMESIS_GRAVIDARUM",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("a0000001-0000-0000-0000-000000000005"),
+                            Code = "PLACENTA_PREVIA",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("a0000001-0000-0000-0000-000000000006"),
+                            Code = "HYPERTENSION",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("a0000001-0000-0000-0000-000000000007"),
+                            Code = "THYROID_DISORDER",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("a0000001-0000-0000-0000-000000000008"),
+                            Code = "GROUP_B_STREP",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("a0000001-0000-0000-0000-000000000009"),
+                            Code = "CERVICAL_INSUFFICIENCY",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("a0000001-0000-0000-0000-00000000000a"),
+                            Code = "ECTOPIC_PREGNANCY",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        });
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.RefPregnancyConditionTranslation", b =>
+                {
+                    b.Property<Guid>("ConditionId")
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("condition_id");
+
+                    b.Property<string>("LanguageCode")
+                        .HasMaxLength(5)
+                        .HasColumnType("varchar(5)")
+                        .HasColumnName("lang_code")
+                        .UseCollation("utf8mb4_unicode_ci");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("description");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasColumnName("name");
+
+                    b.HasKey("ConditionId", "LanguageCode");
+
+                    b.HasIndex("LanguageCode");
+
+                    b.ToTable("ref_pregnancy_condition_translations", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            ConditionId = new Guid("a0000001-0000-0000-0000-000000000001"),
+                            LanguageCode = "vi",
+                            Description = "Tình trạng đường huyết cao phát triển trong thai kỳ",
+                            DisplayName = "Tiểu đường thai kỳ"
+                        },
+                        new
+                        {
+                            ConditionId = new Guid("a0000001-0000-0000-0000-000000000002"),
+                            LanguageCode = "vi",
+                            Description = "Huyết áp cao và protein niệu sau tuần 20",
+                            DisplayName = "Tiền sản giật"
+                        },
+                        new
+                        {
+                            ConditionId = new Guid("a0000001-0000-0000-0000-000000000003"),
+                            LanguageCode = "vi",
+                            Description = "Lượng hồng cầu hoặc hemoglobin thấp",
+                            DisplayName = "Thiếu máu"
+                        },
+                        new
+                        {
+                            ConditionId = new Guid("a0000001-0000-0000-0000-000000000004"),
+                            LanguageCode = "vi",
+                            Description = "Buồn nôn và nôn nghiêm trọng trong thai kỳ",
+                            DisplayName = "Nghén nặng"
+                        },
+                        new
+                        {
+                            ConditionId = new Guid("a0000001-0000-0000-0000-000000000005"),
+                            LanguageCode = "vi",
+                            Description = "Nhau thai che phủ cổ tử cung",
+                            DisplayName = "Nhau tiền đạo"
+                        },
+                        new
+                        {
+                            ConditionId = new Guid("a0000001-0000-0000-0000-000000000006"),
+                            LanguageCode = "vi",
+                            Description = "Huyết áp cao phát hiện sau tuần 20",
+                            DisplayName = "Tăng huyết áp thai kỳ"
+                        },
+                        new
+                        {
+                            ConditionId = new Guid("a0000001-0000-0000-0000-000000000007"),
+                            LanguageCode = "vi",
+                            Description = "Cường giáp hoặc suy giáp trong thai kỳ",
+                            DisplayName = "Rối loạn tuyến giáp"
+                        },
+                        new
+                        {
+                            ConditionId = new Guid("a0000001-0000-0000-0000-000000000008"),
+                            LanguageCode = "vi",
+                            Description = "Vi khuẩn GBS có thể lây sang con khi sinh",
+                            DisplayName = "Nhiễm liên cầu nhóm B"
+                        },
+                        new
+                        {
+                            ConditionId = new Guid("a0000001-0000-0000-0000-000000000009"),
+                            LanguageCode = "vi",
+                            Description = "Cổ tử cung mở sớm, nguy cơ sinh non",
+                            DisplayName = "Hở eo cổ tử cung"
+                        },
+                        new
+                        {
+                            ConditionId = new Guid("a0000001-0000-0000-0000-00000000000a"),
+                            LanguageCode = "vi",
+                            Description = "Thai làm tổ ngoài buồng tử cung",
+                            DisplayName = "Thai ngoài tử cung"
+                        },
+                        new
+                        {
+                            ConditionId = new Guid("a0000001-0000-0000-0000-000000000001"),
+                            LanguageCode = "en",
+                            Description = "High blood sugar that develops during pregnancy",
+                            DisplayName = "Gestational Diabetes"
+                        },
+                        new
+                        {
+                            ConditionId = new Guid("a0000001-0000-0000-0000-000000000002"),
+                            LanguageCode = "en",
+                            Description = "High blood pressure and protein in urine after 20 weeks",
+                            DisplayName = "Preeclampsia"
+                        },
+                        new
+                        {
+                            ConditionId = new Guid("a0000001-0000-0000-0000-000000000003"),
+                            LanguageCode = "en",
+                            Description = "Low red blood cell count or hemoglobin",
+                            DisplayName = "Anemia"
+                        },
+                        new
+                        {
+                            ConditionId = new Guid("a0000001-0000-0000-0000-000000000004"),
+                            LanguageCode = "en",
+                            Description = "Severe nausea and vomiting during pregnancy",
+                            DisplayName = "Hyperemesis Gravidarum"
+                        },
+                        new
+                        {
+                            ConditionId = new Guid("a0000001-0000-0000-0000-000000000005"),
+                            LanguageCode = "en",
+                            Description = "Placenta covers the cervix",
+                            DisplayName = "Placenta Previa"
+                        },
+                        new
+                        {
+                            ConditionId = new Guid("a0000001-0000-0000-0000-000000000006"),
+                            LanguageCode = "en",
+                            Description = "High blood pressure after week 20 without proteinuria",
+                            DisplayName = "Gestational Hypertension"
+                        },
+                        new
+                        {
+                            ConditionId = new Guid("a0000001-0000-0000-0000-000000000007"),
+                            LanguageCode = "en",
+                            Description = "Hyperthyroidism or hypothyroidism during pregnancy",
+                            DisplayName = "Thyroid Disorder"
+                        },
+                        new
+                        {
+                            ConditionId = new Guid("a0000001-0000-0000-0000-000000000008"),
+                            LanguageCode = "en",
+                            Description = "GBS bacteria that may pass to baby during delivery",
+                            DisplayName = "Group B Streptococcus"
+                        },
+                        new
+                        {
+                            ConditionId = new Guid("a0000001-0000-0000-0000-000000000009"),
+                            LanguageCode = "en",
+                            Description = "Cervix opens prematurely, risk of preterm birth",
+                            DisplayName = "Cervical Insufficiency"
+                        },
+                        new
+                        {
+                            ConditionId = new Guid("a0000001-0000-0000-0000-00000000000a"),
+                            LanguageCode = "en",
+                            Description = "Pregnancy implanted outside the uterus",
+                            DisplayName = "Ectopic Pregnancy"
+                        });
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.RefTestType", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Category")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("category");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TINYINT(1)")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Category")
+                        .HasDatabaseName("idx_ref_test_types_category");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("uk_ref_test_types_code");
+
+                    b.ToTable("ref_test_types", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("b0000001-0000-0000-0000-000000000001"),
+                            Category = "LAB",
+                            Code = "BIOCHEMISTRY",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("b0000001-0000-0000-0000-000000000002"),
+                            Category = "IMAGING",
+                            Code = "ULTRASOUND",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("b0000001-0000-0000-0000-000000000003"),
+                            Category = "OTHER",
+                            Code = "BLOOD_PRESSURE",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("b0000001-0000-0000-0000-000000000004"),
+                            Category = "LAB",
+                            Code = "COMPLETE_BLOOD_COUNT",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("b0000001-0000-0000-0000-000000000005"),
+                            Category = "LAB",
+                            Code = "URINE_TEST",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("b0000001-0000-0000-0000-000000000006"),
+                            Category = "LAB",
+                            Code = "HEPATITIS_B",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("b0000001-0000-0000-0000-000000000007"),
+                            Category = "LAB",
+                            Code = "HIV_SCREEN",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("b0000001-0000-0000-0000-000000000008"),
+                            Category = "LAB",
+                            Code = "TSH",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("b0000001-0000-0000-0000-000000000009"),
+                            Category = "IMAGING",
+                            Code = "NT_SCAN",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("b0000001-0000-0000-0000-00000000000a"),
+                            Category = "LAB",
+                            Code = "OGTT",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        });
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.RefTestTypeTranslation", b =>
+                {
+                    b.Property<Guid>("TestTypeId")
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("test_type_id");
+
+                    b.Property<string>("LanguageCode")
+                        .HasMaxLength(5)
+                        .HasColumnType("varchar(5)")
+                        .HasColumnName("lang_code")
+                        .UseCollation("utf8mb4_unicode_ci");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("description");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasColumnName("name");
+
+                    b.HasKey("TestTypeId", "LanguageCode");
+
+                    b.HasIndex("LanguageCode");
+
+                    b.ToTable("ref_test_type_translations", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            TestTypeId = new Guid("b0000001-0000-0000-0000-000000000001"),
+                            LanguageCode = "vi",
+                            Description = "Kiểm tra các chỉ số hoá sinh trong máu (đường, mỡ, gan, thận, điện giải)",
+                            DisplayName = "Xét nghiệm hoá sinh máu"
+                        },
+                        new
+                        {
+                            TestTypeId = new Guid("b0000001-0000-0000-0000-000000000002"),
+                            LanguageCode = "vi",
+                            Description = "Chụp hình ảnh thai nhi bằng sóng siêu âm",
+                            DisplayName = "Siêu âm"
+                        },
+                        new
+                        {
+                            TestTypeId = new Guid("b0000001-0000-0000-0000-000000000003"),
+                            LanguageCode = "vi",
+                            Description = "Đo áp lực máu trong động mạch",
+                            DisplayName = "Đo huyết áp"
+                        },
+                        new
+                        {
+                            TestTypeId = new Guid("b0000001-0000-0000-0000-000000000004"),
+                            LanguageCode = "vi",
+                            Description = "Đếm số lượng và phân loại tế bào máu",
+                            DisplayName = "Công thức máu toàn phần"
+                        },
+                        new
+                        {
+                            TestTypeId = new Guid("b0000001-0000-0000-0000-000000000005"),
+                            LanguageCode = "vi",
+                            Description = "Phân tích thành phần nước tiểu",
+                            DisplayName = "Xét nghiệm nước tiểu"
+                        },
+                        new
+                        {
+                            TestTypeId = new Guid("b0000001-0000-0000-0000-000000000006"),
+                            LanguageCode = "vi",
+                            Description = "Tầm soát virus viêm gan B",
+                            DisplayName = "Xét nghiệm viêm gan B"
+                        },
+                        new
+                        {
+                            TestTypeId = new Guid("b0000001-0000-0000-0000-000000000007"),
+                            LanguageCode = "vi",
+                            Description = "Tầm soát virus HIV",
+                            DisplayName = "Xét nghiệm HIV"
+                        },
+                        new
+                        {
+                            TestTypeId = new Guid("b0000001-0000-0000-0000-000000000008"),
+                            LanguageCode = "vi",
+                            Description = "Kiểm tra chức năng tuyến giáp",
+                            DisplayName = "Xét nghiệm TSH"
+                        },
+                        new
+                        {
+                            TestTypeId = new Guid("b0000001-0000-0000-0000-000000000009"),
+                            LanguageCode = "vi",
+                            Description = "Siêu âm tầm soát dị tật thai nhi",
+                            DisplayName = "Đo độ mờ da gáy"
+                        },
+                        new
+                        {
+                            TestTypeId = new Guid("b0000001-0000-0000-0000-00000000000a"),
+                            LanguageCode = "vi",
+                            Description = "Xét nghiệm chẩn đoán tiểu đường thai kỳ",
+                            DisplayName = "Nghiệm pháp dung nạp glucose"
+                        },
+                        new
+                        {
+                            TestTypeId = new Guid("b0000001-0000-0000-0000-000000000001"),
+                            LanguageCode = "en",
+                            Description = "Comprehensive blood chemistry (glucose, lipids, liver, kidney, electrolytes)",
+                            DisplayName = "Blood Biochemistry Panel"
+                        },
+                        new
+                        {
+                            TestTypeId = new Guid("b0000001-0000-0000-0000-000000000002"),
+                            LanguageCode = "en",
+                            Description = "Imaging of fetus using sound waves",
+                            DisplayName = "Ultrasound"
+                        },
+                        new
+                        {
+                            TestTypeId = new Guid("b0000001-0000-0000-0000-000000000003"),
+                            LanguageCode = "en",
+                            Description = "Measures blood pressure in arteries",
+                            DisplayName = "Blood Pressure"
+                        },
+                        new
+                        {
+                            TestTypeId = new Guid("b0000001-0000-0000-0000-000000000004"),
+                            LanguageCode = "en",
+                            Description = "Counts different blood cell types",
+                            DisplayName = "Complete Blood Count"
+                        },
+                        new
+                        {
+                            TestTypeId = new Guid("b0000001-0000-0000-0000-000000000005"),
+                            LanguageCode = "en",
+                            Description = "Analyzes urine composition",
+                            DisplayName = "Urine Test"
+                        },
+                        new
+                        {
+                            TestTypeId = new Guid("b0000001-0000-0000-0000-000000000006"),
+                            LanguageCode = "en",
+                            Description = "Screens for hepatitis B virus",
+                            DisplayName = "Hepatitis B Screen"
+                        },
+                        new
+                        {
+                            TestTypeId = new Guid("b0000001-0000-0000-0000-000000000007"),
+                            LanguageCode = "en",
+                            Description = "Screens for HIV virus",
+                            DisplayName = "HIV Screen"
+                        },
+                        new
+                        {
+                            TestTypeId = new Guid("b0000001-0000-0000-0000-000000000008"),
+                            LanguageCode = "en",
+                            Description = "Checks thyroid function",
+                            DisplayName = "TSH Test"
+                        },
+                        new
+                        {
+                            TestTypeId = new Guid("b0000001-0000-0000-0000-000000000009"),
+                            LanguageCode = "en",
+                            Description = "Ultrasound screening for fetal abnormalities",
+                            DisplayName = "Nuchal Translucency Scan"
+                        },
+                        new
+                        {
+                            TestTypeId = new Guid("b0000001-0000-0000-0000-00000000000a"),
+                            LanguageCode = "en",
+                            Description = "Diagnostic test for gestational diabetes",
+                            DisplayName = "Oral Glucose Tolerance Test"
+                        });
+                });
+
             modelBuilder.Entity("FPT.EXE201.Domain.Entities.Role", b =>
                 {
                     b.Property<Guid>("Id")
@@ -282,7 +1205,8 @@ namespace FPT.EXE201.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("varchar(50)")
-                        .HasColumnName("code");
+                        .HasColumnName("code")
+                        .UseCollation("utf8mb4_unicode_ci");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -297,13 +1221,15 @@ namespace FPT.EXE201.Infrastructure.Migrations
                     b.Property<string>("Description")
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)")
-                        .HasColumnName("description");
+                        .HasColumnName("description")
+                        .UseCollation("utf8mb4_unicode_ci");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)")
-                        .HasColumnName("name");
+                        .HasColumnName("name")
+                        .UseCollation("utf8mb4_unicode_ci");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
@@ -364,7 +1290,8 @@ namespace FPT.EXE201.Infrastructure.Migrations
                     b.Property<string>("Email")
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)")
-                        .HasColumnName("email");
+                        .HasColumnName("email")
+                        .UseCollation("utf8mb4_unicode_ci");
 
                     b.Property<string>("EmailNormalized")
                         .HasColumnType("longtext");
@@ -393,13 +1320,15 @@ namespace FPT.EXE201.Infrastructure.Migrations
                     b.Property<string>("Phone")
                         .HasMaxLength(20)
                         .HasColumnType("varchar(20)")
-                        .HasColumnName("phone");
+                        .HasColumnName("phone")
+                        .UseCollation("utf8mb4_unicode_ci");
 
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("varchar(50)")
-                        .HasColumnName("status");
+                        .HasColumnName("status")
+                        .UseCollation("utf8mb4_unicode_ci");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime(6)")
@@ -428,7 +1357,8 @@ namespace FPT.EXE201.Infrastructure.Migrations
                     b.Property<string>("AvatarUrl")
                         .HasMaxLength(500)
                         .HasColumnType("varchar(500)")
-                        .HasColumnName("avatar_url");
+                        .HasColumnName("avatar_url")
+                        .UseCollation("utf8mb4_unicode_ci");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)")
@@ -445,7 +1375,8 @@ namespace FPT.EXE201.Infrastructure.Migrations
                     b.Property<string>("FullName")
                         .HasMaxLength(200)
                         .HasColumnType("varchar(200)")
-                        .HasColumnName("full_name");
+                        .HasColumnName("full_name")
+                        .UseCollation("utf8mb4_unicode_ci");
 
                     b.Property<string>("PreferredLang")
                         .IsRequired()
@@ -453,7 +1384,8 @@ namespace FPT.EXE201.Infrastructure.Migrations
                         .HasMaxLength(10)
                         .HasColumnType("varchar(10)")
                         .HasDefaultValue("vi")
-                        .HasColumnName("preferred_lang");
+                        .HasColumnName("preferred_lang")
+                        .UseCollation("utf8mb4_unicode_ci");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime(6)")
@@ -530,6 +1462,111 @@ namespace FPT.EXE201.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.Pregnancy", b =>
+                {
+                    b.HasOne("FPT.EXE201.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.PregnancyCondition", b =>
+                {
+                    b.HasOne("FPT.EXE201.Domain.Entities.RefPregnancyCondition", "Condition")
+                        .WithMany("PregnancyConditions")
+                        .HasForeignKey("ConditionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FPT.EXE201.Domain.Entities.Pregnancy", "Pregnancy")
+                        .WithMany("Conditions")
+                        .HasForeignKey("PregnancyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Condition");
+
+                    b.Navigation("Pregnancy");
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.PrenatalTest", b =>
+                {
+                    b.HasOne("FPT.EXE201.Domain.Entities.Pregnancy", "Pregnancy")
+                        .WithMany("Tests")
+                        .HasForeignKey("PregnancyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FPT.EXE201.Domain.Entities.RefTestType", "TestType")
+                        .WithMany("Tests")
+                        .HasForeignKey("TestTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FPT.EXE201.Domain.Entities.PrenatalVisit", "Visit")
+                        .WithMany("Tests")
+                        .HasForeignKey("VisitId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Pregnancy");
+
+                    b.Navigation("TestType");
+
+                    b.Navigation("Visit");
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.PrenatalVisit", b =>
+                {
+                    b.HasOne("FPT.EXE201.Domain.Entities.Pregnancy", "Pregnancy")
+                        .WithMany("Visits")
+                        .HasForeignKey("PregnancyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Pregnancy");
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.RefPregnancyConditionTranslation", b =>
+                {
+                    b.HasOne("FPT.EXE201.Domain.Entities.RefPregnancyCondition", "Condition")
+                        .WithMany("Translations")
+                        .HasForeignKey("ConditionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FPT.EXE201.Domain.Entities.Language", "Language")
+                        .WithMany()
+                        .HasForeignKey("LanguageCode")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Condition");
+
+                    b.Navigation("Language");
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.RefTestTypeTranslation", b =>
+                {
+                    b.HasOne("FPT.EXE201.Domain.Entities.Language", "Language")
+                        .WithMany()
+                        .HasForeignKey("LanguageCode")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FPT.EXE201.Domain.Entities.RefTestType", "TestType")
+                        .WithMany("Translations")
+                        .HasForeignKey("TestTypeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Language");
+
+                    b.Navigation("TestType");
+                });
+
             modelBuilder.Entity("FPT.EXE201.Domain.Entities.RolePermission", b =>
                 {
                     b.HasOne("FPT.EXE201.Domain.Entities.Permission", "Permission")
@@ -590,6 +1627,34 @@ namespace FPT.EXE201.Infrastructure.Migrations
             modelBuilder.Entity("FPT.EXE201.Domain.Entities.Permission", b =>
                 {
                     b.Navigation("RolePermissions");
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.Pregnancy", b =>
+                {
+                    b.Navigation("Conditions");
+
+                    b.Navigation("Tests");
+
+                    b.Navigation("Visits");
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.PrenatalVisit", b =>
+                {
+                    b.Navigation("Tests");
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.RefPregnancyCondition", b =>
+                {
+                    b.Navigation("PregnancyConditions");
+
+                    b.Navigation("Translations");
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.RefTestType", b =>
+                {
+                    b.Navigation("Tests");
+
+                    b.Navigation("Translations");
                 });
 
             modelBuilder.Entity("FPT.EXE201.Domain.Entities.Role", b =>

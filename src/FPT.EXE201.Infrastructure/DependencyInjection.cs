@@ -1,6 +1,7 @@
 ﻿using FPT.EXE201.Application;
 using FPT.EXE201.Application.Authorization;
 using FPT.EXE201.Application.IRepositories;
+using FPT.EXE201.Application.IServices;
 using FPT.EXE201.Infrastructure.Persistence;
 using FPT.EXE201.Infrastructure.Repositories;
 using FPT.EXE201.Infrastructure.Services;
@@ -34,9 +35,6 @@ namespace FPT.EXE201.Infrastructure
                     });
             });
 
-            // Add AutoMapper (scan current Infrastructure assembly for Profile classes)
-            services.AddAutoMapper(cfg => { }, typeof(DependencyInjection).Assembly);
-
             // Add repositories here
             // services.AddScoped<IUserRepository, UserRepository>();
             #region Repositories
@@ -49,6 +47,9 @@ namespace FPT.EXE201.Infrastructure
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IJwtTokenService, JwtTokenService>();
             services.AddScoped<IPasswordHasher, PasswordHasher>();
+
+            // File Storage — Stub (sẽ thay bằng SupabaseStorageService sau)
+            services.AddScoped<IFileStorageService, StubFileStorageService>();
             #endregion
 
             // Add JWT Authentication

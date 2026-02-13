@@ -20,17 +20,20 @@ namespace FPT.EXE201.Infrastructure.Configurations
             builder.Property(e => e.Code)
                 .HasColumnName("code")
                 .HasMaxLength(50)
-                .IsRequired();
+                .IsRequired()
+                .UseCollation("utf8mb4_unicode_ci");
 
             builder.Property(e => e.Name)
                 .HasColumnName("name")
                 .HasMaxLength(100)
-                .IsRequired();
+                .IsRequired()
+                .UseCollation("utf8mb4_unicode_ci");
 
             builder.Property(e => e.Description)
                 .HasColumnName("description")
                 .HasMaxLength(255)
-                .IsRequired(false);
+                .IsRequired(false)
+                .UseCollation("utf8mb4_unicode_ci");
 
             // Timestamps
             builder.Property(e => e.CreatedAt)

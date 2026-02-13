@@ -1,6 +1,8 @@
 # API Response Architecture Guide
 
-## 📋 Tổng quan kiến trúc
+> **Xem thêm**: `DEVELOPMENT_WORKFLOW_GUIDE.md` (conventions + patterns), `AUTH_FLOW_GUIDE.md` (auth pipeline)
+
+## Tổng quan kiến trúc
 
 Hệ thống sử dụng **Exception-based approach** để xử lý lỗi một cách nhất quán và đơn giản.
 
@@ -33,16 +35,35 @@ Hệ thống sử dụng **Exception-based approach** để xử lý lỗi một
 - `UnauthorizedException` → 401
 - `ForbiddenException` → 403
 - `ConflictException` → 409
-- `BadRequestException` → 400
-- `ValidationException` → 400
+- `BadRequestException` → 400 (có `Errors` list)
+- `ValidationException` → 400 (có `Errors` từ FluentValidation)
 
-### 3. **GlobalExceptionFilter** (API Layer)
+### 3. **FluentValidation** (Auto-validation Pipeline)
+- **Registration**: `AddFluentValidationAutoValidation()` trong `Program.cs`
+- **Validators**: `Application/Validations/` — kế thừa `AbstractValidator<TDto>`
+- **Auto-trigger**: ASP.NET ModelState tự chạy validator trước khi vào Controller action
+- **Khi validation fail**: Trả 400 Bad Request với chi tiết lỗi — Controller KHÔNG cần validate thủ công
+
+```csharp
+// Ví dụ validator — tự chạy khi [FromBody] bind DTO
+public class RegisterRequestValidator : AbstractValidator<RegisterRequestDto>
+{
+    public RegisterRequestValidator()
+    {
+        RuleFor(x => x.Email)
+            .NotEmpty().WithMessage("Email is required")
+            .EmailAddress().WithMessage("Invalid email format");
+    }
+}
+```
+
+### 4. **GlobalExceptionFilter** (API Layer)
 - **Mục đích**: Tự động catch TẤT CẢ exceptions và convert thành ApiResponse
 - **Vị trí**: `FPT.EXE201.Api.Filters.GlobalExceptionFilter`
 - **Sử dụng**: Tự động, không cần code thêm
 
-### 4. **BaseApiController** (API Layer)
-- **Mục đích**: Cung cấp helper methods cho success responses
+### 5. **BaseApiController** (API Layer)
+- **Mục đích**: Cung cấp helper methods cho success responses + `GetCurrentUserId()`
 - **Vị trí**: `FPT.EXE201.Api.Controllers.BaseApiController`
 - **Sử dụng**: Tất cả controllers kế thừa từ đây
 
@@ -288,13 +309,16 @@ public async Task<IActionResult> DeleteUser(Guid id)
 
 ---
 
-## 🔧 Result Pattern (Optional - Không khuyến khích)
+## Luồng xử lý tổng hợp (Validation + Exception)
 
-File `Result.cs` vẫn tồn tại nhưng **KHÔNG NÊN dùng** để tránh confusion.
+```
+Client Request
+  → ASP.NET Model Binding
+  → FluentValidation auto-validate → 400 nếu invalid (KHÔNG vào Controller)
+  → Controller action
+  → Service (throw Exception nếu lỗi business)
+  → GlobalExceptionFilter catches → ApiResponse với error
+  → Client
+```
 
-Nếu team muốn dùng Result pattern cho một số trường hợp đặc biệt:
-- Phải document rõ khi nào dùng
-- Chỉ dùng cho complex business logic
-- Không mix với exception-based approach trong cùng một controller
-
-**Khuyến nghị: XÓA Result.cs để tránh confusion!**
+**Lưu ý**: `Result.cs` **KHÔNG tồn tại** trong project. Chỉ dùng Exception-based approach.

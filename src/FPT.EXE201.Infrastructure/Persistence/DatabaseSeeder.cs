@@ -159,6 +159,20 @@ namespace FPT.EXE201.Infrastructure.Persistence
             await SeedPermissionIfNotExists(context, "data.export", "Export Personal Data", "Premium users can export their data");
             await SeedPermissionIfNotExists(context, "notifications.push", "Push Notifications", "Premium users receive push notifications");
 
+            // Week 3 - Pregnancy Core Permissions (used by controllers)
+            await SeedPermissionIfNotExists(context, "pregnancy.read", "Read Pregnancy", "User can read their own pregnancy data");
+            await SeedPermissionIfNotExists(context, "pregnancy.write", "Write Pregnancy", "User can create/update their own pregnancy");
+            await SeedPermissionIfNotExists(context, "pregnancy.delete", "Delete Pregnancy", "User can delete their own pregnancy");
+            await SeedPermissionIfNotExists(context, "pregnancy.condition.read", "Read Pregnancy Conditions", "User can view pregnancy conditions");
+            await SeedPermissionIfNotExists(context, "pregnancy.condition.write", "Write Pregnancy Conditions", "User can add/update pregnancy conditions");
+            await SeedPermissionIfNotExists(context, "pregnancy.condition.delete", "Delete Pregnancy Conditions", "User can remove pregnancy conditions");
+            await SeedPermissionIfNotExists(context, "pregnancy.visit.read", "Read Prenatal Visits", "User can view prenatal visits");
+            await SeedPermissionIfNotExists(context, "pregnancy.visit.write", "Write Prenatal Visits", "User can create/update prenatal visits");
+            await SeedPermissionIfNotExists(context, "pregnancy.visit.delete", "Delete Prenatal Visits", "User can delete prenatal visits");
+            await SeedPermissionIfNotExists(context, "pregnancy.test.read", "Read Prenatal Tests", "User can view prenatal tests");
+            await SeedPermissionIfNotExists(context, "pregnancy.test.write", "Write Prenatal Tests", "User can create/update prenatal tests");
+            await SeedPermissionIfNotExists(context, "pregnancy.test.delete", "Delete Prenatal Tests", "User can delete prenatal tests");
+
             await context.SaveChangesAsync();
 
             // Load all permissions from database
@@ -177,6 +191,10 @@ namespace FPT.EXE201.Infrastructure.Persistence
             {
                 "user_profiles.write.own", "doctor_profiles.read",
                 "pregnancies.write.own",
+                "pregnancy.read", "pregnancy.write", "pregnancy.delete",
+                "pregnancy.condition.read", "pregnancy.condition.write", "pregnancy.condition.delete",
+                "pregnancy.visit.read", "pregnancy.visit.write", "pregnancy.visit.delete",
+                "pregnancy.test.read", "pregnancy.test.write", "pregnancy.test.delete",
                 "weight_logs.write.own", "meal_plans.write.own",
                 "documents.upload.own",
                 "reminders.write.own",
@@ -191,6 +209,10 @@ namespace FPT.EXE201.Infrastructure.Persistence
                 "user_profiles.write.own", "doctor_profiles.read", "doctor_profiles.write.own",
                 "pregnancies.write.own", "weight_logs.write.own", "meal_plans.write.own", 
                 "documents.upload.own", "reminders.write.own",
+                "pregnancy.read", "pregnancy.write", "pregnancy.delete",
+                "pregnancy.condition.read", "pregnancy.condition.write", "pregnancy.condition.delete",
+                "pregnancy.visit.read", "pregnancy.visit.write", "pregnancy.visit.delete",
+                "pregnancy.test.read", "pregnancy.test.write", "pregnancy.test.delete",
                 "pregnancies.read.any", "pregnancies.update.any", "pregnancy_conditions.write.any",
                 "prenatal_visits.write.any", "prenatal_tests.write.any",
                 "documents.read.any", "documents.ocr.rerun", "ocr.reprocess", "medical_data.export",
