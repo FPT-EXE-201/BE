@@ -1,3 +1,7 @@
+using System.Linq.Expressions;
+using FPT.EXE201.Application.Common.Querying;
+using FPT.EXE201.Application.DTOs.Common;
+using FPT.EXE201.Application.Features.PrenatalVisits;
 using FPT.EXE201.Application.IRepositories;
 using FPT.EXE201.Domain.Entities;
 using FPT.EXE201.Infrastructure.Persistence;
@@ -16,6 +20,21 @@ public class PrenatalVisitRepository : GenericRepository<PrenatalVisit>, IPrenat
             .Include(v => v.Tests.Where(t => t.DeletedAt == null))
             .OrderByDescending(v => v.VisitDateTime)
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<PagedResult<PrenatalVisit>> GetByPregnancyIdPagedAsync(Guid pregnancyId, QueryOptions options, CancellationToken cancellationToken = default)
+    {
+        return await GetPagedAsync(
+            options,
+            predicate: v => v.PregnancyId == pregnancyId,
+            include: q => q.Include(v => v.Tests.Where(t => t.DeletedAt == null)),
+            searchBuilder: SearchHelper.CreateSearchBuilder(
+                PrenatalVisitListQuerySpec.SearchMap,
+                PrenatalVisitListQuerySpec.DefaultSearchKeys,
+                options),
+            sortMap: PrenatalVisitListQuerySpec.SortMap,
+            defaultSort: PrenatalVisitListQuerySpec.DefaultSort,
+            cancellationToken: cancellationToken);
     }
 
     public async Task<PrenatalVisit?> GetByIdWithTestsAsync(Guid id, CancellationToken cancellationToken = default)

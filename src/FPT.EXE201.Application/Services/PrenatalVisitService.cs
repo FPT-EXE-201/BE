@@ -1,5 +1,5 @@
 using System.Text.Json;
-using AutoMapper;
+using FPT.EXE201.Application.DTOs.Common;
 using FPT.EXE201.Application.DTOs.PrenatalTests;
 using FPT.EXE201.Application.DTOs.PrenatalVisits;
 using FPT.EXE201.Application.DTOs.PrenatalVisits.VitalsJson;
@@ -52,6 +52,16 @@ public class PrenatalVisitService : IPrenatalVisitService
 
         var visits = await _unitOfWork.PrenatalVisits.GetByPregnancyIdAsync(pregnancyId, cancellationToken);
         return visits.Select(MapToDto).ToList();
+    }
+
+    public async Task<PagedResult<PrenatalVisitDto>> GetByPregnancyIdPagedAsync(Guid pregnancyId, Guid userId, QueryOptions options, CancellationToken cancellationToken = default)
+    {
+        await VerifyPregnancyOwnership(pregnancyId, userId, cancellationToken);
+
+        var pagedEntities = await _unitOfWork.PrenatalVisits.GetByPregnancyIdPagedAsync(pregnancyId, options, cancellationToken);
+
+        var dtos = pagedEntities.Items.Select(MapToDto).ToList();
+        return new PagedResult<PrenatalVisitDto>(dtos, pagedEntities.Page, pagedEntities.PageSize, pagedEntities.TotalItems);
     }
 
     public async Task<PrenatalVisitDto> UpdateAsync(Guid id, Guid userId, UpdatePrenatalVisitDto dto, CancellationToken cancellationToken = default)

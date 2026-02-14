@@ -137,13 +137,6 @@ public class GenericRepository<T> : IGenericRepository<T> where T : BaseEntity
             query = searchBuilder(query, options.Search.Trim());
         }
 
-        // Apply custom filters
-        if (options.Filters != null && options.Filters.Count > 0)
-        {
-            // Note: Custom filter implementation would go here
-            // This is intentionally left flexible for caller to handle via predicate
-        }
-
         // Get total count before pagination
         var totalItems = await query.LongCountAsync(cancellationToken);
 
@@ -189,15 +182,15 @@ public class GenericRepository<T> : IGenericRepository<T> where T : BaseEntity
             query = searchBuilder(query, options.Search.Trim());
         }
 
-        // Apply includes before counting/selecting
-        if (include != null)
-            query = include(query);
-
         // Get total count before pagination
         var totalItems = await query.LongCountAsync(cancellationToken);
 
         // Apply sorting
         query = SortHelper.ApplySort(query, options, sortMap, defaultSort);
+
+        // Apply includes after sorting but before pagination
+        if (include != null)
+            query = include(query);
 
         // Apply pagination and projection
         var items = await query

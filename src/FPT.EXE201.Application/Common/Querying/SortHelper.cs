@@ -45,13 +45,10 @@ public static class SortHelper
             // Only use CreatedAt fallback if explicitly enabled and entity has it
             if (sortExpression == null && defaultSortByCreatedAt)
             {
-                // This assumes T has CreatedAt (BaseEntity)
-                // Cast to dynamic expression - will work for BaseEntity types
+                var param = Expression.Parameter(typeof(T), "e");
                 sortExpression = Expression.Lambda(
-                    Expression.Property(
-                        Expression.Parameter(typeof(T), "e"),
-                        "CreatedAt"),
-                    Expression.Parameter(typeof(T), "e"));
+                    Expression.Property(param, "CreatedAt"),
+                    param);
             }
         }
 

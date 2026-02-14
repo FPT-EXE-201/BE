@@ -9,22 +9,22 @@ public class PagedResult<T>
     /// <summary>
     /// The items in the current page
     /// </summary>
-    public IReadOnlyList<T> Items { get; set; }
+    public IReadOnlyList<T> Items { get; init; }
 
     /// <summary>
     /// Current page number (1-based)
     /// </summary>
-    public int Page { get; set; }
+    public int Page { get; init; }
 
     /// <summary>
     /// Number of items per page
     /// </summary>
-    public int PageSize { get; set; }
+    public int PageSize { get; init; }
 
     /// <summary>
     /// Total number of items across all pages
     /// </summary>
-    public long TotalItems { get; set; }
+    public long TotalItems { get; init; }
 
     /// <summary>
     /// Total number of pages

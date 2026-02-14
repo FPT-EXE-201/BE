@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using FPT.EXE201.Application.Common.Querying;
 using FPT.EXE201.Application.IServices;
 using FPT.EXE201.Domain.Enums;
 
@@ -58,6 +59,16 @@ public class RefDataController : BaseApiController
             ["visitType"] = ToEnumList<VisitType>(),
         };
         return Success(result);
+    }
+
+    /// <summary>
+    /// Trả về search/sort capabilities cho tất cả paged endpoints.
+    /// FE gọi 1 lần → cache → render dynamic checkbox/dropdown.
+    /// </summary>
+    [HttpGet("query-specs")]
+    public IActionResult GetQuerySpecs()
+    {
+        return Success(QuerySpecRegistry.All);
     }
 
     /// <summary>

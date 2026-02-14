@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using FPT.EXE201.Application.Authorization;
+using FPT.EXE201.Application.DTOs.Common;
 using FPT.EXE201.Application.DTOs.PrenatalVisits;
 using FPT.EXE201.Application.IServices;
 
@@ -26,9 +27,9 @@ public class PrenatalVisitsController : BaseApiController
 
     [HttpGet("api/pregnancies/{pregnancyId:guid}/visits")]
     [RequirePermission("pregnancy.visit.read")]
-    public async Task<IActionResult> GetByPregnancy(Guid pregnancyId, CancellationToken ct)
+    public async Task<IActionResult> GetByPregnancy(Guid pregnancyId, [FromQuery] QueryOptions options, CancellationToken ct)
     {
-        var result = await _visitService.GetByPregnancyIdAsync(pregnancyId, GetCurrentUserId(), ct);
+        var result = await _visitService.GetByPregnancyIdPagedAsync(pregnancyId, GetCurrentUserId(), options, ct);
         return Success(result);
     }
 

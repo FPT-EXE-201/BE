@@ -52,10 +52,6 @@ public class QueryOptions
     /// </summary>
     public string SortDir { get; set; } = "desc";
 
-    /// <summary>
-    /// Additional filters as key-value pairs
-    /// </summary>
-    public Dictionary<string, object>? Filters { get; set; }
 
     /// <summary>
     /// Include soft-deleted records in results

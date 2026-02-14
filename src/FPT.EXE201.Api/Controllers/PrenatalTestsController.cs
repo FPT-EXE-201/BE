@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using FPT.EXE201.Application.Authorization;
+using FPT.EXE201.Application.DTOs.Common;
 using FPT.EXE201.Application.DTOs.PrenatalTests;
 using FPT.EXE201.Application.IServices;
 
@@ -34,9 +35,9 @@ public class PrenatalTestsController : BaseApiController
 
     [HttpGet("api/pregnancies/{pregnancyId:guid}/tests")]
     [RequirePermission("pregnancy.test.read")]
-    public async Task<IActionResult> GetByPregnancy(Guid pregnancyId, [FromQuery] string lang = "vi", CancellationToken ct = default)
+    public async Task<IActionResult> GetByPregnancy(Guid pregnancyId, [FromQuery] QueryOptions options, [FromQuery] string lang = "vi", CancellationToken ct = default)
     {
-        var result = await _testService.GetByPregnancyIdAsync(pregnancyId, GetCurrentUserId(), lang, ct);
+        var result = await _testService.GetByPregnancyIdPagedAsync(pregnancyId, GetCurrentUserId(), options, lang, ct);
         return Success(result);
     }
 

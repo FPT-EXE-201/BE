@@ -1,4 +1,4 @@
-using AutoMapper;
+using FPT.EXE201.Application.DTOs.Common;
 using FPT.EXE201.Application.DTOs.PrenatalTests;
 using FPT.EXE201.Application.Exceptions;
 using FPT.EXE201.Application.IServices;
@@ -64,6 +64,16 @@ public class PrenatalTestService : IPrenatalTestService
 
         var tests = await _unitOfWork.PrenatalTests.GetByPregnancyIdAsync(pregnancyId, langCode, cancellationToken);
         return tests.Select(t => MapToDto(t, langCode)).ToList();
+    }
+
+    public async Task<PagedResult<PrenatalTestDto>> GetByPregnancyIdPagedAsync(Guid pregnancyId, Guid userId, QueryOptions options, string langCode, CancellationToken cancellationToken = default)
+    {
+        await VerifyPregnancyOwnership(pregnancyId, userId, cancellationToken);
+
+        var pagedEntities = await _unitOfWork.PrenatalTests.GetByPregnancyIdPagedAsync(pregnancyId, langCode, options, cancellationToken);
+
+        var dtos = pagedEntities.Items.Select(t => MapToDto(t, langCode)).ToList();
+        return new PagedResult<PrenatalTestDto>(dtos, pagedEntities.Page, pagedEntities.PageSize, pagedEntities.TotalItems);
     }
 
     public async Task<PrenatalTestDto> UpdateAsync(Guid id, Guid userId, UpdatePrenatalTestDto dto,
