@@ -35,6 +35,16 @@ namespace FPT.EXE201.Infrastructure.Repositories
         private IRefPregnancyConditionRepository? _refPregnancyConditions;
         private IRefTestTypeRepository? _refTestTypes;
 
+        // Week 4 — File Storage + Medical Documents
+        private IStorageFileRepository? _storageFiles;
+        private IMedicalDocumentRepository? _medicalDocuments;
+        private IDocumentFileRepository? _documentFiles;
+        private IOcrResultRepository? _ocrResults;
+        private IRefDocumentTypeRepository? _refDocumentTypes;
+
+        // Week 5 — AI Infrastructure
+        private IAiPromptTemplateRepository? _aiPromptTemplates;
+
         public UnitOfWork(AppDbContext context)
         {
             _context = context;
@@ -55,6 +65,18 @@ namespace FPT.EXE201.Infrastructure.Repositories
         public IPrenatalTestRepository PrenatalTests => _prenatalTests ??= new PrenatalTestRepository(_context);
         public IRefPregnancyConditionRepository RefPregnancyConditions => _refPregnancyConditions ??= new RefPregnancyConditionRepository(_context);
         public IRefTestTypeRepository RefTestTypes => _refTestTypes ??= new RefTestTypeRepository(_context);
+
+        // Week 4 — File Storage + Medical Documents
+        public IStorageFileRepository StorageFiles => _storageFiles ??= new StorageFileRepository(_context);
+        public IMedicalDocumentRepository MedicalDocuments => _medicalDocuments ??= new MedicalDocumentRepository(_context);
+        public IDocumentFileRepository DocumentFiles => _documentFiles ??= new DocumentFileRepository(_context);
+        public IOcrResultRepository OcrResults => _ocrResults ??= new OcrResultRepository(_context);
+        public IRefDocumentTypeRepository RefDocumentTypes
+            => _refDocumentTypes ??= new RefDocumentTypeRepository(_context);
+
+        // Week 5 — AI Infrastructure
+        public IAiPromptTemplateRepository AiPromptTemplates
+            => _aiPromptTemplates ??= new AiPromptTemplateRepository(_context);
 
         public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {

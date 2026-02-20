@@ -10,4 +10,5 @@ public interface IRefDataService
 {
     Task<List<RefConditionDto>> GetActiveConditionsAsync(string langCode, CancellationToken cancellationToken = default);
     Task<List<RefTestTypeDto>> GetActiveTestTypesAsync(string langCode, string? category = null, CancellationToken cancellationToken = default);
+    Task<List<RefDocumentTypeDto>> GetActiveDocumentTypesAsync(string langCode, CancellationToken cancellationToken = default);
 }

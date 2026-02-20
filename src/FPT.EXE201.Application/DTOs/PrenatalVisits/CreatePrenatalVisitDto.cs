@@ -4,7 +4,7 @@ using FPT.EXE201.Domain.Enums;
 namespace FPT.EXE201.Application.DTOs.PrenatalVisits;
 
 public record CreatePrenatalVisitDto(
-    DateTime VisitDateTime,
+    DateOnly VisitDate,
     VisitType VisitType,
     Guid? DoctorId,
     string? Location,

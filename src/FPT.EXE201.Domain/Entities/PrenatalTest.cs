@@ -48,8 +48,15 @@ public class PrenatalTest : BaseEntity
     /// </summary>
     public bool IsAbnormalResult { get; set; }
 
+    /// <summary>
+    /// FK → MedicalDocument. Tài liệu gốc đã tạo ra test này (qua OCR/AI auto-fill).
+    /// Nullable: test có thể được tạo thủ công, không từ document nào.
+    /// </summary>
+    public Guid? DocumentId { get; set; }
+
     // Navigation
     public Pregnancy Pregnancy { get; set; } = null!;
     public PrenatalVisit? Visit { get; set; }
     public RefTestType TestType { get; set; } = null!;
+    public MedicalDocument? Document { get; set; }
 }

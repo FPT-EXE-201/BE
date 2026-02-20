@@ -11,7 +11,7 @@ namespace FPT.EXE201.Domain.Entities
     {
         public Guid UserId { get; set; }
         public string? FullName { get; set; }
-        public DateTime? DateOfBirth { get; set; }
+        public DateOnly? DateOfBirth { get; set; }
         public string? AvatarUrl { get; set; }
         public string PreferredLang { get; set; } = "vi";
 

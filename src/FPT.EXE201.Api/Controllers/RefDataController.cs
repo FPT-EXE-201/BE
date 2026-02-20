@@ -42,6 +42,16 @@ public class RefDataController : BaseApiController
     }
 
     /// <summary>
+    /// Lấy danh mục loại tài liệu y tế (public, no auth).
+    /// </summary>
+    [HttpGet("document-types")]
+    public async Task<IActionResult> GetDocumentTypes([FromQuery] string lang = "vi", CancellationToken ct = default)
+    {
+        var result = await _refDataService.GetActiveDocumentTypesAsync(lang, ct);
+        return Success(result);
+    }
+
+    /// <summary>
     /// Trả về tất cả enum values để FE biết các giá trị hợp lệ.
     /// Mỗi enum trả về danh sách { value (int), name (string) }.
     /// </summary>
@@ -57,6 +67,8 @@ public class RefDataController : BaseApiController
             ["deliveryMethod"] = ToEnumList<DeliveryMethod>(),
             ["conditionSeverity"] = ToEnumList<ConditionSeverity>(),
             ["visitType"] = ToEnumList<VisitType>(),
+            ["documentSource"] = ToEnumList<DocumentSource>(),
+            ["ocrStatus"] = ToEnumList<OcrStatus>(),
         };
         return Success(result);
     }
@@ -86,6 +98,8 @@ public class RefDataController : BaseApiController
             ["deliveryMethod"] = ToEnumList<DeliveryMethod>(),
             ["conditionSeverity"] = ToEnumList<ConditionSeverity>(),
             ["visitType"] = ToEnumList<VisitType>(),
+            ["documentSource"] = ToEnumList<DocumentSource>(),
+            ["ocrStatus"] = ToEnumList<OcrStatus>(),
         };
 
         if (!enums.TryGetValue(enumName, out var values))

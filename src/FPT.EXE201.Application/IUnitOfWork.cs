@@ -29,6 +29,16 @@ namespace FPT.EXE201.Application
         IRefPregnancyConditionRepository RefPregnancyConditions { get; }
         IRefTestTypeRepository RefTestTypes { get; }
 
+        // Week 4 — File Storage + Medical Documents
+        IStorageFileRepository StorageFiles { get; }
+        IMedicalDocumentRepository MedicalDocuments { get; }
+        IDocumentFileRepository DocumentFiles { get; }
+        IOcrResultRepository OcrResults { get; }
+        IRefDocumentTypeRepository RefDocumentTypes { get; }
+
+        // Week 5 — AI Infrastructure
+        IAiPromptTemplateRepository AiPromptTemplates { get; }
+
         // Transaction methods
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
         Task BeginTransactionAsync(CancellationToken cancellationToken = default);

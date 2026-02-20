@@ -21,7 +21,7 @@
 --   ├─ Section 2:  Users / Auth / RBAC                         (Week 1-2) ✅
 --   ├─ Section 3:  Pregnancy Core                              (Week 3)   ✅
 --   ├─ Section 4:  Shared File Storage                         (Week 4)   ✅
---   ├─ Section 5:  Medical Documents + OCR + Tags              (Week 4)   ✅
+--   ├─ Section 5:  Medical Documents + OCR                     (Week 4)   ✅
 --   ├─ Section 6:  AI Infrastructure                           (Week 5)   ✅
 --   ├─ Section 7:  Weight Tracking + Motivational              (Week 6)   ⬜
 --   ├─ Section 8:  Nutrition + Meal Planning                   (Week 7)   ⬜
@@ -396,8 +396,8 @@ CREATE TABLE storage_files (
 
 
 -- ═══════════════════════════════════════════════════════════════════════════════
--- SECTION 5: MEDICAL DOCUMENTS + OCR + TAGS (Week 4) ✅
--- Upload ảnh phiếu khám, OCR pipeline, user-defined tags.
+-- SECTION 5: MEDICAL DOCUMENTS + OCR (Week 4) ✅
+-- Upload ảnh phiếu khám, OCR pipeline, IsFavorite toggle.
 --
 -- ⚠️ SIMPLIFIED vs old schema:
 --   • REMOVED document_files (MedicalDocument → StorageFile direct FK)
@@ -445,7 +445,7 @@ CREATE TABLE medical_documents (
     source            VARCHAR(20)   NOT NULL DEFAULT 'Upload',
                                                     -- Enum: Upload | Share | Import
     notes             TEXT          NULL,
-    metadata_json     JSON          NULL,           -- Flexible metadata
+    is_favorite       TINYINT(1)    NOT NULL DEFAULT 0,  -- Toggle yêu thích (replaced tags)
 
     created_at        DATETIME(6)   NOT NULL,
     updated_at        DATETIME(6)   NOT NULL,
@@ -496,32 +496,8 @@ CREATE TABLE ocr_results (
     -- FK to ai_prompt_templates added in Section 6
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Tags — user-defined labels for organizing documents
-CREATE TABLE tags (
-    id          CHAR(36)      NOT NULL,
-    user_id     CHAR(36)      NOT NULL,
-    name        VARCHAR(50)   NOT NULL,
-
-    created_at  DATETIME(6)   NOT NULL,
-    updated_at  DATETIME(6)   NOT NULL,
-    deleted_at  DATETIME(6)   NULL,
-
-    PRIMARY KEY (id),
-    UNIQUE KEY uk_tags_user_name (user_id, name),
-    CONSTRAINT fk_tags_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Join: document ↔ tag (N:N)
-CREATE TABLE medical_document_tags (
-    document_id  CHAR(36)     NOT NULL,
-    tag_id       CHAR(36)     NOT NULL,
-    created_at   DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-
-    PRIMARY KEY (document_id, tag_id),
-    INDEX idx_doc_tags_tag (tag_id),
-    CONSTRAINT fk_doc_tags_document FOREIGN KEY (document_id) REFERENCES medical_documents(id) ON DELETE CASCADE,
-    CONSTRAINT fk_doc_tags_tag      FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- NOTE: Tags (tags + medical_document_tags) were REMOVED.
+-- Replaced by is_favorite boolean on medical_documents for simpler UX.
 
 
 -- ═══════════════════════════════════════════════════════════════════════════════
@@ -1207,7 +1183,7 @@ CREATE TABLE reminder_events (
 -- TABLE SUMMARY BY FEATURE
 -- ═══════════════════════════════════════════════════════════════════════════════
 --
--- Total: 48 tables
+-- Total: 46 tables
 --
 -- Section 1  — Lookup (1 table):
 --   languages
@@ -1224,9 +1200,10 @@ CREATE TABLE reminder_events (
 -- Section 4  — File Storage (1 table):
 --   storage_files
 --
--- Section 5  — Medical Documents (5 tables):
+-- Section 5  — Medical Documents (3 tables):
 --   ref_document_types, ref_document_type_translations, medical_documents,
---   ocr_results, tags, medical_document_tags
+--   ocr_results
+--   (tags + medical_document_tags REMOVED → replaced by is_favorite on medical_documents)
 --
 -- Section 6  — AI Infrastructure (2 tables):
 --   ai_prompt_templates, ai_request_logs
@@ -1280,6 +1257,9 @@ CREATE TABLE reminder_events (
 --   • REMOVED document_files table (MedicalDocument→StorageFile direct FK)
 --   • REMOVED medical_field_definitions + extracted_medical_fields
 --     (replaced by VitalsJson/ResultJson/StructuredJson)
+--   • REMOVED tags + medical_document_tags (replaced by is_favorite boolean)
+--   • REMOVED metadata_json from medical_documents
+--   • ADDED is_favorite column to medical_documents
 --   • ocr_results: document_file_id → document_id (FK to medical_documents)
 --   • ocr_results: Added 5 AI processing columns (Week 5)
 --

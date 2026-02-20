@@ -38,5 +38,12 @@ public class PrenatalTestConfiguration : IEntityTypeConfiguration<PrenatalTest>
         builder.HasOne(p => p.TestType)
             .WithMany(tt => tt.Tests).HasForeignKey(p => p.TestTypeId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        // FK → MedicalDocument (source document that created this test via OCR/AI)
+        builder.Property(p => p.DocumentId).HasColumnName("document_id").HasColumnType("CHAR(36)");
+        builder.HasIndex(p => p.DocumentId).HasDatabaseName("idx_prenatal_tests_document");
+        builder.HasOne(p => p.Document)
+            .WithMany().HasForeignKey(p => p.DocumentId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

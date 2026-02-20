@@ -14,6 +14,6 @@ public interface IPrenatalTestRepository : IGenericRepository<PrenatalTest>
     /// <summary>Lấy 1 test theo ID, include test type + translations theo lang.</summary>
     Task<PrenatalTest?> GetByIdWithTranslationsAsync(Guid id, string langCode, CancellationToken cancellationToken = default);
 
-    /// <summary>Lấy tests theo visit.</summary>
-    Task<List<PrenatalTest>> GetByVisitIdAsync(Guid visitId, CancellationToken cancellationToken = default);
+    /// <summary>Lấy tests theo visit, include test type translations.</summary>
+    Task<List<PrenatalTest>> GetByVisitIdAsync(Guid visitId, string langCode, CancellationToken cancellationToken = default);
 }

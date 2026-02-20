@@ -31,4 +31,21 @@ public class RefDataService : IRefDataService
             return new RefTestTypeDto(tt.Id, tt.Code, tt.Category, t?.DisplayName ?? tt.Code, t?.Description);
         }).ToList();
     }
+
+    public async Task<List<RefDocumentTypeDto>> GetActiveDocumentTypesAsync(string langCode, CancellationToken cancellationToken = default)
+    {
+        var types = await _unitOfWork.RefDocumentTypes.GetActiveWithTranslationsAsync(langCode, cancellationToken);
+
+        return types.Select(r =>
+        {
+            var translation = r.Translations
+                .FirstOrDefault(t => t.LanguageCode == langCode)
+                ?? r.Translations.FirstOrDefault();
+
+            return new RefDocumentTypeDto(
+                r.Id, r.Code,
+                translation?.DisplayName ?? r.Code,
+                translation?.Description);
+        }).ToList();
+    }
 }

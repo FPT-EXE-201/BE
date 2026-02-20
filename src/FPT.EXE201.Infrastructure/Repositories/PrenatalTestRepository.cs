@@ -49,11 +49,12 @@ public class PrenatalTestRepository : GenericRepository<PrenatalTest>, IPrenatal
             .FirstOrDefaultAsync(cancellationToken);
     }
 
-    public async Task<List<PrenatalTest>> GetByVisitIdAsync(Guid visitId, CancellationToken cancellationToken = default)
+    public async Task<List<PrenatalTest>> GetByVisitIdAsync(Guid visitId, string langCode, CancellationToken cancellationToken = default)
     {
         return await _dbSet
             .Where(t => t.VisitId == visitId && t.DeletedAt == null)
             .Include(t => t.TestType)
+                .ThenInclude(tt => tt.Translations.Where(tr => tr.LanguageCode == langCode))
             .OrderByDescending(t => t.TestDate)
             .ToListAsync(cancellationToken);
     }

@@ -41,6 +41,14 @@ public class PrenatalTestsController : BaseApiController
         return Success(result);
     }
 
+    [HttpGet("api/visits/{visitId:guid}/tests")]
+    [RequirePermission("pregnancy.test.read")]
+    public async Task<IActionResult> GetByVisit(Guid visitId, [FromQuery] string lang = "vi", CancellationToken ct = default)
+    {
+        var result = await _testService.GetByVisitIdAsync(visitId, GetCurrentUserId(), lang, ct);
+        return Success(result);
+    }
+
     [HttpGet("api/tests/{id:guid}")]
     [RequirePermission("pregnancy.test.read")]
     public async Task<IActionResult> GetById(Guid id, [FromQuery] string lang = "vi", CancellationToken ct = default)

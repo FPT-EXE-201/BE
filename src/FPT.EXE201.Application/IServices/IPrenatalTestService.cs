@@ -12,6 +12,7 @@ public interface IPrenatalTestService
     Task<List<PrenatalTestDto>> GetByPregnancyIdAsync(Guid pregnancyId, Guid userId, string langCode, CancellationToken cancellationToken = default);
     Task<PagedResult<PrenatalTestDto>> GetByPregnancyIdPagedAsync(Guid pregnancyId, Guid userId, QueryOptions options, string langCode, CancellationToken cancellationToken = default);
     Task<PrenatalTestDto> GetByIdAsync(Guid id, Guid userId, string langCode, CancellationToken cancellationToken = default);
+    Task<List<PrenatalTestDto>> GetByVisitIdAsync(Guid visitId, Guid userId, string langCode, CancellationToken cancellationToken = default);
 
     /// <summary>Update test + upload ảnh mới (nếu có), xóa ảnh cũ không giữ.</summary>
     Task<PrenatalTestDto> UpdateAsync(Guid id, Guid userId, UpdatePrenatalTestDto dto,

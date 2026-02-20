@@ -50,10 +50,10 @@ GET /api/ref/test-types?lang=vi&category=LAB
 | Condition | GESTATIONAL_DIABETES | `a0000001-0000-0000-0000-000000000001` |
 | Condition | PREECLAMPSIA | `a0000001-0000-0000-0000-000000000002` |
 | Condition | ANEMIA | `a0000001-0000-0000-0000-000000000003` |
-| Test Type | BIOCHEMISTRY | `b0000001-0000-0000-0000-000000000001` |
-| Test Type | ULTRASOUND | `b0000001-0000-0000-0000-000000000002` |
-| Test Type | CBC | `b0000001-0000-0000-0000-000000000004` |
-| Test Type | OGTT | `b0000001-0000-0000-0000-00000000000a` |
+| Test Type | BIOCHEMISTRY | `b0000002-0000-0000-0000-000000000001` |
+| Test Type | ULTRASOUND | `b0000002-0000-0000-0000-000000000002` |
+| Test Type | CBC | `b0000002-0000-0000-0000-000000000004` |
+| Test Type | OGTT | `b0000002-0000-0000-0000-00000000000a` |
 
 ---
 
@@ -394,7 +394,7 @@ Content-Type: application/json
 ```
 ```json
 {
-  "visitDateTime": "2026-01-10T09:00:00",
+  "visitDate": "2026-01-10",
   "visitType": 0,
   "location": "Bệnh viện Từ Dũ",
   "notes": "Khám thai định kỳ lần 1"
@@ -406,7 +406,7 @@ Content-Type: application/json
   "data": {
     "id": "<guid>",
     "pregnancyId": "{pregnancyId}",
-    "visitDateTime": "2026-01-10T09:00:00",
+    "visitDate": "2026-01-10",
     "visitType": "Routine",
     "location": "Bệnh viện Từ Dũ",
     "notes": "Khám thai định kỳ lần 1",
@@ -428,7 +428,7 @@ Content-Type: application/json
 ```
 ```json
 {
-  "visitDateTime": "2026-02-01T10:30:00",
+  "visitDate": "2026-02-01",
   "visitType": 0,
   "location": "Bệnh viện Phụ sản Trung ương",
   "notes": "Khám thai tuần 17, tình trạng ổn định",
@@ -500,7 +500,7 @@ Content-Type: application/json
 ### ✅ TC-V03: Tạo buổi khám — Partial Vitals (chỉ vitalSigns)
 ```json
 {
-  "visitDateTime": "2026-02-05T14:00:00",
+  "visitDate": "2026-02-05",
   "visitType": 2,
   "notes": "Tái khám, chỉ đo chỉ số cơ bản",
   "vitals": {
@@ -522,7 +522,7 @@ Content-Type: application/json
 ### ✅ TC-V04: Tạo buổi khám — Không có Vitals
 ```json
 {
-  "visitDateTime": "2026-01-20T08:00:00",
+  "visitDate": "2026-01-20",
   "visitType": 3,
   "notes": "Chỉ làm xét nghiệm, không khám"
 }
@@ -531,20 +531,20 @@ Content-Type: application/json
 
 ---
 
-### ❌ TC-V05: Tạo buổi khám — Validation: Thiếu visitDateTime
+### ❌ TC-V05: Tạo buổi khám — Validation: Thiếu visitDate
 ```json
 {
   "visitType": 0
 }
 ```
-**Expected**: 400 Bad Request — `"visitDateTime" is required`.
+**Expected**: 400 Bad Request — `"visitDate" is required`.
 
 ---
 
 ### ❌ TC-V06: Tạo buổi khám — Validation: VisitType không hợp lệ
 ```json
 {
-  "visitDateTime": "2026-01-10T09:00:00",
+  "visitDate": "2026-01-10T09:00:00",
   "visitType": 99
 }
 ```
@@ -575,7 +575,7 @@ Content-Type: application/json
 ```
 ```json
 {
-  "visitDateTime": "2026-01-10T09:30:00",
+  "visitDate": "2026-01-10",
   "visitType": 0,
   "location": "Bệnh viện Từ Dũ (cập nhật)",
   "notes": "Đã cập nhật giờ khám",
@@ -629,7 +629,7 @@ Content-Type: multipart/form-data
 ```
 | Field | Value |
 |-------|-------|
-| `TestTypeId` | `b0000001-0000-0000-0000-000000000004` (CBC) |
+| `TestTypeId` | `b0000002-0000-0000-0000-000000000004` (CBC) |
 | `TestDate` | `2026-01-15` |
 | `Notes` | `Xét nghiệm công thức máu, chỉ số bình thường` |
 | `IsAbnormalResult` | `false` |
@@ -641,7 +641,7 @@ Content-Type: multipart/form-data
     "id": "<guid>",
     "pregnancyId": "{pregnancyId}",
     "visitId": null,
-    "testTypeId": "b0000001-0000-0000-0000-000000000004",
+    "testTypeId": "b0000002-0000-0000-0000-000000000004",
     "testTypeCode": "CBC",
     "testTypeDisplayName": "Công thức máu toàn phần",
     "testDate": "2026-01-15",
@@ -662,7 +662,7 @@ Content-Type: multipart/form-data
 ```
 | Field | Value |
 |-------|-------|
-| `TestTypeId` | `b0000001-0000-0000-0000-000000000002` (Ultrasound) |
+| `TestTypeId` | `b0000002-0000-0000-0000-000000000002` (Ultrasound) |
 | `TestDate` | `2026-02-01` |
 | `Notes` | `Siêu âm tuần 17, thai phát triển tốt` |
 | `IsAbnormalResult` | `false` |
@@ -681,7 +681,7 @@ Content-Type: multipart/form-data
 ```
 | Field | Value |
 |-------|-------|
-| `TestTypeId` | `b0000001-0000-0000-0000-00000000000a` (OGTT) |
+| `TestTypeId` | `b0000002-0000-0000-0000-00000000000a` (OGTT) |
 | `VisitId` | `{visitId}` (ID của visit đã tạo ở TC-V01) |
 | `TestDate` | `2026-01-10` |
 | `Notes` | `Nghiệm pháp dung nạp glucose` |

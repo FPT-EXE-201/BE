@@ -18,7 +18,12 @@ public class PrenatalVisitRepository : GenericRepository<PrenatalVisit>, IPrenat
         return await _dbSet
             .Where(v => v.PregnancyId == pregnancyId && v.DeletedAt == null)
             .Include(v => v.Tests.Where(t => t.DeletedAt == null))
-            .OrderByDescending(v => v.VisitDateTime)
+            .Include(v => v.Documents.Where(d => d.DeletedAt == null))
+                .ThenInclude(d => d.DocumentType)
+            .Include(v => v.Documents.Where(d => d.DeletedAt == null))
+                .ThenInclude(d => d.Files.OrderBy(f => f.SortOrder))
+                    .ThenInclude(f => f.StorageFile)
+            .OrderByDescending(v => v.VisitDate)
             .ToListAsync(cancellationToken);
     }
 
@@ -27,7 +32,13 @@ public class PrenatalVisitRepository : GenericRepository<PrenatalVisit>, IPrenat
         return await GetPagedAsync(
             options,
             predicate: v => v.PregnancyId == pregnancyId,
-            include: q => q.Include(v => v.Tests.Where(t => t.DeletedAt == null)),
+            include: q => q
+                .Include(v => v.Tests.Where(t => t.DeletedAt == null))
+                .Include(v => v.Documents.Where(d => d.DeletedAt == null))
+                    .ThenInclude(d => d.DocumentType)
+                .Include(v => v.Documents.Where(d => d.DeletedAt == null))
+                    .ThenInclude(d => d.Files.OrderBy(f => f.SortOrder))
+                        .ThenInclude(f => f.StorageFile),
             searchBuilder: SearchHelper.CreateSearchBuilder(
                 PrenatalVisitListQuerySpec.SearchMap,
                 PrenatalVisitListQuerySpec.DefaultSearchKeys,
@@ -44,6 +55,11 @@ public class PrenatalVisitRepository : GenericRepository<PrenatalVisit>, IPrenat
             .Include(v => v.Tests.Where(t => t.DeletedAt == null))
                 .ThenInclude(t => t.TestType)
                     .ThenInclude(tt => tt.Translations)
+            .Include(v => v.Documents.Where(d => d.DeletedAt == null))
+                .ThenInclude(d => d.DocumentType)
+            .Include(v => v.Documents.Where(d => d.DeletedAt == null))
+                .ThenInclude(d => d.Files.OrderBy(f => f.SortOrder))
+                    .ThenInclude(f => f.StorageFile)
             .FirstOrDefaultAsync(cancellationToken);
     }
 }

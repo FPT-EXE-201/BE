@@ -1435,16 +1435,16 @@ public static class TestTypeSeeder
     private static readonly DateTime SeedDate =
         new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
-    private static readonly Guid BloodGlucose = Guid.Parse("b0000001-0000-0000-0000-000000000001");
-    private static readonly Guid Ultrasound   = Guid.Parse("b0000001-0000-0000-0000-000000000002");
-    private static readonly Guid BloodPress   = Guid.Parse("b0000001-0000-0000-0000-000000000003");
-    private static readonly Guid CBC          = Guid.Parse("b0000001-0000-0000-0000-000000000004");
-    private static readonly Guid UrineTest    = Guid.Parse("b0000001-0000-0000-0000-000000000005");
-    private static readonly Guid HepB         = Guid.Parse("b0000001-0000-0000-0000-000000000006");
-    private static readonly Guid HIV          = Guid.Parse("b0000001-0000-0000-0000-000000000007");
-    private static readonly Guid TSH          = Guid.Parse("b0000001-0000-0000-0000-000000000008");
-    private static readonly Guid NTScan       = Guid.Parse("b0000001-0000-0000-0000-000000000009");
-    private static readonly Guid OGTT         = Guid.Parse("b0000001-0000-0000-0000-00000000000a");
+    private static readonly Guid BloodGlucose = Guid.Parse("b0000002-0000-0000-0000-000000000001");
+    private static readonly Guid Ultrasound   = Guid.Parse("b0000002-0000-0000-0000-000000000002");
+    private static readonly Guid BloodPress   = Guid.Parse("b0000002-0000-0000-0000-000000000003");
+    private static readonly Guid CBC          = Guid.Parse("b0000002-0000-0000-0000-000000000004");
+    private static readonly Guid UrineTest    = Guid.Parse("b0000002-0000-0000-0000-000000000005");
+    private static readonly Guid HepB         = Guid.Parse("b0000002-0000-0000-0000-000000000006");
+    private static readonly Guid HIV          = Guid.Parse("b0000002-0000-0000-0000-000000000007");
+    private static readonly Guid TSH          = Guid.Parse("b0000002-0000-0000-0000-000000000008");
+    private static readonly Guid NTScan       = Guid.Parse("b0000002-0000-0000-0000-000000000009");
+    private static readonly Guid OGTT         = Guid.Parse("b0000002-0000-0000-0000-00000000000a");
 
     public static void Seed(ModelBuilder modelBuilder)
     {

@@ -1,7 +1,9 @@
 ﻿using FPT.EXE201.Application;
+using FPT.EXE201.Application.AI.Interfaces;
 using FPT.EXE201.Application.Authorization;
 using FPT.EXE201.Application.IRepositories;
 using FPT.EXE201.Application.IServices;
+using FPT.EXE201.Infrastructure.AI;
 using FPT.EXE201.Infrastructure.Persistence;
 using FPT.EXE201.Infrastructure.Repositories;
 using FPT.EXE201.Infrastructure.Services;
@@ -48,8 +50,45 @@ namespace FPT.EXE201.Infrastructure
             services.AddScoped<IJwtTokenService, JwtTokenService>();
             services.AddScoped<IPasswordHasher, PasswordHasher>();
 
-            // File Storage — Stub (sẽ thay bằng SupabaseStorageService sau)
-            services.AddScoped<IFileStorageService, StubFileStorageService>();
+            // Week 5 — Supabase Storage (replaces Week 4 StubFileStorageService)
+            services.AddHttpClient<IFileStorageService, SupabaseStorageService>(client =>
+            {
+                var supabaseUrl = configuration["Supabase:Url"]
+                    ?? throw new InvalidOperationException("Supabase:Url is required.");
+                var serviceKey = configuration["Supabase:ServiceRoleKey"]
+                    ?? throw new InvalidOperationException("Supabase:ServiceRoleKey is required.");
+
+                client.BaseAddress = new Uri($"{supabaseUrl.TrimEnd('/')}/storage/v1/");
+                client.DefaultRequestHeaders.Add("apikey", serviceKey);
+                client.DefaultRequestHeaders.Authorization =
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", serviceKey);
+            });
+
+            // Week 4 — Infrastructure Services
+            services.AddScoped<IOcrService, OcrService>();
+
+            // Week 5 — AI Provider HTTP Clients
+            services.AddHttpClient<IAiProvider, GeminiAiProvider>(client =>
+            {
+                var baseUrl = configuration["AI:Gemini:BaseUrl"]
+                    ?? "https://generativelanguage.googleapis.com/v1beta/";
+                client.BaseAddress = new Uri(baseUrl);
+                client.Timeout = TimeSpan.FromSeconds(
+                    int.Parse(configuration["AI:Gemini:TimeoutSeconds"] ?? "60"));
+            });
+
+            services.AddHttpClient<IOcrProvider, AzureOcrProvider>(client =>
+            {
+                var endpoint = configuration["AI:AzureDocumentIntelligence:Endpoint"]
+                    ?? throw new InvalidOperationException("AI:AzureDocumentIntelligence:Endpoint is required.");
+                client.BaseAddress = new Uri(endpoint.TrimEnd('/') + "/");
+                client.Timeout = TimeSpan.FromSeconds(
+                    int.Parse(configuration["AI:AzureDocumentIntelligence:TimeoutSeconds"] ?? "120"));
+            });
+
+            // Week 5 — Background OCR Processing (Channel + BackgroundService)
+            services.AddSingleton<IOcrJobQueue, OcrJobQueue>();
+            services.AddHostedService<OcrBackgroundService>();
             #endregion
 
             // Add JWT Authentication

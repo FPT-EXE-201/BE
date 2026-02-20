@@ -1,7 +1,7 @@
 # Features Workflow Guide — Medical Records, OCR, AI, Nutrition
 
 > **Mục đích**: Tổng hợp workflow, architecture, data flow cho các tính năng AI-powered — để AI đọc hiểu và implement code đúng.  
-> **Cập nhật**: 2026-02-13  
+> **Cập nhật**: 2026-02-15  
 > **Xem thêm**: `DEVELOPMENT_WORKFLOW_GUIDE.md` (conventions, patterns), `DATABASE_SCHEMA.sql` (DDL 59 tables), `WEEK_*_PROMPTS_GUIDE.md` (chi tiết code)
 
 ---
@@ -27,7 +27,6 @@
 │    ├── MedicalRecordAiService  → Full pipeline: OCR → AI      │
 │    ├── NutritionAiService      → Meal plan generation          │
 │    ├── MedicalDocumentService  → Upload + CRUD documents       │
-│    ├── TagService              → User-defined tags             │
 │    └── WeightLogService        → Weight tracking + alerts      │
 │                                                                │
 ├─── Infrastructure Layer ──────────────────────────────────────┤
@@ -41,8 +40,8 @@
 │    └── OcrService (enhanced)    → Orchestrate OCR pipeline    │
 │                                                                │
 ├─── Domain Layer ──────────────────────────────────────────────┤
-│  Entities: StorageFile, MedicalDocument, OcrResult,            │
-│    AiPromptTemplate, AiRequestLog, Tag, WeightLog,             │
+│  Entities: StorageFile, DocumentFile, MedicalDocument, OcrResult,            │
+│    AiPromptTemplate, AiRequestLog, WeightLog,                  │
 │    RefFoodItem, MealPlan, MealPlanDay, MealItem, etc.          │
 │  Enums: OcrStatus, DocumentSource, MealType, WeightSource...  │
 └────────────────────────────────────────────────────────────────┘
@@ -78,21 +77,30 @@ Week 5: SupabaseStorageService   → upload file thật lên Supabase Storage (t
 ### 2.2 Upload Flow
 
 ```
-Client (multipart/form-data: file + metadata)
+Client (multipart/form-data: files[] + metadata)
     ↓
 MedicalDocumentsController.Upload()
     ↓
-MedicalDocumentService.CreateWithFileAsync()
-    1. Validate: file size ≤ 10MB, MIME type ∈ {jpeg, png, pdf}
-    2. IFileStorageService.UploadAsync(stream, fileName, contentType)
+MedicalDocumentService.CreateWithFilesAsync()
+    1. Validate: each file size ≤ 10MB, MIME type ∈ {jpeg, png, pdf}
+    2. For each file:
+       IFileStorageService.UploadAsync(stream, fileName, contentType)
        → Supabase: POST /object/{bucket}/{objectKey}
        → Returns: objectKey, publicUrl, checksum
-    3. Create StorageFile entity (provider, bucket, objectKey, publicUrl, sizeBytes, checksum)
-    4. Create MedicalDocument entity (pregnancyId, storageFileId, title, documentDate, source)
-    5. SaveChanges
-    6. Auto-trigger OCR pipeline (async): OcrService.QueueOcrAsync(documentId)
+       Create StorageFile entity
+       Create DocumentFile entity (sortOrder, pageLabel)
+    3. Create MedicalDocument entity (pregnancyId, title, documentDate, source)
+    4. SaveChanges
+    5. If DocumentType == PRENATAL_CHECKUP:
+       OcrService.QueueOcrAsync(documentId) → non-blocking
+       → Tạo OcrResult(Pending) + enqueue to Channel
+       → OcrBackgroundService picks up job và chạy OCR+AI background
+       If test types or others: SKIP OCR (không queue)
     ↓
-Response: MedicalDocumentDto { id, publicUrl, ocrStatus: "Pending" }
+Response: MedicalDocumentDto { id, files[] } → trả về ngay (<1s)
+
+Flutter polls GET /api/ocr/{ocrResultId}/status mỗi 3-5s
+→ Pending → OcrProcessing → AiExtracting → Succeeded ✅
 ```
 
 ### 2.3 Supabase Storage Configuration
@@ -141,12 +149,18 @@ public record StorageFileResult(
 
 ---
 
-## 3. OCR + AI EXTRACTION PIPELINE (Medical Records)
+## 3. OCR + AI EXTRACTION PIPELINE (PRENATAL_CHECKUP only)
+
+> **⚠️ IMPORTANT**: OCR + AI extraction chỉ áp dụng cho `PRENATAL_CHECKUP` documents.  
+> Test types (BLOOD_TEST, ULTRASOUND...) chỉ lưu ảnh, **không chạy OCR**.  
+> Others (PRESCRIPTION, VACCINATION...) chỉ archive.
 
 ### 3.1 Full Pipeline Flow
 
 ```
 ┌─────────────── MedicalRecordAiService.ProcessDocumentAsync() ───────────────┐
+│                                                                              │
+│  ⚠️ Chỉ chạy cho DocumentType = PRENATAL_CHECKUP                           │
 │                                                                              │
 │  Phase 1: OCR (Azure Document Intelligence)                                 │
 │  ─────────────────────────────────────────                                   │
@@ -178,15 +192,16 @@ public record StorageFileResult(
 ### 3.2 OcrStatus Enum (Multi-phase)
 
 ```csharp
+// HIỆN TẠI (Week 4)
 public enum OcrStatus
 {
-    Pending,         // Đang chờ
-    OcrProcessing,   // Azure đang chạy OCR
-    OcrCompleted,    // OCR xong, chờ AI
-    AiExtracting,    // Gemini đang trích xuất
-    Succeeded,       // Pipeline hoàn tất
-    Failed           // Thất bại ở bất kỳ phase nào
+    Pending,      // Đang chờ
+    Processing,   // Đang xử lý
+    Succeeded,    // Thành công
+    Failed        // Thất bại
 }
+// Week 5 sẽ expand thành multi-phase:
+//   Pending → OcrProcessing → OcrCompleted → AiExtracting → Succeeded / Failed
 ```
 
 ### 3.3 Rule Layer System (Prompt Construction)
@@ -260,9 +275,6 @@ var response = await _aiProvider.GenerateAsync(prompt, ct);
     "fetalMovement": "Bình thường",
     "estimatedWeightGrams": 1200
   },
-  "labResults": [
-    { "testName": "Hemoglobin", "value": "12.5", "unit": "g/dL", "referenceRange": "11-14", "isAbnormal": false }
-  ],
   "diagnoses": ["Thai phát triển bình thường"],
   "medications": [
     { "name": "Acid folic", "dosage": "400mg", "frequency": "1 lần/ngày", "duration": "Đến khi sinh" }
@@ -396,49 +408,130 @@ services.AddHttpClient<IAiProvider, GeminiAiProvider>(client =>
 | Table | Vai trò | Extends BaseEntity |
 |-------|---------|-------------------|
 | `storage_files` | File vật lý (objectKey, publicUrl, checksum) | ✅ |
-| `ref_document_types` | Master data loại tài liệu (8 types seeded) | ✅ |
+| `document_files` | Junction table: MedicalDocument ↔ StorageFile (multi-file) | ✅ |
+| `ref_document_types` | Master data loại tài liệu (14 types seeded) | ✅ |
 | `ref_document_type_translations` | i18n tên loại tài liệu | ❌ composite PK |
-| `medical_documents` | Metadata document + FK → storage_files, pregnancies | ✅ |
+| `medical_documents` | Metadata document + FK → pregnancies | ✅ |
 | `ocr_results` | OCR + AI extraction results (multi-run) | ✅ |
-| `tags` | User-defined tags (unique per user) | ✅ |
-| `medical_document_tags` | N:N join table | ❌ composite PK |
 
-### 6.2 Seeded Document Types
+### 6.2 Seeded Document Types (14 types)
 
 ```
+# Original 8
 PRENATAL_CHECKUP, ULTRASOUND, BLOOD_TEST, URINE_TEST,
-PRESCRIPTION, VACCINATION, GLUCOSE_TOLERANCE, OTHER
+PRESCRIPTION, VACCINATION_RECORD, MEDICAL_REPORT, OTHER
+
+# Week 5.5: Specific test types for direct matching
+HIV_TEST, HEPATITIS_B_TEST, THYROID_TEST, GLUCOSE_TEST, CBC_TEST, NT_SCAN
 ```
 
 ### 6.3 API Endpoints
 
 ```
-POST   /api/pregnancies/{id}/documents          → Upload (multipart/form-data)
-GET    /api/pregnancies/{id}/documents          → List by pregnancy
-GET    /api/documents/{id}                      → Detail + OCR results
-PUT    /api/documents/{id}                      → Update metadata
-DELETE /api/documents/{id}                      → Soft delete
+POST   /api/pregnancies/{id}/documents              → Upload (multipart/form-data)
+GET    /api/pregnancies/{id}/documents?isFavorite=   → List by pregnancy (filter by favorite)
+GET    /api/documents/{id}                           → Detail + OCR results
+PUT    /api/documents/{id}                           → Update metadata (title, notes, date, documentTypeId)
+DELETE /api/documents/{id}                           → Soft delete
 
-POST   /api/documents/{id}/ocr/rerun           → Re-run OCR + AI
-GET    /api/ocr/{id}/status                     → Check pipeline status
+POST   /api/documents/{id}/ocr/rerun                → Re-run OCR + AI (PRENATAL_CHECKUP only)
+GET    /api/ocr/{id}/status                          → Check pipeline status
+GET    /api/documents/{documentId}/ocr               → List OCR results by document
 
-POST   /api/tags                                → Create user tag
-GET    /api/tags                                → List user tags
-DELETE /api/tags/{id}                           → Delete tag
-POST   /api/documents/{docId}/tags/{tagId}      → Attach tag
-DELETE /api/documents/{docId}/tags/{tagId}      → Detach tag
+PATCH  /api/documents/{id}/favorite                  → Toggle favorite
 
-GET    /api/ref/document-types?lang=vi          → Reference data (public)
-GET    /api/pregnancies/{id}/timeline           → Documents + visits timeline
+GET    /api/ref/document-types?lang=vi               → Reference data (public)
+GET    /api/pregnancies/{id}/timeline                → Documents + visits timeline
 ```
 
 ### 6.4 Business Rules
 
 - File size ≤ 10MB, MIME ∈ {image/jpeg, image/png, application/pdf}
-- Tag name unique per user: `uk_tags_user_name (user_id, name)`
 - OCR run number auto-increment per document: `uk_ocr_results_doc_run (document_id, ocr_run_no)`
-- `medical_documents.visit_id` ban đầu NULL → populated sau khi AI extraction xong
+- **OCR chỉ chạy cho PRENATAL_CHECKUP** — test types và others **không có OCR**
+- `medical_documents.visit_id` ban đầu NULL → populated sau khi Confirm (Week 5.5)
 - Ownership: user chỉ access documents của own pregnancies
+- **File replacement**: blocked nếu document đã có OCR Confirmed. Allowed cho test types và others.
+- **Skip**: soft delete document (IsDeleted=true). Admin vẫn thấy, user không thấy.
+- **PrenatalTest.DocumentId?** FK → `medical_documents.id`, ON DELETE SET NULL
+
+---
+
+## 6.5 AUTO-FILL MODULE (Week 5.5)
+
+> **Prerequisite**: Week 5 (OCR + AI Extraction) phải hoàn thành trước.  
+> **Chi tiết**: `WEEK_5.5_PROMPTS_GUIDE.md`
+
+### 6.5.1 Mục tiêu
+
+Week 5 chỉ extract dữ liệu → lưu JSON thô. Week 5.5 thêm "Review & Confirm" flow — user xem AI extracted data, chỉnh sửa nếu cần, confirm → hệ thống tự động tạo PrenatalVisit / PrenatalTest.
+
+> **⚠️ LƯU Ý**: Auto-Fill flow chỉ áp dụng cho **PRENATAL_CHECKUP** (có OCR data).  
+> Test types: user tự nhập metadata (TestType, Date, Notes, IsAbnormal) → confirm → tạo PrenatalTest.  
+> Others (PRESCRIPTION, VACCINATION...): chỉ lưu trữ archive, **không cần confirm**.
+
+### 6.5.2 Flow
+
+```
+PRENATAL_CHECKUP:
+  Upload → Response ngay (<1s)
+  Background: OCR → AI → StructuredJson (10-30s)
+  Flutter polls GET /ocr/{id}/status → Succeeded
+                            ↓
+  GET /ocr/{id}/review          → User xem + chỉnh sửa extracted data
+  POST /ocr/{id}/confirm        → Auto-create entities
+                            ↓
+  PrenatalVisit (+ VitalsJson)
+  MedicalDocument.VisitId ← created visit
+  OcrResult.Status = Confirmed
+
+TEST TYPES (BLOOD_TEST, ULTRASOUND...):
+  Upload → Hiện ảnh → User nhập metadata
+                            ↓
+  POST /documents/{id}/confirm  → Tạo PrenatalTest
+                            ↓
+  PrenatalTest.DocumentId ← document này
+
+OTHERS (PRESCRIPTION, VACCINATION...):
+  Upload → ✅ DONE (chỉ archive, không có review/confirm)
+```
+
+### 6.5.3 Document Type → Action Strategy
+
+| DocumentType Code | Action | Output |
+|-------------------|--------|--------|
+| `PRENATAL_CHECKUP` | Create PrenatalVisit + VitalsJson + link document | Visit entity |
+| `BLOOD_TEST` | Direct match → BLOOD_TEST RefTestType | Test entity |
+| `URINE_TEST` | Direct match → URINE_TEST RefTestType | Test entity |
+| `ULTRASOUND` | Direct match → ULTRASOUND RefTestType | Test entity |
+| `HIV_TEST` | Direct match → HIV_SCREEN RefTestType | Test entity |
+| `HEPATITIS_B_TEST` | Direct match → HEPATITIS_B RefTestType | Test entity |
+| `THYROID_TEST` | Direct match → TSH RefTestType | Test entity |
+| `GLUCOSE_TEST` | Direct match → OGTT RefTestType | Test entity |
+| `CBC_TEST` | Direct match → CBC_TEST RefTestType | Test entity |
+| `NT_SCAN` | Direct match → NT_SCAN RefTestType | Test entity |
+| `PRESCRIPTION` | Save to notes only | Notes |
+| `VACCINATION_RECORD` | Save to notes only | Notes |
+| `MEDICAL_REPORT` | Save to notes only | Notes |
+| `OTHER` | Save to notes only | Notes |
+
+### 6.5.4 Auto-Create Visit for Test Types
+
+Khi confirm test type mà không có `existingVisitId`, BE tự động tạo một Routine visit để test không bị orphaned.
+DocumentType Code → RefTestType Code qua `DocTypeToTestTypeCode` dictionary (tất cả đều là direct mapping).
+
+### 6.5.5 Database Changes
+
+- `OcrStatus` enum: thêm `Confirmed`
+- `OcrResult` entity: 4 fields mới (`ConfirmedAt`, `ConfirmedBy`, `ConfirmedJson`, `AutoFillResultJson`)
+- Permissions: `ocr.review`, `ocr.confirm`
+
+### 6.5.6 API Endpoints
+
+```
+GET  /api/documents/{id}/extraction/review   → ExtractionReviewDto (dữ liệu AI + suggestions)
+POST /api/documents/{id}/extraction/confirm  → AutoFillResultDto (entities đã tạo)
+```
 
 ---
 
@@ -705,12 +798,14 @@ services.AddScoped<IOcrService, OcrService>();
 ### 11.1 Medical Record Upload → OCR → AI
 
 ```
-[User uploads image]
+[User uploads image(s)]
        ↓
-[Supabase Storage] ← file binary
-       ↓ objectKey + publicUrl
-[StorageFile] ← metadata
-       ↓ storageFileId
+[Supabase Storage] ← file binaries
+       ↓ objectKey + publicUrl (per file)
+[StorageFile] ← metadata (per file)
+       ↓
+[DocumentFile] ← sortOrder, pageLabel (junction)
+       ↓ documentId
 [MedicalDocument] ← pregnancyId, title, documentDate
        ↓ documentId
 [OcrResult] status: Pending
@@ -757,7 +852,7 @@ services.AddScoped<IOcrService, OcrService>();
 
 | Module | Permissions |
 |--------|------------|
-| Documents | `document.create`, `document.read`, `document.delete`, `ocr.trigger` |
+| Documents | `document.create`, `document.view`, `document.update`, `document.delete`, `document.favorite`, `ocr.trigger`, `ocr.view` |
 | Weight | `weight_log.read`, `weight_log.write`, `weight_log.delete` |
 | Nutrition | `nutrition.read`, `nutrition.write`, `ai_features.access` (premium) |
 | AI Admin | `ai_templates.manage` (admin only) |
@@ -769,9 +864,11 @@ Xem chi tiết RBAC: `RBAC_IMPLEMENTATION_GUIDE.md`
 ## 13. ENUMS REFERENCE
 
 ```csharp
-// Week 4
-public enum DocumentSource { Upload, Camera, Import, AiGenerated }
-public enum OcrStatus { Pending, OcrProcessing, OcrCompleted, AiExtracting, Succeeded, Failed }
+// Week 4 (hiện tại)
+public enum DocumentSource { Upload, Share, Import }
+public enum OcrStatus { Pending, Processing, Succeeded, Failed }
+// Week 5 sẽ expand OcrStatus: thêm OcrProcessing, OcrCompleted, AiExtracting
+// Week 5.5 sẽ thêm OcrStatus.Confirmed (user đã review + confirm extracted data)
 
 // Week 6
 public enum WeightSource { Manual, Device, Import }

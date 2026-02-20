@@ -28,6 +28,7 @@ namespace FPT.EXE201.Infrastructure.Configurations
 
             builder.Property(e => e.DateOfBirth)
                 .HasColumnName("date_of_birth")
+                .HasColumnType("date")
                 .IsRequired(false);
 
             builder.Property(e => e.AvatarUrl)

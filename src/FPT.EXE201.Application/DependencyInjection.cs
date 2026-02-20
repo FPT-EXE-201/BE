@@ -32,6 +32,15 @@ public static class DependencyInjection
         services.AddScoped<IPrenatalVisitService, PrenatalVisitService>();
         services.AddScoped<IPrenatalTestService, PrenatalTestService>();
         services.AddScoped<IRefDataService, RefDataService>();
+
+        // Week 4 - Medical Documents
+        services.AddScoped<IMedicalDocumentService, MedicalDocumentService>();
+
+        // Week 5 — AI Application Services
+        services.AddScoped<IMedicalRecordAiService, MedicalRecordAiService>();
+
+        // Week 5.5 — Auto-Fill
+        services.AddScoped<IAutoFillService, AutoFillService>();
         #endregion
 
         return services;

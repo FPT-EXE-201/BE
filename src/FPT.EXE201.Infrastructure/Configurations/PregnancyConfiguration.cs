@@ -95,8 +95,11 @@ public class PregnancyConfiguration : IEntityTypeConfiguration<Pregnancy>
         // Ignore computed property
         builder.Ignore(p => p.IsDeleted);
 
-        // Unique: 1 user + pregnancy_no
-        builder.HasIndex(p => new { p.UserId, p.PregnancyNumber })
+        // Unique: 1 user + pregnancy_no (only among non-deleted)
+        // Including DeletedAt allows soft-deleted records to not block new ones:
+        //   (user, 1, NULL) + (user, 1, NULL) → conflict ✓
+        //   (user, 1, '2026-01-01') + (user, 1, NULL) → no conflict ✓
+        builder.HasIndex(p => new { p.UserId, p.PregnancyNumber, p.DeletedAt })
             .IsUnique().HasDatabaseName("uk_pregnancies_user_no");
 
         builder.HasIndex(p => p.UserId).HasDatabaseName("idx_pregnancies_user");

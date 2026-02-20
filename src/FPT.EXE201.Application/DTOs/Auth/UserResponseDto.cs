@@ -17,7 +17,7 @@ namespace FPT.EXE201.Application.DTOs.Auth
         
         // Profile info
         public string? FullName { get; set; }
-        public DateTime? DateOfBirth { get; set; }
+        public DateOnly? DateOfBirth { get; set; }
         public string? AvatarUrl { get; set; }
         public string PreferredLanguage { get; set; } = "vi";
     }

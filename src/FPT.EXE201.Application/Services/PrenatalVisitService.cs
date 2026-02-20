@@ -33,7 +33,7 @@ public class PrenatalVisitService : IPrenatalVisitService
         {
             PregnancyId = pregnancyId,
             DoctorId = dto.DoctorId,
-            VisitDateTime = dto.VisitDateTime,
+            VisitDate = dto.VisitDate,
             VisitType = dto.VisitType,
             Location = dto.Location,
             Notes = dto.Notes,
@@ -72,7 +72,7 @@ public class PrenatalVisitService : IPrenatalVisitService
         await VerifyPregnancyOwnership(visit.PregnancyId, userId, cancellationToken);
 
         visit.DoctorId = dto.DoctorId;
-        visit.VisitDateTime = dto.VisitDateTime;
+        visit.VisitDate = dto.VisitDate;
         visit.VisitType = dto.VisitType;
         visit.Location = dto.Location;
         visit.Notes = dto.Notes;
@@ -119,12 +119,14 @@ public class PrenatalVisitService : IPrenatalVisitService
             Id: visit.Id,
             PregnancyId: visit.PregnancyId,
             DoctorId: visit.DoctorId,
-            VisitDateTime: visit.VisitDateTime,
+            VisitDate: visit.VisitDate,
             VisitType: visit.VisitType.ToString(),
             Location: visit.Location,
             Notes: visit.Notes,
             Vitals: DeserializeVitals(visit.VitalsJson),
             TestCount: visit.Tests?.Count(t => t.DeletedAt == null) ?? 0,
+            LinkedDocumentIds: ExtractDocumentIds(visit),
+            LinkedDocumentImages: ExtractDocumentImageUrls(visit),
             CreatedAt: visit.CreatedAt
         );
     }
@@ -157,12 +159,14 @@ public class PrenatalVisitService : IPrenatalVisitService
             Id: visit.Id,
             PregnancyId: visit.PregnancyId,
             DoctorId: visit.DoctorId,
-            VisitDateTime: visit.VisitDateTime,
+            VisitDate: visit.VisitDate,
             VisitType: visit.VisitType.ToString(),
             Location: visit.Location,
             Notes: visit.Notes,
             Vitals: DeserializeVitals(visit.VitalsJson),
             Tests: tests,
+            LinkedDocumentIds: ExtractDocumentIds(visit),
+            LinkedDocumentImages: ExtractDocumentImageUrls(visit),
             CreatedAt: visit.CreatedAt
         );
     }
@@ -197,5 +201,34 @@ public class PrenatalVisitService : IPrenatalVisitService
         {
             return null;
         }
+    }
+
+    /// <summary>
+    /// Lấy danh sách document gắn với visit, chỉ loại PRENATAL_CHECKUP.
+    /// Test types (ULTRASOUND, BLOOD_TEST...) có endpoint riêng GET /api/visits/{id}/tests.
+    /// </summary>
+    private static List<Guid> ExtractDocumentIds(PrenatalVisit visit)
+    {
+        if (visit.Documents == null || visit.Documents.Count == 0)
+            return new List<Guid>();
+
+        return visit.Documents
+            .Where(d => d.DeletedAt == null && d.DocumentType?.Code == "PRENATAL_CHECKUP")
+            .Select(d => d.Id)
+            .ToList();
+    }
+
+    private static List<string> ExtractDocumentImageUrls(PrenatalVisit visit)
+    {
+        if (visit.Documents == null || visit.Documents.Count == 0)
+            return new List<string>();
+
+        return visit.Documents
+            .Where(d => d.DeletedAt == null && d.DocumentType?.Code == "PRENATAL_CHECKUP")
+            .SelectMany(d => d.Files ?? Enumerable.Empty<DocumentFile>())
+            .OrderBy(f => f.SortOrder)
+            .Select(f => f.StorageFile?.PublicUrl)
+            .Where(u => !string.IsNullOrEmpty(u))
+            .ToList()!;
     }
 }

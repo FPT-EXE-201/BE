@@ -37,6 +37,20 @@ public abstract class BaseApiController : ControllerBase
     }
 
     /// <summary>
+    /// Create an accepted response with data (202 Accepted) - for async background processing.
+    /// Resource has been accepted for processing, but processing has not been completed.
+    /// FE should poll the status endpoint to check progress.
+    /// </summary>
+    /// <typeparam name="T">Type of response data</typeparam>
+    /// <param name="data">The accepted resource data (e.g., Pending OcrResult)</param>
+    /// <param name="message">Status message</param>
+    protected IActionResult Accepted<T>(T data, string message = "Request accepted for processing")
+    {
+        var apiResponse = new ApiResponse<T>(true, message, data, 202);
+        return StatusCode(202, apiResponse);
+    }
+
+    /// <summary>
     /// Create a no content response (204 No Content) - for DELETE operations
     /// </summary>
     protected IActionResult NoContentResponse()

@@ -20,13 +20,13 @@ public static class PrenatalVisitListQuerySpec
 
     public static readonly Dictionary<string, LambdaExpression> SortMap = new()
     {
-        ["visitdate"] = (Expression<Func<PrenatalVisit, DateTime>>)(v => v.VisitDateTime),
+        ["visitdate"] = (Expression<Func<PrenatalVisit, DateOnly>>)(v => v.VisitDate),
         ["location"] = (Expression<Func<PrenatalVisit, string?>>)(v => v.Location),
         ["createdat"] = (Expression<Func<PrenatalVisit, DateTime>>)(v => v.CreatedAt)
     };
 
     public static readonly LambdaExpression DefaultSort =
-        (Expression<Func<PrenatalVisit, DateTime>>)(v => v.VisitDateTime);
+        (Expression<Func<PrenatalVisit, DateOnly>>)(v => v.VisitDate);
 
     /// <summary>Metadata for FE: GET /api/ref/query-specs</summary>
     public static readonly QuerySpecMetadataDto Metadata = new()

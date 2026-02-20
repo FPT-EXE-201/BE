@@ -13,7 +13,7 @@ public class PrenatalVisitConfiguration : IEntityTypeConfiguration<PrenatalVisit
         builder.Property(p => p.Id).HasColumnName("id").HasColumnType("CHAR(36)");
         builder.Property(p => p.PregnancyId).IsRequired().HasColumnName("pregnancy_id").HasColumnType("CHAR(36)");
         builder.Property(p => p.DoctorId).HasColumnName("doctor_id").HasColumnType("CHAR(36)");
-        builder.Property(p => p.VisitDateTime).IsRequired().HasColumnName("visit_at").HasColumnType("DATETIME");
+        builder.Property(p => p.VisitDate).IsRequired().HasColumnName("visit_date").HasColumnType("DATE");
         builder.Property(p => p.VisitType).IsRequired().HasColumnName("visit_type")
             .HasConversion<string>().HasMaxLength(20);
         builder.Property(p => p.Location).HasColumnName("location").HasMaxLength(200);
@@ -26,7 +26,7 @@ public class PrenatalVisitConfiguration : IEntityTypeConfiguration<PrenatalVisit
         builder.Ignore(p => p.IsDeleted);
 
         builder.HasIndex(p => p.PregnancyId).HasDatabaseName("idx_prenatal_visits_pregnancy");
-        builder.HasIndex(p => p.VisitDateTime).HasDatabaseName("idx_prenatal_visits_date");
+        builder.HasIndex(p => p.VisitDate).HasDatabaseName("idx_prenatal_visits_date");
 
         builder.HasOne(p => p.Pregnancy)
             .WithMany(pr => pr.Visits).HasForeignKey(p => p.PregnancyId)

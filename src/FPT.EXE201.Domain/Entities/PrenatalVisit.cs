@@ -23,8 +23,8 @@ public class PrenatalVisit : BaseEntity
     /// </summary>
     public Guid? DoctorId { get; set; }
 
-    /// <summary>Ngày giờ diễn ra buổi khám.</summary>
-    public DateTime VisitDateTime { get; set; }
+    /// <summary>Ngày diễn ra buổi khám.</summary>
+    public DateOnly VisitDate { get; set; }
 
     /// <summary>
     /// Loại buổi khám: Routine (định kỳ), Emergency (cấp cứu),
@@ -50,4 +50,7 @@ public class PrenatalVisit : BaseEntity
 
     /// <summary>Các xét nghiệm thực hiện trong buổi khám này.</summary>
     public ICollection<PrenatalTest> Tests { get; set; } = new List<PrenatalTest>();
+
+    /// <summary>Các tài liệu y tế gắn với buổi khám (MedicalDocument.VisitId = this.Id).</summary>
+    public ICollection<MedicalDocument> Documents { get; set; } = new List<MedicalDocument>();
 }

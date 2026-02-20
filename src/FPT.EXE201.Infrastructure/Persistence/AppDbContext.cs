@@ -32,6 +32,17 @@ namespace FPT.EXE201.Infrastructure.Persistence
         public DbSet<RefTestTypeTranslation> RefTestTypeTranslations { get; set; }
         public DbSet<PrenatalTest> PrenatalTests { get; set; }
 
+        // Week 4 — Medical Documents & Storage
+        public DbSet<StorageFile> StorageFiles { get; set; }
+        public DbSet<RefDocumentType> RefDocumentTypes { get; set; }
+        public DbSet<RefDocumentTypeTranslation> RefDocumentTypeTranslations { get; set; }
+        public DbSet<MedicalDocument> MedicalDocuments { get; set; }
+        public DbSet<DocumentFile> DocumentFiles { get; set; }
+        public DbSet<OcrResult> OcrResults { get; set; }
+
+        // Week 5 — AI Prompt Templates
+        public DbSet<AiPromptTemplate> AiPromptTemplates { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -45,6 +56,9 @@ namespace FPT.EXE201.Infrastructure.Persistence
             // Week 3 Seeders
             PregnancyConditionSeeder.Seed(modelBuilder);
             TestTypeSeeder.Seed(modelBuilder);
+
+            // Week 4 Seeders
+            DocumentTypeSeeder.Seed(modelBuilder);
 
             // Apply soft delete query filter for all entities inheriting from BaseEntity
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())

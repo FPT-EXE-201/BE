@@ -27,10 +27,9 @@ public class PregnancyRepository : GenericRepository<Pregnancy>, IPregnancyRepos
 
     public async Task<int> GetNextPregnancyNumberAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        // Include deleted pregnancies to avoid pregnancy_no collisions
+        // Only count non-deleted pregnancies so soft-deleted ones don't inflate the number
         var maxNo = await _dbSet
-            .IgnoreQueryFilters()
-            .Where(p => p.UserId == userId)
+            .Where(p => p.UserId == userId && p.DeletedAt == null)
             .MaxAsync(p => (int?)p.PregnancyNumber, cancellationToken);
 
         return (maxNo ?? 0) + 1;

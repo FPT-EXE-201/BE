@@ -27,6 +27,9 @@ public class PregnancyService : IPregnancyService
 
         var nextNo = await _unitOfWork.Pregnancies.GetNextPregnancyNumberAsync(userId, cancellationToken);
 
+        // Validate gravida / para
+        ValidateGravidaPara(dto.Gravida, dto.Para, nextNo);
+
         var pregnancy = new Pregnancy
         {
             UserId = userId,
@@ -110,8 +113,13 @@ public class PregnancyService : IPregnancyService
 
         // Nhóm 3
         if (dto.DueDateSource.HasValue) pregnancy.DueDateSource = dto.DueDateSource.Value;
-        pregnancy.Gravida = dto.Gravida ?? pregnancy.Gravida;
-        pregnancy.Para = dto.Para ?? pregnancy.Para;
+
+        var newGravida = dto.Gravida ?? pregnancy.Gravida;
+        var newPara = dto.Para ?? pregnancy.Para;
+        ValidateGravidaPara(newGravida, newPara, pregnancy.PregnancyNumber);
+        pregnancy.Gravida = newGravida;
+        pregnancy.Para = newPara;
+
         pregnancy.CoverImageUrl = dto.CoverImageUrl ?? pregnancy.CoverImageUrl;
 
         // Recalculate EDD if LMP changed
@@ -166,6 +174,29 @@ public class PregnancyService : IPregnancyService
     }
 
     // ═══ Private Helpers ═══
+
+    /// <summary>
+    /// Gravida = tổng số lần mang thai (tính cả lần này) → phải >= pregnancyNumber.
+    /// Para = số lần sinh trước đó → phải >= 0 và < Gravida.
+    /// </summary>
+    private static void ValidateGravidaPara(int? gravida, int? para, int pregnancyNumber)
+    {
+        if (gravida.HasValue)
+        {
+            if (gravida.Value < pregnancyNumber)
+                throw new BadRequestException(
+                    $"Gravida ({gravida.Value}) must be >= pregnancy number ({pregnancyNumber}). " +
+                    $"Gravida counts ALL pregnancies including those before using the app.");
+
+            if (para.HasValue && para.Value >= gravida.Value)
+                throw new BadRequestException(
+                    $"Para ({para.Value}) must be less than Gravida ({gravida.Value}). " +
+                    $"Para counts deliveries before the current pregnancy.");
+        }
+
+        if (para.HasValue && para.Value < 0)
+            throw new BadRequestException("Para cannot be negative.");
+    }
 
     private async Task<Pregnancy> GetAndVerifyOwnership(Guid id, Guid userId, CancellationToken cancellationToken)
     {

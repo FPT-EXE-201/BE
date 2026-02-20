@@ -13,7 +13,7 @@
 ```
 ┌─ API Layer ──────────────────────────────────────────────────────┐
 │  OcrController          MedicalDocumentsController               │
-│  AiAdminController      (upload → trigger extraction)            │
+│  AiAdminController      (PRENATAL_CHECKUP upload → trigger OCR)  │
 ├─ Application Layer ──────────────────────────────────────────────┤
 │                                                                   │
 │  ┌─ Application/AI/ ──────────────────────────────────────────┐  │
@@ -40,6 +40,8 @@
 │  Infrastructure/Services/                                         │
 │    SupabaseStorageService  — Replaces Week 4 StubFileStorageService│
 │    OcrService (enhanced)   — Replaces Week 4 OcrService stub     │
+│    OcrJobQueue             — Channel<T>-based in-process job queue│
+│    OcrBackgroundService    — BackgroundService consumes queue     │
 │                                                                   │
 ├─ Domain Layer ───────────────────────────────────────────────────┤
 │  AiPromptTemplate entity                                          │
@@ -81,8 +83,12 @@
 Thay vì vector embeddings (full RAG), chúng ta dùng **Structured Context Retrieval** — truy vấn dữ liệu có cấu trúc từ MySQL và inject vào prompt:
 
 ```
-1. User upload ảnh medical record
-2. Azure Document Intelligence → OCR raw text
+1. User upload ảnh medical record (DocumentType = PRENATAL_CHECKUP)
+   ⚠️ OCR + AI extraction CHỈ chạy cho PRENATAL_CHECKUP.
+   Test types và Others KHÔNG chạy OCR.
+   ✅ Upload trả về ngay. OCR job được enqueue và chạy background.
+2. OcrBackgroundService dequeues job và gọi ProcessDocumentAsync:
+   Azure Document Intelligence → OCR raw text
 3. ContextRetriever queries DB:
    - Pregnancy (gestational week, status)
    - PregnancyConditions (known conditions)
@@ -148,7 +154,7 @@ EXISTING PATTERNS:
   ⚠️ PHẢI dùng named parameter: GetByIdAsync(id, cancellationToken: cancellationToken)
 
 WEEK 3 ENTITIES (đã implement): Pregnancy, PregnancyCondition, RefPregnancyCondition, PrenatalVisit, PrenatalTest, RefTestType + Translations
-WEEK 4 ENTITIES (đã implement): StorageFile, MedicalDocument, OcrResult, Tag, MedicalDocumentTag, RefDocumentType + Translations
+WEEK 4 ENTITIES (đã implement): StorageFile, MedicalDocument, OcrResult, RefDocumentType + Translations
 
 WEEK 5 MỤC TIÊU:
 - Thay StubFileStorageService (Week 4) bằng SupabaseStorageService (upload file thật lên Supabase Storage)
@@ -161,7 +167,8 @@ WEEK 5 MỤC TIÊU:
 - Implement AzureOcrProvider (Azure Document Intelligence REST API)
 - Implement SupabaseStorageService (Supabase Storage REST API)
 - Implement MedicalRecordAiService (full pipeline: OCR → RAG context → AI extraction)
-- Enhance OcrService (replace Week 4 stub with real implementation)
+- Enhance OcrService (replace Week 4 stub with production-ready background queue)
+- Background OCR processing via Channel + BackgroundService (non-blocking upload)
 - Kiến trúc tái sử dụng cho Nutrition Planning AI (Week sau)
 ```
 
@@ -192,9 +199,9 @@ CREATE TABLE ai_prompt_templates (
     output_schema   TEXT NULL,                      -- JSON schema cho expected output
 
     -- Model Configuration
-    model_name      VARCHAR(50) NOT NULL DEFAULT 'gemini-2.0-flash',
+    model_name      VARCHAR(50) NOT NULL DEFAULT 'gemini-2.5-flash',
     temperature     DECIMAL(3,2) NOT NULL DEFAULT 0.10,
-    max_output_tokens INT NOT NULL DEFAULT 4096,
+    max_output_tokens INT NOT NULL DEFAULT 8192,
 
     is_active       TINYINT(1) NOT NULL DEFAULT 1,
     created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -238,6 +245,10 @@ ALTER TABLE ocr_results
 ```csharp
 // File: FPT.EXE201.Domain/Enums/OcrStatus.cs
 // ⚠️ REPLACE toàn bộ file Week 4
+// ⚠️ MIGRATION NOTE: Week 4 dùng "Processing" → Week 5 rename thành "OcrProcessing".
+//    Nếu DB đã có rows với status = "Processing", cần chạy SQL update trước:
+//    UPDATE ocr_results SET status = 'OcrProcessing' WHERE status = 'Processing';
+//    Hoặc truncate bảng nếu đang dev.
 
 namespace FPT.EXE201.Domain.Enums;
 
@@ -311,14 +322,14 @@ public class AiPromptTemplate : BaseEntity
 
     // ═══ Model Configuration ═══
 
-    /// <summary>Tên model AI. Default: gemini-2.0-flash (balance speed/quality).</summary>
-    public string ModelName { get; set; } = "gemini-2.0-flash";
+    /// <summary>Tên model AI. Default: gemini-2.5-flash (balance speed/quality).</summary>
+    public string ModelName { get; set; } = "gemini-2.5-flash";
 
     /// <summary>Temperature: 0.0 = deterministic, 1.0 = creative. Extraction nên dùng 0.1.</summary>
     public double Temperature { get; set; } = 0.1;
 
     /// <summary>Max tokens cho AI response.</summary>
-    public int MaxOutputTokens { get; set; } = 4096;
+    public int MaxOutputTokens { get; set; } = 8192;
 
     /// <summary>Template có đang active không. Chỉ active version mới nhất được sử dụng.</summary>
     public bool IsActive { get; set; } = true;
@@ -337,7 +348,7 @@ public class AiPromptTemplate : BaseEntity
     /// <summary>Thời gian OCR (Azure) xử lý, tính bằng ms.</summary>
     public int? OcrProcessingTimeMs { get; set; }
 
-    /// <summary>Tên model AI đã sử dụng (e.g., "gemini-2.0-flash").</summary>
+    /// <summary>Tên model AI đã sử dụng (e.g., "gemini-2.5-flash").</summary>
     public string? AiModelUsed { get; set; }
 
     /// <summary>Số tokens AI đã sử dụng (prompt + completion).</summary>
@@ -425,7 +436,7 @@ public class AiPromptTemplateConfiguration : IEntityTypeConfiguration<AiPromptTe
         builder.Property(e => e.ModelName)
             .HasColumnName("model_name")
             .HasMaxLength(50)
-            .HasDefaultValue("gemini-2.0-flash");
+            .HasDefaultValue("gemini-2.5-flash");
 
         builder.Property(e => e.Temperature)
             .HasColumnName("temperature")
@@ -434,7 +445,7 @@ public class AiPromptTemplateConfiguration : IEntityTypeConfiguration<AiPromptTe
 
         builder.Property(e => e.MaxOutputTokens)
             .HasColumnName("max_output_tokens")
-            .HasDefaultValue(4096);
+            .HasDefaultValue(8192);
 
         builder.Property(e => e.IsActive)
             .HasColumnName("is_active")
@@ -505,109 +516,228 @@ public class AiPromptTemplateSeed : IEntityTypeConfiguration<AiPromptTemplate>
                 TemplateKey = "medical_record.extraction",
                 Version = 1,
                 DisplayName = "Medical Record Data Extraction",
-                Description = "Trích xuất dữ liệu có cấu trúc từ ảnh/scan phiếu khám thai. Dùng sau khi OCR hoàn tất.",
+                Description = "Extract structured data from prenatal checkup records (Phiếu Khám Thai MS:51/BV2). Output matches VitalsJsonDto schema for direct storage.",
 
-                SystemRules = @"You are a medical data extraction assistant specializing in Vietnamese prenatal care records.
+                SystemRules = @"You are a medical data extraction assistant specializing in Vietnamese prenatal care records (Phiếu Khám Thai, mẫu MS: 51/BV2 — Bộ Y tế Việt Nam).
 
 RULES:
-1. Always respond with valid JSON matching the provided schema exactly.
+1. Always respond with valid JSON matching the provided schema EXACTLY. No extra keys, no missing sections.
 2. Extract ONLY information explicitly present in the text. Do NOT infer or assume data.
-3. If a field is not found in the text, use null.
-4. Do NOT provide medical advice, diagnosis, or interpretations.
-5. Preserve original Vietnamese text for names, facilities, and notes.
-6. Convert dates to ISO 8601 format (YYYY-MM-DD) when possible.
-7. Convert numeric values to standard units (kg, mmHg, g/dL, mmol/L).
-8. Flag lab results as abnormal ONLY if the document explicitly states so or provides reference ranges showing out-of-range values.",
+3. If a field is not found in the text, use null (for scalars) or omit from arrays.
+4. Do NOT provide medical advice, diagnosis, or interpretations beyond what is written.
+5. Preserve original Vietnamese text for names, facilities, addresses, and notes.
+6. Convert dates to ISO 8601 format (yyyy-MM-dd) when possible.
+7. Convert numeric values to standard units (kg, cm, mmHg, °C, bpm, g/L, mmol/L).
+8. Boolean fields: use true/false/null only. Set true if the document explicitly mentions the condition.
+9. Flag lab results as abnormal ONLY if the document explicitly states so or provides reference ranges showing out-of-range values.
+10. bloodPressureSystolic and bloodPressureDiastolic MUST be SEPARATE integers (e.g., 120 and 80), NOT a combined string.",
 
-                DomainRules = @"VIETNAMESE PRENATAL CARE DOMAIN KNOWLEDGE:
+                DomainRules = @"VIETNAMESE PRENATAL CARE DOMAIN KNOWLEDGE (Phiếu Khám Thai MS: 51/BV2):
 
-Common document types:
-- Phiếu khám thai (Prenatal checkup form)
-- Kết quả xét nghiệm (Lab results)
-- Siêu âm thai (Ultrasound report)
-- Phiếu tiêm chủng (Vaccination record)
-- Đơn thuốc (Prescription)
+Document sections (map to vitalsData fields):
+A. Thông tin chung → generalInfo (facility, patient demographics, insurance)
+B.I. Lần khám trước → previousVisit (diagnosis, treatment)
+B.II. Hỏi bệnh → interview (reason, pregnancy number, gestational age, LMP, expected delivery)
+B.III. Tiền sử bệnh → medicalHistory (personal, obstetric, gynecology, family)
+B.IV. Khám bệnh → examination (vitalSigns, general, obstetric)
+B.VI. Chẩn đoán → diagnosis (text + ICD code)
+B.VII. Kế hoạch điều trị → treatmentPlan (medication, health education)
+B.VIII. Tiên lượng → prognosis
+B.IX. Lần khám kế tiếp → nextAppointment
 
 Common metrics and units:
-- Huyết áp / HA (Blood Pressure): mmHg, format systolic/diastolic (e.g., 120/80)
-- Cân nặng (Weight): kg
-- Chiều cao tử cung / CCTC (Fundal height): cm
-- Tim thai / TT (Fetal heart rate): bpm (beats per minute)
-- Tuổi thai / Tuần thai (Gestational age): weeks+days (e.g., 28T2N = 28 weeks 2 days)
-- Hemoglobin / Hb: g/dL (normal pregnancy: 11-14)
-- Glucose máu (Blood glucose): mmol/L
-- Protein niệu (Urine protein): mg/dL or qualitative (+, ++, +++)
-- Nhóm máu (Blood group): A, B, AB, O with Rh factor
+- Mạch (Pulse): lần/phút → pulseBpm (integer)
+- Nhiệt độ (Temperature): °C → temperatureCelsius (number)
+- Huyết áp / HA: mmHg → bloodPressureSystolic + bloodPressureDiastolic (separate integers)
+- Nhịp thở (Respiratory rate): lần/phút → respiratoryRateBpm (integer)
+- Cân nặng (Weight): kg → weightKg (number)
+- Chiều cao (Height): cm → heightCm (number)
+- CCTC / Bề cao tử cung (Fundal height): cm → fundusHeightCm (number)
+- Vòng bụng (Abdominal circumference): cm → abdominalCircumferenceCm (number)
+- Tim thai / TT / TSM (Fetal heart rate): lần/phút → fetalHeartRateBpm (integer)
+- Tuổi thai / Tuần thai: weeks → gestationalWeek (integer, ignore days)
+- Protein niệu: g/L or qualitative (+/++/+++) → urineProtein (boolean) + urineProteinValue (number)
 
 Common abbreviations:
-- TSM: tim sản mạch (fetal heart rate)
-- TC: tử cung (uterus)  
+- TSM: tim sản mạch (fetal heart)
+- TC: tử cung (uterus)
 - NK: ngôi kiểu (fetal presentation)
 - NT: nước tiểu (urine)
 - CTG: cardiotocography
-- BCTC: bề cao tử cung (fundal height)",
+- BCTC: bề cao tử cung (fundal height)
+- KCC: kinh cuối cùng (last menstrual period)
+- PARA: tiền sử sản khoa (obstetric history)
+- CTC: cổ tử cung (cervix)
+- ÔVN: ối vỡ non (premature rupture of membranes)",
 
                 FeatureRules = @"EXTRACTION TASK:
-Extract structured medical data from the OCR text below.
-Map Vietnamese medical terminology to the JSON schema fields.
-Handle handwritten and printed text equally.
-If text is partially illegible, extract whatever is readable and set confidence lower.
+Extract structured medical data from the OCR text of a Vietnamese prenatal checkup form.
+Fill the 'vitalsData' object following the VitalsJsonDto schema sections:
 
-IMPORTANT:
-- 'gestationalWeek' should be an integer (weeks only, ignore days).
-- 'bloodPressure' should be a string in format 'systolic/diastolic' (e.g., '120/80').
-- All weight values in kg, all heights in cm.
-- Lab results: include the test name in Vietnamese as-is, with English equivalent if obvious.
-- Medications: include Vietnamese drug names exactly as written.",
+1. generalInfo: Patient demographics, facility name, insurance info
+2. previousVisit: Previous visit date, diagnosis, treatment (if mentioned)
+3. interview: Visit reason, pregnancy number, gestational week, LMP date, expected delivery date
+4. medicalHistory: Personal diseases, obstetric history (PARA), gynecology, family history
+5. examination.vitalSigns: Pulse, temperature, BP systolic/diastolic (SEPARATE integers), respiratory rate, weight, height
+6. examination.general: Mental status, edema, urine protein
+7. examination.obstetric: Fundal height, abdominal circumference, fetal presentation, fetal heart rate, cervix, amniotic fluid/sac
+8. diagnosis: Diagnosis text + ICD code (if present)
+9. treatmentPlan: Medications (as single text), next treatment steps, health education
+10. prognosis: normal/risky/cesarean_indicated
+11. nextAppointment: Date + notes + examiner type
+
+CRITICAL:
+- 'bloodPressureSystolic' and 'bloodPressureDiastolic' must be SEPARATE integers. E.g., HA 120/80 → systolic=120, diastolic=80.
+- 'gestationalWeek' is an integer (weeks only). E.g., 28T2N → 28.
+- Boolean fields: true if mentioned/positive, false if explicitly negative, null if not mentioned.
+- Dates: yyyy-MM-dd format.
+- If text is partially illegible, extract readable parts and set overallConfidence lower.",
 
                 OutputSchema = @"{
-  ""documentInfo"": {
-    ""documentDate"": ""string|null (ISO 8601)"",
-    ""facilityName"": ""string|null"",
-    ""doctorName"": ""string|null"",
-    ""documentType"": ""string|null (prenatal_checkup|lab_result|ultrasound|prescription|vaccination|other)""
-  },
-  ""maternalHealth"": {
-    ""gestationalWeek"": ""integer|null"",
-    ""bloodPressure"": ""string|null (systolic/diastolic)"",
-    ""weightKg"": ""number|null"",
-    ""heartRate"": ""integer|null"",
-    ""fundalHeightCm"": ""number|null"",
-    ""edema"": ""string|null (none|mild|moderate|severe)""
-  },
-  ""fetalHealth"": {
-    ""fetalHeartRate"": ""integer|null (bpm)"",
-    ""fetalPosition"": ""string|null"",
-    ""fetalMovement"": ""string|null"",
-    ""estimatedWeightGrams"": ""number|null""
-  },
-  ""labResults"": [
-    {
-      ""testName"": ""string"",
-      ""value"": ""string|null"",
-      ""unit"": ""string|null"",
-      ""referenceRange"": ""string|null"",
-      ""isAbnormal"": ""boolean|null""
+  ""vitalsData"": {
+    ""generalInfo"": {
+      ""facility"": ""string|null"",
+      ""managingAuthority"": ""string|null"",
+      ""admissionNumber"": ""string|null"",
+      ""patientCode"": ""string|null"",
+      ""fullName"": ""string|null"",
+      ""dateOfBirth"": ""string|null (yyyy-MM-dd)"",
+      ""age"": ""integer|null"",
+      ""phone"": ""string|null"",
+      ""occupation"": ""string|null"",
+      ""ethnicity"": ""string|null"",
+      ""nationality"": ""string|null"",
+      ""address"": ""string|null"",
+      ""ward"": ""string|null"",
+      ""district"": ""string|null"",
+      ""province"": ""string|null"",
+      ""insuranceType"": ""string|null (BHYT|thu_phi|mien|khac)"",
+      ""insuranceNumber"": ""string|null"",
+      ""insuranceExpiry"": ""string|null (yyyy-MM-dd)"",
+      ""idNumber"": ""string|null""
+    },
+    ""previousVisit"": {
+      ""visitDate"": ""string|null (yyyy-MM-dd)"",
+      ""diagnosis"": ""string|null"",
+      ""treatment"": ""string|null""
+    },
+    ""interview"": {
+      ""reasonForVisit"": ""string|null"",
+      ""pregnancyNumber"": ""integer|null"",
+      ""totalVisitCount"": ""integer|null"",
+      ""lastMenstrualPeriodDate"": ""string|null (yyyy-MM-dd)"",
+      ""gestationalWeek"": ""integer|null"",
+      ""expectedDeliveryDate"": ""string|null (yyyy-MM-dd)"",
+      ""clinicalProgress"": ""string|null"",
+      ""generalCondition"": ""string|null (normal|abnormal)"",
+      ""generalConditionNote"": ""string|null"",
+      ""tetanusVaccineHistory"": ""integer|null""
+    },
+    ""medicalHistory"": {
+      ""personal"": {
+        ""allergy"": ""boolean|null"",
+        ""allergyNote"": ""string|null"",
+        ""medicalHistory"": ""boolean|null"",
+        ""medicalHistoryNote"": ""string|null"",
+        ""hypertension"": ""boolean|null"",
+        ""heartDisease"": ""boolean|null"",
+        ""respiratoryDisease"": ""boolean|null"",
+        ""thyroidDisease"": ""boolean|null"",
+        ""kidneyDisease"": ""boolean|null"",
+        ""diabetes"": ""boolean|null"",
+        ""otherDiseases"": ""string|null"",
+        ""currentMedications"": ""boolean|null"",
+        ""medicationNote"": ""string|null"",
+        ""surgeryHistory"": ""boolean|null"",
+        ""surgeryNote"": ""string|null""
+      },
+      ""obstetric"": {
+        ""para"": ""integer|null"",
+        ""previousPregnancies"": [{""endDate"":""string|null"",""gestationalAge"":""string|null"",""complicationsDuringPregnancy"":""string|null"",""deliveryMethod"":""string|null"",""newbornInfo"":""string|null"",""postpartum"":""string|null""}]
+      },
+      ""gynecology"": {
+        ""menstrualCycle"": ""string|null (regular|irregular)"",
+        ""menstrualCycleDays"": ""integer|null"",
+        ""gynecologySurgery"": ""boolean|null"",
+        ""gynecologySurgeryNote"": ""string|null"",
+        ""ovarianTumor"": ""boolean|null"",
+        ""uterineFibroid"": ""boolean|null"",
+        ""genitalMalformation"": ""boolean|null"",
+        ""vaginalInfection"": ""boolean|null""
+      },
+      ""pelvicOrganProlapse"": ""boolean|null"",
+      ""gynecologicalDiseaseNote"": ""string|null"",
+      ""family"": {
+        ""hasHistory"": ""boolean|null"",
+        ""familyHistoryNote"": ""string|null"",
+        ""twins"": ""boolean|null"",
+        ""malformation"": ""boolean|null"",
+        ""geneticDisease"": ""boolean|null"",
+        ""diabetes"": ""boolean|null"",
+        ""hypertension"": ""boolean|null"",
+        ""otherNote"": ""string|null""
+      }
+    },
+    ""examination"": {
+      ""vitalSigns"": {
+        ""pulseBpm"": ""integer|null"",
+        ""temperatureCelsius"": ""number|null"",
+        ""bloodPressureSystolic"": ""integer|null (mmHg)"",
+        ""bloodPressureDiastolic"": ""integer|null (mmHg)"",
+        ""respiratoryRateBpm"": ""integer|null"",
+        ""weightKg"": ""number|null"",
+        ""heightCm"": ""number|null""
+      },
+      ""general"": {
+        ""mentalStatus"": ""string|null (alert|coma|other)"",
+        ""mentalStatusNote"": ""string|null"",
+        ""edema"": ""boolean|null"",
+        ""urineProtein"": ""boolean|null"",
+        ""urineProteinValue"": ""number|null (g/L)""
+      },
+      ""obstetric"": {
+        ""oldScar"": ""boolean|null"",
+        ""scarPainful"": ""boolean|null"",
+        ""pelvis"": ""string|null (normal|abnormal)"",
+        ""fundusHeightCm"": ""number|null"",
+        ""abdominalCircumferenceCm"": ""number|null"",
+        ""fetalPresentation"": ""string|null (normal|abnormal)"",
+        ""fetalPresentationNote"": ""string|null"",
+        ""uterineContraction"": ""boolean|null"",
+        ""uterineContractionFrequency"": ""integer|null (per 10 min)"",
+        ""fetalHeartbeat"": ""boolean|null"",
+        ""fetalHeartRateBpm"": ""integer|null"",
+        ""cervix"": ""string|null (closed|effaced|dilated)"",
+        ""cervixDilationCm"": ""number|null"",
+        ""amnioticSac"": ""string|null (bulging|flat|pear)"",
+        ""membraneStatus"": ""string|null (intact|leaking|ruptured)"",
+        ""membraneRuptureTime"": ""string|null (HH:mm)"",
+        ""amnioticFluid"": ""string|null (clear|green|bloody)""
+      }
+    },
+    ""diagnosis"": {
+      ""text"": ""string|null"",
+      ""icdCode"": ""string|null""
+    },
+    ""treatmentPlan"": {
+      ""medication"": ""string|null"",
+      ""nextSteps"": ""string|null"",
+      ""healthEducation"": ""boolean|null"",
+      ""healthEducationNote"": ""string|null""
+    },
+    ""prognosis"": ""string|null (normal|risky|cesarean_indicated)"",
+    ""nextAppointment"": {
+      ""date"": ""string|null (yyyy-MM-dd)"",
+      ""notes"": ""string|null"",
+      ""examinerType"": ""string|null (obstetrician|midwife|pediatric_nurse|other)""
     }
-  ],
-  ""diagnoses"": [""string""],
-  ""medications"": [
-    {
-      ""name"": ""string"",
-      ""dosage"": ""string|null"",
-      ""frequency"": ""string|null"",
-      ""duration"": ""string|null""
-    }
-  ],
-  ""recommendations"": [""string""],
-  ""nextAppointmentDate"": ""string|null (ISO 8601)"",
-  ""notes"": ""string|null"",
+  },
   ""overallConfidence"": ""number (0.0-1.0)""
 }",
 
-                ModelName = "gemini-2.0-flash",
+                ModelName = "gemini-2.5-flash",
                 Temperature = 0.1,
-                MaxOutputTokens = 4096,
+                MaxOutputTokens = 8192,
                 IsActive = true,
                 CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
                 UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)
@@ -648,14 +778,14 @@ public record AiPrompt(
     /// <summary>User message: RAG context + actual user input (OCR text, question, etc.).</summary>
     string UserMessage,
 
-    /// <summary>Tên model AI (e.g., "gemini-2.0-flash").</summary>
+    /// <summary>Tên model AI (e.g., "gemini-2.5-flash").</summary>
     string ModelName,
 
     /// <summary>Temperature: 0.0 = deterministic, 1.0 = creative.</summary>
     double Temperature = 0.1,
 
     /// <summary>Max output tokens.</summary>
-    int MaxOutputTokens = 4096,
+    int MaxOutputTokens = 8192,
 
     /// <summary>Yêu cầu AI trả JSON (responseMimeType = application/json).</summary>
     bool JsonMode = true
@@ -724,8 +854,8 @@ public record OcrResponse(
     /// <summary>Raw text đã trích xuất từ ảnh/PDF.</summary>
     string RawText,
 
-    /// <summary>Confidence score trung bình (0.0 - 1.0).</summary>
-    double ConfidenceScore,
+    /// <summary>Confidence score trung bình (0.00 - 100.00). Đồng bộ với OcrResult.ConfidenceScore DECIMAL(5,2).</summary>
+    decimal ConfidenceScore,
 
     /// <summary>Thời gian xử lý.</summary>
     TimeSpan ProcessingTime,
@@ -824,9 +954,9 @@ public class PromptBuilder
     private readonly List<string> _contextParts = new();
     private string _userMessage = "";
     private string? _outputSchema;
-    private string _modelName = "gemini-2.0-flash";
+    private string _modelName = "gemini-2.5-flash";
     private double _temperature = 0.1;
-    private int _maxOutputTokens = 4096;
+    private int _maxOutputTokens = 8192;
     private bool _jsonMode = true;
 
     public static PromptBuilder Create() => new();
@@ -976,129 +1106,28 @@ public class PromptBuilder
 ```csharp
 // File: FPT.EXE201.Application/AI/ExtractionModels/MedicalRecordExtractionResult.cs
 using System.Text.Json.Serialization;
+using FPT.EXE201.Application.DTOs.PrenatalVisits.VitalsJson;
 
 namespace FPT.EXE201.Application.AI.ExtractionModels;
 
 /// <summary>
 /// Top-level kết quả trích xuất từ medical record.
-/// Cấu trúc này map 1:1 với OutputSchema trong ai_prompt_templates.
-/// Được deserialize từ Gemini JSON response.
+/// vitalsData maps 1:1 với VitalsJsonDto → serialize trực tiếp thành PrenatalVisit.VitalsJson.
 /// </summary>
 public class MedicalRecordExtractionResult
 {
-    [JsonPropertyName("documentInfo")]
-    public DocumentInfoExtracted? DocumentInfo { get; set; }
+    /// <summary>
+    /// Dữ liệu phiếu khám thai, compatible 1:1 với VitalsJsonDto.
+    /// Sẽ được serialize trực tiếp thành PrenatalVisit.VitalsJson trong Week 5.5 confirm flow.
+    /// </summary>
+    [JsonPropertyName("vitalsData")]
+    public VitalsJsonDto? VitalsData { get; set; }
 
-    [JsonPropertyName("maternalHealth")]
-    public MaternalHealthExtracted? MaternalHealth { get; set; }
-
-    [JsonPropertyName("fetalHealth")]
-    public FetalHealthExtracted? FetalHealth { get; set; }
-
-    [JsonPropertyName("labResults")]
-    public List<LabResultExtracted> LabResults { get; set; } = new();
-
-    [JsonPropertyName("diagnoses")]
-    public List<string> Diagnoses { get; set; } = new();
-
-    [JsonPropertyName("medications")]
-    public List<MedicationExtracted> Medications { get; set; } = new();
-
-    [JsonPropertyName("recommendations")]
-    public List<string> Recommendations { get; set; } = new();
-
-    [JsonPropertyName("nextAppointmentDate")]
-    public string? NextAppointmentDate { get; set; }
-
-    [JsonPropertyName("notes")]
-    public string? Notes { get; set; }
-
+    /// <summary>
+    /// AI's overall confidence score for the extraction (0.0 - 1.0).
+    /// </summary>
     [JsonPropertyName("overallConfidence")]
     public double OverallConfidence { get; set; }
-}
-
-public class DocumentInfoExtracted
-{
-    [JsonPropertyName("documentDate")]
-    public string? DocumentDate { get; set; }
-
-    [JsonPropertyName("facilityName")]
-    public string? FacilityName { get; set; }
-
-    [JsonPropertyName("doctorName")]
-    public string? DoctorName { get; set; }
-
-    [JsonPropertyName("documentType")]
-    public string? DocumentType { get; set; }
-}
-
-public class MaternalHealthExtracted
-{
-    [JsonPropertyName("gestationalWeek")]
-    public int? GestationalWeek { get; set; }
-
-    [JsonPropertyName("bloodPressure")]
-    public string? BloodPressure { get; set; }
-
-    [JsonPropertyName("weightKg")]
-    public double? WeightKg { get; set; }
-
-    [JsonPropertyName("heartRate")]
-    public int? HeartRate { get; set; }
-
-    [JsonPropertyName("fundalHeightCm")]
-    public double? FundalHeightCm { get; set; }
-
-    [JsonPropertyName("edema")]
-    public string? Edema { get; set; }
-}
-
-public class FetalHealthExtracted
-{
-    [JsonPropertyName("fetalHeartRate")]
-    public int? FetalHeartRate { get; set; }
-
-    [JsonPropertyName("fetalPosition")]
-    public string? FetalPosition { get; set; }
-
-    [JsonPropertyName("fetalMovement")]
-    public string? FetalMovement { get; set; }
-
-    [JsonPropertyName("estimatedWeightGrams")]
-    public double? EstimatedWeightGrams { get; set; }
-}
-
-public class LabResultExtracted
-{
-    [JsonPropertyName("testName")]
-    public string TestName { get; set; } = "";
-
-    [JsonPropertyName("value")]
-    public string? Value { get; set; }
-
-    [JsonPropertyName("unit")]
-    public string? Unit { get; set; }
-
-    [JsonPropertyName("referenceRange")]
-    public string? ReferenceRange { get; set; }
-
-    [JsonPropertyName("isAbnormal")]
-    public bool? IsAbnormal { get; set; }
-}
-
-public class MedicationExtracted
-{
-    [JsonPropertyName("name")]
-    public string Name { get; set; } = "";
-
-    [JsonPropertyName("dosage")]
-    public string? Dosage { get; set; }
-
-    [JsonPropertyName("frequency")]
-    public string? Frequency { get; set; }
-
-    [JsonPropertyName("duration")]
-    public string? Duration { get; set; }
 }
 ```
 
@@ -1107,30 +1136,33 @@ public class MedicationExtracted
 ```csharp
 // File: FPT.EXE201.Application/DTOs/MedicalDocuments/OcrResultDto.cs
 // ⚠️ REPLACE file Week 4 — thêm AI processing fields
+// ⚠️ Dùng class (không dùng positional record) vì AutoMapper cần parameterless constructor + settable properties.
 
 namespace FPT.EXE201.Application.DTOs.MedicalDocuments;
 
-public record OcrResultDto(
-    Guid Id,
-    Guid DocumentId,
-    int OcrRunNumber,
-    string Status,
-    string? OcrEngine,
-    string? LanguageHint,
-    string? RawText,
-    string? StructuredJson,
-    double? ConfidenceScore,
-    string? ErrorMessage,
+public class OcrResultDto
+{
+    public Guid Id { get; set; }
+    public Guid DocumentId { get; set; }
+    public int OcrRunNumber { get; set; }
+    public string Status { get; set; } = null!;
+    public string? OcrEngine { get; set; }
+    public string? LanguageHint { get; set; }
+    public string? RawText { get; set; }
+    public string? StructuredJson { get; set; }
+    public decimal? ConfidenceScore { get; set; }
+    public string? ErrorMessage { get; set; }
 
     // Week 5: AI Processing Fields
-    int? OcrProcessingTimeMs,
-    string? AiModelUsed,
-    int? AiTokensUsed,
-    int? AiProcessingTimeMs,
-    Guid? AiPromptTemplateId,
+    public int? OcrProcessingTimeMs { get; set; }
+    public string? AiModelUsed { get; set; }
+    public int? AiTokensUsed { get; set; }
+    public int? AiProcessingTimeMs { get; set; }
+    public Guid? AiPromptTemplateId { get; set; }
 
-    DateTime CreatedAt
-);
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
 ```
 
 **Code — AiPromptTemplateDto**:
@@ -1164,7 +1196,7 @@ public record AiPromptTemplateDto(
 
 **⚠️ CRITICAL**:
 - Đặt ở `Infrastructure/AI/GeminiAiProvider.cs`
-- Dùng `IHttpClientFactory` (register via `AddHttpClient<T>`)
+- Dùng `IHttpClientFactory` (register via `AddHttpClient<IAiProvider, GeminiAiProvider>()` trong DI)
 - Gemini API endpoint: `https://generativelanguage.googleapis.com/v1beta`
 - API key via `IConfiguration` (chưa dùng `IOptions` — giữ pattern hiện tại)
 - Hỗ trợ cả `GenerateAsync` (single) và `ChatAsync` (multi-turn)
@@ -1316,7 +1348,7 @@ public class GeminiAiProvider : IAiProvider
 
         _apiKey = configuration["AI:Gemini:ApiKey"]
             ?? throw new InvalidOperationException("AI:Gemini:ApiKey is not configured.");
-        _defaultModel = configuration["AI:Gemini:DefaultModel"] ?? "gemini-2.0-flash";
+        _defaultModel = configuration["AI:Gemini:DefaultModel"] ?? "gemini-2.5-flash";
     }
 
     public async Task<AiResponse> GenerateAsync(AiPrompt prompt, CancellationToken cancellationToken = default)
@@ -1452,7 +1484,7 @@ public class GeminiAiProvider : IAiProvider
 - API: Azure Document Intelligence (formerly Form Recognizer) v4.0, model `prebuilt-read`
 - 2-step async pattern: POST analyze → Poll GET until complete
 - Đặt ở `Infrastructure/AI/AzureOcrProvider.cs`
-- Dùng `IHttpClientFactory` via `AddHttpClient<T>`
+- Dùng `IHttpClientFactory` via `AddHttpClient<IInterface, TImpl>()` (xem Prompt 10 DI)
 
 **Code**:
 
@@ -1634,45 +1666,40 @@ public class AzureOcrProvider : IOcrProvider
         var result = response.AnalyzeResult;
         if (result == null)
         {
-            return new OcrResponse("", 0.0, TimeSpan.Zero, "");
+            return new OcrResponse("", 0m, TimeSpan.Zero, "");
         }
 
         // Full extracted text
         var rawText = result.Content ?? "";
 
         // Average confidence across all pages/lines
+        // Azure returns word.Confidence in range 0.0-1.0 → convert to 0.00-100.00
         double totalConfidence = 0;
-        int lineCount = 0;
+        int wordCount = 0;
 
         if (result.Pages != null)
         {
             foreach (var page in result.Pages)
             {
-                if (page.Lines == null) continue;
-                foreach (var line in page.Lines)
-                {
-                    // Azure Document Intelligence uses spans with confidence
-                    // The page-level words have confidence
-                    lineCount++;
-                }
-
-                // Use page-level word confidences for average
                 if (page.Words != null)
                 {
                     foreach (var word in page.Words)
                     {
                         totalConfidence += word.Confidence;
+                        wordCount++;
                     }
-                    lineCount = page.Words.Count;
                 }
             }
         }
 
-        var avgConfidence = lineCount > 0 ? totalConfidence / lineCount : 0.0;
+        // Convert from 0.0-1.0 ratio → 0.00-100.00 percentage (matches DECIMAL(5,2) column)
+        var avgConfidencePercent = wordCount > 0
+            ? (decimal)(totalConfidence / wordCount * 100)
+            : 0m;
 
         return new OcrResponse(
             RawText: rawText,
-            ConfidenceScore: Math.Round(avgConfidence, 4),
+            ConfidenceScore: Math.Round(avgConfidencePercent, 2),
             ProcessingTime: TimeSpan.Zero, // Set by caller
             EngineUsed: "" // Set by caller
         );
@@ -1874,18 +1901,21 @@ namespace FPT.EXE201.Application.IServices;
 
 /// <summary>
 /// Service xử lý full pipeline: OCR → AI Extraction cho medical records.
+/// ⚠️ CHỈ áp dụng cho PRENATAL_CHECKUP documents. Các loại khác sẽ bị reject.
 /// Dùng RAG pattern để inject pregnancy context vào AI prompt.
 /// </summary>
 public interface IMedicalRecordAiService
 {
     /// <summary>
-    /// Chạy full pipeline cho 1 document:
-    /// 1. Download file từ storage
-    /// 2. Azure OCR → raw text
-    /// 3. Retrieve pregnancy context (RAG)
-    /// 4. Build prompt (Rule Layers + Context)
-    /// 5. Gemini extraction → structured JSON
-    /// 6. Save kết quả vào OcrResult
+    /// Chạy full pipeline cho 1 PRENATAL_CHECKUP document:
+    /// 1. Validate DocumentType == PRENATAL_CHECKUP
+    /// 2. Download file từ storage
+    /// 3. Azure OCR → raw text
+    /// 4. Retrieve pregnancy context (RAG)
+    /// 5. Build prompt (Rule Layers + Context)
+    /// 6. Gemini extraction → structured JSON
+    /// 7. Save kết quả vào OcrResult
+    /// ⚠️ Throws BadRequestException nếu DocumentType != PRENATAL_CHECKUP
     /// </summary>
     Task<OcrResultDto> ProcessDocumentAsync(
         Guid documentId, Guid currentUserId,
@@ -1985,9 +2015,16 @@ public class MedicalRecordAiService : IMedicalRecordAiService
     {
         // 1. Verify document exists + ownership
         var document = await _unitOfWork.MedicalDocuments.GetByIdWithDetailsAsync(documentId, cancellationToken)
-            ?? throw new NotFoundException("Tài liệu không tồn tại.");
+            ?? throw new NotFoundException("Medical document not found.");
         if (document.Pregnancy.UserId != currentUserId)
-            throw new ForbiddenException("Bạn không có quyền xử lý tài liệu này.");
+            throw new ForbiddenException("You do not have permission to process this document.");
+
+        // 1.5. ⚠️ Validate DocumentType = PRENATAL_CHECKUP (4-Phase Flow Rule)
+        var docTypeCode = document.DocumentType?.Code;
+        if (docTypeCode != "PRENATAL_CHECKUP")
+            throw new BadRequestException(
+                "OCR + AI extraction is only supported for PRENATAL_CHECKUP documents. " +
+                $"This document is '{docTypeCode ?? "unset"}'.");
 
         // 2. Get next run number
         var latestOcr = await _unitOfWork.OcrResults.GetLatestByDocumentIdAsync(documentId, cancellationToken);
@@ -2077,16 +2114,16 @@ public class MedicalRecordAiService : IMedicalRecordAiService
     {
         // 1. Get existing OCR result
         var existingOcr = await _unitOfWork.OcrResults.GetByIdAsync(ocrResultId, cancellationToken: cancellationToken)
-            ?? throw new NotFoundException("OCR result không tồn tại.");
+            ?? throw new NotFoundException("OCR result not found.");
 
         if (string.IsNullOrWhiteSpace(existingOcr.RawText))
-            throw new BadRequestException("Không có raw text để re-extract. Vui lòng chạy lại toàn bộ pipeline.");
+            throw new BadRequestException("No raw text available for re-extraction. Please run the full pipeline again.");
 
         // 2. Verify ownership through document → pregnancy chain
         var document = await _unitOfWork.MedicalDocuments.GetByIdWithDetailsAsync(existingOcr.DocumentId, cancellationToken)
-            ?? throw new NotFoundException("Tài liệu không tồn tại.");
+            ?? throw new NotFoundException("Medical document not found.");
         if (document.Pregnancy.UserId != currentUserId)
-            throw new ForbiddenException("Bạn không có quyền xử lý tài liệu này.");
+            throw new ForbiddenException("You do not have permission to process this document.");
 
         // 3. Create new OcrResult (new run number, copy raw text)
         var nextRunNo = existingOcr.OcrRunNumber + 1;
@@ -2139,18 +2176,41 @@ public class MedicalRecordAiService : IMedicalRecordAiService
     private async Task<OcrResponse> RunOcrAsync(
         MedicalDocument document, string? languageHint, CancellationToken cancellationToken)
     {
-        // Download file from storage for OCR
-        var fileStream = await _fileStorageService.DownloadAsync(
-            document.StorageFile.ObjectKey, cancellationToken);
+        var files = document.Files.OrderBy(f => f.SortOrder).ToList();
+        if (files.Count == 0)
+            throw new InvalidOperationException("Document has no files attached.");
 
-        var ocrRequest = new OcrRequest(
-            FileStream: fileStream,
-            FileName: document.StorageFile.OriginalFileName,
-            ContentType: document.StorageFile.MimeType,
-            LanguageHint: languageHint
-        );
+        // Single file — original behaviour
+        if (files.Count == 1)
+        {
+            var sf = files[0].StorageFile;
+            var stream = await _fileStorageService.DownloadAsync(sf.ObjectKey, cancellationToken);
+            return await _ocrProvider.ExtractTextAsync(
+                new OcrRequest(stream, sf.OriginalFileName, sf.MimeType, languageHint), cancellationToken);
+        }
 
-        return await _ocrProvider.ExtractTextAsync(ocrRequest, cancellationToken);
+        // Multi-file — OCR each page, concatenate with separators
+        var allTexts = new List<string>();
+        double totalConf = 0; int confCount = 0; long totalMs = 0;
+
+        for (int i = 0; i < files.Count; i++)
+        {
+            var sf = files[i].StorageFile;
+            var stream = await _fileStorageService.DownloadAsync(sf.ObjectKey, cancellationToken);
+            var page = await _ocrProvider.ExtractTextAsync(
+                new OcrRequest(stream, sf.OriginalFileName, sf.MimeType, languageHint), cancellationToken);
+
+            allTexts.Add($"--- Page {i + 1} ---");
+            allTexts.Add(page.ExtractedText);
+            totalConf += page.Confidence; confCount++;
+            totalMs += page.ProcessingTimeMs;
+        }
+
+        return new OcrResponse(
+            ExtractedText: string.Join("\n", allTexts),
+            Confidence: confCount > 0 ? totalConf / confCount : 0,
+            ProcessingTimeMs: totalMs,
+            PageCount: files.Count);
     }
 
     // ═══════════════════════════════════════════════
@@ -2204,10 +2264,12 @@ public class MedicalRecordAiService : IMedicalRecordAiService
         if (pregnancy == null) return new PregnancyContext { PregnancyId = pregnancyId };
 
         // Calculate current gestational week from LMP
+        // ⚠️ LastMenstrualPeriodDate is DateOnly (not DateTime) — use DayNumber arithmetic
         int? gestWeek = null;
         if (pregnancy.LastMenstrualPeriodDate.HasValue)
         {
-            var totalDays = (DateTime.UtcNow - pregnancy.LastMenstrualPeriodDate.Value).Days;
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var totalDays = today.DayNumber - pregnancy.LastMenstrualPeriodDate.Value.DayNumber;
             gestWeek = totalDays >= 0 && totalDays <= 315 ? totalDays / 7 : null;
         }
 
@@ -2222,7 +2284,7 @@ public class MedicalRecordAiService : IMedicalRecordAiService
         // Get most recent OCR result for consistency context
         string? previousSummary = null;
         var recentDocs = await _unitOfWork.MedicalDocuments
-            .GetByPregnancyIdWithDetailsAsync(pregnancyId, cancellationToken);
+            .GetByPregnancyIdWithDetailsAsync(pregnancyId, cancellationToken: cancellationToken);
         var recentOcr = recentDocs
             .SelectMany(d => d.OcrResults ?? Enumerable.Empty<OcrResult>())
             .Where(o => o.Status == OcrStatus.Succeeded && !string.IsNullOrEmpty(o.StructuredJson))
@@ -2236,12 +2298,12 @@ public class MedicalRecordAiService : IMedicalRecordAiService
             {
                 var prevResult = JsonSerializer.Deserialize<MedicalRecordExtractionResult>(
                     recentOcr.StructuredJson!, JsonOptions);
-                if (prevResult?.MaternalHealth != null)
+                if (prevResult?.VitalsData?.Interview != null)
                 {
                     previousSummary = $"Previous record ({recentOcr.CreatedAt:yyyy-MM-dd}): " +
-                        $"Week {prevResult.MaternalHealth.GestationalWeek}, " +
-                        $"Weight {prevResult.MaternalHealth.WeightKg}kg, " +
-                        $"BP {prevResult.MaternalHealth.BloodPressure}";
+                        $"Week {prevResult.VitalsData.Interview.GestationalWeek}, " +
+                        $"Weight {prevResult.VitalsData?.Examination?.VitalSigns?.WeightKg}kg, " +
+                        $"BP {prevResult.VitalsData?.Examination?.VitalSigns?.BloodPressureSystolic}/{prevResult.VitalsData?.Examination?.VitalSigns?.BloodPressureDiastolic}";
                 }
             }
             catch { /* Ignore deserialization errors in context */ }
@@ -2308,11 +2370,21 @@ public class MedicalRecordAiService : IMedicalRecordAiService
 
 ---
 
-## 🎯 PROMPT 9/10 — Repository Interface + UnitOfWork Update + Enhanced OcrService
+## 🎯 PROMPT 9/10 — Repository Interface + UnitOfWork Update + Enhanced OcrService + Background Processing
 
-**Nhiệm vụ**: Thêm `IAiPromptTemplateRepository`, update `IUnitOfWork` + `UnitOfWork`, enhance `OcrService`, update `StorageProvider` trong MedicalDocumentService.
+**Nhiệm vụ**: Thêm `IAiPromptTemplateRepository`, update `IUnitOfWork` + `UnitOfWork`, enhance `OcrService` với background job queue, tạo OcrBackgroundService + OcrJobQueue, update `StorageProvider` trong MedicalDocumentService.
 
-> **⚠️ Nhớ cập nhật**: Trong `MedicalDocumentService.CreateWithFileAsync()` (Week 4), đổi `StorageProvider = "stub"` → `StorageProvider = "supabase"` vì giờ đã dùng SupabaseStorageService thật.
+> **⚠️ Nhớ cập nhật**: Trong `MedicalDocumentService.CreateWithFilesAsync()` (Week 4), đổi `StorageProvider = "stub"` → `StorageProvider = "supabase"` vì giờ đã dùng SupabaseStorageService thật.
+
+**Code — Update StorageProvider trong MedicalDocumentService** (1 dòng):
+
+```csharp
+// File: FPT.EXE201.Application/Services/MedicalDocumentService.cs
+// Trong method CreateWithFilesAsync(), tìm dòng:
+//   StorageProvider = "stub",
+// Đổi thành:
+            StorageProvider = "supabase",
+```
 
 **Code — AiPromptTemplate Repository Interface**:
 
@@ -2378,6 +2450,156 @@ public IAiPromptTemplateRepository AiPromptTemplates
     => _aiPromptTemplates ??= new AiPromptTemplateRepository(_context);
 ```
 
+**Code — IOcrJobQueue Interface** (Application layer):
+
+```csharp
+// File: FPT.EXE201.Application/IServices/IOcrJobQueue.cs
+
+namespace FPT.EXE201.Application.IServices;
+
+/// <summary>
+/// In-process job queue for OCR processing.
+/// Uses System.Threading.Channels internally — no external dependencies.
+/// </summary>
+public interface IOcrJobQueue
+{
+    /// <summary>Enqueue a document for OCR + AI processing. Returns immediately.</summary>
+    ValueTask EnqueueAsync(OcrJobItem job, CancellationToken cancellationToken = default);
+
+    /// <summary>Dequeue next job (blocks until available). Used by BackgroundService.</summary>
+    ValueTask<OcrJobItem> DequeueAsync(CancellationToken cancellationToken);
+}
+
+/// <summary>Job payload for background OCR processing.</summary>
+public record OcrJobItem(
+    Guid OcrResultId,
+    Guid DocumentId,
+    Guid UserId,
+    string LanguageHint = "vi"
+);
+```
+
+**Code — OcrJobQueue Implementation** (Infrastructure layer):
+
+```csharp
+// File: FPT.EXE201.Infrastructure/Services/OcrJobQueue.cs
+
+using System.Threading.Channels;
+using FPT.EXE201.Application.IServices;
+
+namespace FPT.EXE201.Infrastructure.Services;
+
+/// <summary>
+/// Channel-based in-process job queue.
+/// Capacity: 100 pending jobs. If full, waits (backpressure).
+/// ⚠️ Jobs are lost on app restart — acceptable for this app scale.
+/// For durability, upgrade to Redis Queue or database-backed queue.
+/// </summary>
+public class OcrJobQueue : IOcrJobQueue
+{
+    private readonly Channel<OcrJobItem> _channel;
+
+    public OcrJobQueue()
+    {
+        var options = new BoundedChannelOptions(100)
+        {
+            FullMode = BoundedChannelFullMode.Wait
+        };
+        _channel = Channel.CreateBounded<OcrJobItem>(options);
+    }
+
+    public async ValueTask EnqueueAsync(OcrJobItem job, CancellationToken cancellationToken = default)
+    {
+        await _channel.Writer.WriteAsync(job, cancellationToken);
+    }
+
+    public async ValueTask<OcrJobItem> DequeueAsync(CancellationToken cancellationToken)
+    {
+        return await _channel.Reader.ReadAsync(cancellationToken);
+    }
+}
+```
+
+**Code — OcrBackgroundService** (Infrastructure layer):
+
+```csharp
+// File: FPT.EXE201.Infrastructure/Services/OcrBackgroundService.cs
+
+using FPT.EXE201.Application.IServices;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+
+namespace FPT.EXE201.Infrastructure.Services;
+
+/// <summary>
+/// Background worker that continuously dequeues OCR jobs and processes them.
+/// Runs as a hosted service — starts with the app, stops on shutdown.
+/// Uses IServiceScopeFactory to create scoped services (UnitOfWork, etc.) per job.
+/// </summary>
+public class OcrBackgroundService : BackgroundService
+{
+    private readonly IOcrJobQueue _jobQueue;
+    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly ILogger<OcrBackgroundService> _logger;
+
+    public OcrBackgroundService(
+        IOcrJobQueue jobQueue,
+        IServiceScopeFactory scopeFactory,
+        ILogger<OcrBackgroundService> logger)
+    {
+        _jobQueue = jobQueue;
+        _scopeFactory = scopeFactory;
+        _logger = logger;
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        _logger.LogInformation("OCR Background Service started. Waiting for jobs...");
+
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            OcrJobItem? job = null;
+            try
+            {
+                job = await _jobQueue.DequeueAsync(stoppingToken);
+
+                _logger.LogInformation(
+                    "Processing OCR job: DocumentId={DocumentId}, OcrResultId={OcrResultId}",
+                    job.DocumentId, job.OcrResultId);
+
+                // ⚠️ MUST create a new scope per job.
+                // BackgroundService is Singleton, but MedicalRecordAiService/UnitOfWork are Scoped.
+                using var scope = _scopeFactory.CreateScope();
+                var aiService = scope.ServiceProvider.GetRequiredService<IMedicalRecordAiService>();
+
+                await aiService.ProcessDocumentAsync(
+                    job.DocumentId, job.UserId, job.LanguageHint, stoppingToken);
+
+                _logger.LogInformation(
+                    "OCR job completed: DocumentId={DocumentId}", job.DocumentId);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                // App shutting down — normal exit
+                break;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "OCR job failed: DocumentId={DocumentId}, OcrResultId={OcrResultId}. Error: {Message}",
+                    job?.DocumentId, job?.OcrResultId, ex.Message);
+
+                // ⚠️ ProcessDocumentAsync already sets OcrResult.Status = Failed internally.
+                // No need to update here — just log and continue to next job.
+            }
+        }
+
+        _logger.LogInformation("OCR Background Service stopped.");
+    }
+}
+```
+
 **Code — Enhanced OcrService** (replace Week 4 stub):
 
 ```csharp
@@ -2385,6 +2607,7 @@ public IAiPromptTemplateRepository AiPromptTemplates
 // ⚠️ REPLACE toàn bộ OcrService Week 4 stub
 
 using AutoMapper;
+using FPT.EXE201.Application;
 using FPT.EXE201.Application.IServices;
 using FPT.EXE201.Application.DTOs.MedicalDocuments;
 using FPT.EXE201.Application.Exceptions;
@@ -2395,18 +2618,21 @@ namespace FPT.EXE201.Infrastructure.Services;
 
 /// <summary>
 /// Enhanced OcrService — Replaces Week 4 stub.
-/// QueueOcrAsync now triggers MedicalRecordAiService pipeline.
+/// ✅ PRODUCTION-READY: QueueOcrAsync creates a Pending OcrResult + enqueues
+/// a background job. Upload endpoint returns immediately (~100ms).
+/// OcrBackgroundService processes the job asynchronously (10-30s).
+/// Flutter polls GET /api/ocr/{id}/status until Succeeded/Failed.
 /// </summary>
 public class OcrService : IOcrService
 {
     private readonly IUnitOfWork _unitOfWork;
-    private readonly IMedicalRecordAiService _aiService;
+    private readonly IOcrJobQueue _jobQueue;
     private readonly IMapper _mapper;
 
-    public OcrService(IUnitOfWork unitOfWork, IMedicalRecordAiService aiService, IMapper mapper)
+    public OcrService(IUnitOfWork unitOfWork, IOcrJobQueue jobQueue, IMapper mapper)
     {
         _unitOfWork = unitOfWork;
-        _aiService = aiService;
+        _jobQueue = jobQueue;
         _mapper = mapper;
     }
 
@@ -2414,41 +2640,89 @@ public class OcrService : IOcrService
         Guid documentId, string? languageHint = null,
         CancellationToken cancellationToken = default)
     {
-        // In Week 5: directly process instead of just queuing
-        // For production: replace with background job queue
-        var result = await _aiService.ProcessDocumentAsync(
-            documentId, await GetDocumentOwnerAsync(documentId, cancellationToken),
-            languageHint ?? "vi", cancellationToken);
+        // 1. Create OcrResult with Pending status (saved to DB immediately)
+        var ocrResult = new OcrResult
+        {
+            DocumentId = documentId,
+            OcrRunNumber = 1,
+            Status = OcrStatus.Pending,
+            LanguageHint = languageHint ?? "vi"
+        };
 
-        return result.Id;
-    }
+        await _unitOfWork.OcrResults.AddAsync(ocrResult, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-    public async Task<Guid> RerunOcrAsync(
-        Guid documentId, Guid currentUserId,
-        CancellationToken cancellationToken = default)
-    {
-        var result = await _aiService.ProcessDocumentAsync(
-            documentId, currentUserId, "vi", cancellationToken);
+        // 2. Get document owner for background job
+        var document = await _unitOfWork.MedicalDocuments.GetByIdWithDetailsAsync(documentId, cancellationToken)
+            ?? throw new NotFoundException("Medical document not found.");
 
-        return result.Id;
+        // 3. Enqueue background job — returns immediately, does NOT block
+        await _jobQueue.EnqueueAsync(new OcrJobItem(
+            OcrResultId: ocrResult.Id,
+            DocumentId: documentId,
+            UserId: document.Pregnancy.UserId,
+            LanguageHint: languageHint ?? "vi"
+        ), cancellationToken);
+
+        return ocrResult.Id;
     }
 
     public async Task<OcrResultDto> GetResultAsync(
         Guid ocrResultId, CancellationToken cancellationToken = default)
     {
         var ocr = await _unitOfWork.OcrResults.GetByIdAsync(ocrResultId, cancellationToken: cancellationToken)
-            ?? throw new NotFoundException("Kết quả OCR không tồn tại.");
+            ?? throw new NotFoundException("OCR result not found.");
 
         return _mapper.Map<OcrResultDto>(ocr);
     }
 
-    private async Task<Guid> GetDocumentOwnerAsync(Guid documentId, CancellationToken cancellationToken)
+    public async Task<List<OcrResultDto>> GetByDocumentIdAsync(
+        Guid documentId, Guid currentUserId,
+        CancellationToken cancellationToken = default)
     {
+        // Keep backward compatibility with Week 4 endpoint
         var document = await _unitOfWork.MedicalDocuments.GetByIdWithDetailsAsync(documentId, cancellationToken)
-            ?? throw new NotFoundException("Tài liệu không tồn tại.");
-        return document.Pregnancy.UserId;
+            ?? throw new NotFoundException("Medical document not found.");
+        if (document.Pregnancy.UserId != currentUserId)
+            throw new ForbiddenException("You do not have access to this document.");
+
+        var ocrResults = await _unitOfWork.OcrResults.GetByDocumentIdAsync(documentId, cancellationToken);
+        return _mapper.Map<List<OcrResultDto>>(ocrResults);
     }
 }
+```
+
+**⚠️ CRITICAL: Update MedicalDocumentService.CreateWithFilesAsync** — thêm PRENATAL_CHECKUP guard trước khi gọi QueueOcrAsync:
+
+```csharp
+// File: FPT.EXE201.Application/Services/MedicalDocumentService.cs
+// ⚠️ THAY THẾ đoạn "7. Queue OCR for images/PDFs" hiện tại:
+
+        // 7. Queue OCR for PRENATAL_CHECKUP images/PDFs ONLY (non-blocking)
+        // ⚠️ Per 4-Phase flow: OCR chỉ chạy cho PRENATAL_CHECKUP.
+        // Test types (BLOOD_TEST, ULTRASOUND...) và Others (PRESCRIPTION...) KHÔNG chạy OCR.
+        // ✅ QueueOcrAsync enqueues a background job and returns immediately.
+        // Flutter sẽ poll GET /api/ocr/{id}/status để check khi nào xong.
+        if (dto.DocumentTypeId.HasValue && (contentType.StartsWith("image/") || contentType == "application/pdf"))
+        {
+            var uploadedDocType = await _unitOfWork.RefDocumentTypes.GetByIdAsync(
+                dto.DocumentTypeId.Value, cancellationToken: cancellationToken);
+            if (uploadedDocType?.Code == "PRENATAL_CHECKUP")
+            {
+                await _ocrService.QueueOcrAsync(document.Id, "vi", cancellationToken);
+            }
+        }
+```
+
+**⚠️ QUAN TRỌNG**: Nếu KHÔNG thêm guard này, upload BLOOD_TEST/PRESCRIPTION sẽ crash với 400 BadRequest vì `ProcessDocumentAsync` validate `DocumentType == PRENATAL_CHECKUP`.
+
+**⚠️ AppDbContext**: Thêm `DbSet<AiPromptTemplate>` vào `AppDbContext.cs`:
+
+```csharp
+// Thêm sau dòng "public DbSet<OcrResult> OcrResults { get; set; }"
+
+// Week 5 — AI Prompt Templates
+public DbSet<AiPromptTemplate> AiPromptTemplates { get; set; }
 ```
 
 **Update AutoMapper Profile** — thêm mapping cho AI fields:
@@ -2457,8 +2731,9 @@ public class OcrService : IOcrService
 // ⚠️ THÊM vào MedicalDocumentProfile.cs đã có từ Week 4:
 
         // Week 5: Updated OcrResult → OcrResultDto mapping (thêm AI fields)
-        CreateMap<OcrResult, OcrResultDto>()
-            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()));
+        // AutoMapper tự map all matching properties by name.
+        // .ToString() cho Status enum → string đã được handle tự động vì OcrResultDto.Status là string.
+        CreateMap<OcrResult, OcrResultDto>();
 ```
 
 **✅ Checkpoint**: Build thành công.
@@ -2494,8 +2769,9 @@ public class OcrController : BaseApiController
     }
 
     /// <summary>
-    /// Chạy full pipeline OCR + AI Extraction cho document.
-    /// Flow: Azure OCR → RAG Context → Gemini Extraction → Structured JSON.
+    /// Chạy full pipeline OCR + AI Extraction cho PRENATAL_CHECKUP document.
+    /// Flow: Validate type → Azure OCR → RAG Context → Gemini Extraction → Structured JSON.
+    /// ⚠️ CHỈ áp dụng cho PRENATAL_CHECKUP. Gọi cho loại khác → 400 BadRequest.
     /// </summary>
     [HttpPost("documents/{documentId}/ocr/process")]
     [RequirePermission("ocr.trigger")]
@@ -2506,7 +2782,7 @@ public class OcrController : BaseApiController
     {
         var userId = GetCurrentUserId();
         var result = await _aiService.ProcessDocumentAsync(documentId, userId, lang, cancellationToken);
-        return Created(result, "OCR + AI extraction đã hoàn tất.");
+        return Created(result, "OCR + AI extraction completed successfully.");
     }
 
     /// <summary>
@@ -2520,7 +2796,7 @@ public class OcrController : BaseApiController
     {
         var userId = GetCurrentUserId();
         var result = await _aiService.ReExtractAsync(ocrResultId, userId, cancellationToken);
-        return Created(result, "AI re-extraction đã hoàn tất.");
+        return Created(result, "AI re-extraction completed successfully.");
     }
 
     /// <summary>Kiểm tra trạng thái + kết quả OCR.</summary>
@@ -2530,6 +2806,20 @@ public class OcrController : BaseApiController
     {
         var result = await _ocrService.GetResultAsync(id, cancellationToken);
         return Success(result);
+    }
+
+    /// <summary>
+    /// Get all OCR results for a document (ordered by run number desc).
+    /// Backward-compatible endpoint from Week 4.
+    /// </summary>
+    [HttpGet("documents/{documentId}/ocr")]
+    [RequirePermission("ocr.view")]
+    public async Task<IActionResult> GetByDocumentId(
+        Guid documentId, CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        var results = await _ocrService.GetByDocumentIdAsync(documentId, userId, cancellationToken);
+        return Success(results);
     }
 }
 ```
@@ -2546,7 +2836,9 @@ using FPT.EXE201.Application.AI.Interfaces;
 using FPT.EXE201.Infrastructure.AI;
 
 // Week 5 — AI Provider HTTP Clients
-services.AddHttpClient<GeminiAiProvider>(client =>
+// ⚠️ Dùng AddHttpClient<IInterface, TImpl>() để register cả HttpClient + DI mapping cùng lúc.
+// KHÔNG dùng AddHttpClient<T>() + AddScoped<I,T>() riêng biệt (sẽ bypass HttpClientFactory).
+services.AddHttpClient<IAiProvider, GeminiAiProvider>(client =>
 {
     var baseUrl = configuration["AI:Gemini:BaseUrl"]
         ?? "https://generativelanguage.googleapis.com/v1beta/";
@@ -2555,7 +2847,7 @@ services.AddHttpClient<GeminiAiProvider>(client =>
         int.Parse(configuration["AI:Gemini:TimeoutSeconds"] ?? "60"));
 });
 
-services.AddHttpClient<AzureOcrProvider>(client =>
+services.AddHttpClient<IOcrProvider, AzureOcrProvider>(client =>
 {
     var endpoint = configuration["AI:AzureDocumentIntelligence:Endpoint"]
         ?? throw new InvalidOperationException("AI:AzureDocumentIntelligence:Endpoint is required.");
@@ -2564,12 +2856,9 @@ services.AddHttpClient<AzureOcrProvider>(client =>
         int.Parse(configuration["AI:AzureDocumentIntelligence:TimeoutSeconds"] ?? "120"));
 });
 
-// Register AI providers
-services.AddScoped<IAiProvider, GeminiAiProvider>();
-services.AddScoped<IOcrProvider, AzureOcrProvider>();
-
 // Week 5 — Supabase Storage (replaces Week 4 StubFileStorageService)
-services.AddHttpClient<SupabaseStorageService>(client =>
+// ⚠️ REPLACE dòng services.AddScoped<IFileStorageService, StubFileStorageService>() cũ của Week 4
+services.AddHttpClient<IFileStorageService, SupabaseStorageService>(client =>
 {
     var supabaseUrl = configuration["Supabase:Url"]
         ?? throw new InvalidOperationException("Supabase:Url is required.");
@@ -2581,11 +2870,15 @@ services.AddHttpClient<SupabaseStorageService>(client =>
     client.DefaultRequestHeaders.Authorization =
         new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", serviceKey);
 });
-services.AddScoped<IFileStorageService, SupabaseStorageService>();
 
 // Week 5 — Infrastructure services
-// OcrService now depends on IMedicalRecordAiService, registered below
+// ⚠️ IOcrService đã có từ Week 4. REPLACE dòng cũ, KHÔNG thêm duplicate.
 services.AddScoped<IOcrService, OcrService>();
+
+// Week 5 — Background OCR Processing (Channel + BackgroundService)
+// ⚠️ OcrJobQueue PHẢI là Singleton (shared giữa OcrService và BackgroundService)
+services.AddSingleton<IOcrJobQueue, OcrJobQueue>();
+services.AddHostedService<OcrBackgroundService>();
 
 // ════════════════════════════════════════════════
 // Add to FPT.EXE201.Application/DependencyInjection.cs
@@ -2612,7 +2905,7 @@ services.AddScoped<IMedicalRecordAiService, MedicalRecordAiService>();
     "Gemini": {
       "ApiKey": "YOUR_GEMINI_API_KEY_HERE",
       "BaseUrl": "https://generativelanguage.googleapis.com/v1beta/",
-      "DefaultModel": "gemini-2.0-flash",
+      "DefaultModel": "gemini-2.5-flash",
       "TimeoutSeconds": "60"
     },
     "AzureDocumentIntelligence": {
@@ -2647,9 +2940,12 @@ ai.admin         — Quản lý prompt templates (future)
    - `POST /api/documents/{id}/ocr/process?lang=vi` → Full pipeline
    - `POST /api/ocr/{id}/re-extract` → Re-run AI extraction only
    - `GET /api/ocr/{id}/status` → Check OCR result
-7. Verify: Upload ảnh phiếu khám → OCR raw text → Gemini structured JSON
+7. Verify: Upload ảnh phiếu khám (PRENATAL_CHECKUP) → Response ngay (<1s) → Background processing → Poll status → Succeeded + StructuredJson → meaningful data
 8. Verify: StructuredJson contains meaningful medical data
 9. Verify: StorageFile records có `StorageProvider = "supabase"` và real public URL
+10. ⚠️ Negative test: Upload BLOOD_TEST/PRESCRIPTION document → NO OCR queued (upload thành công, không có OcrResult)
+11. ⚠️ Console test: verify "OCR Background Service started" log on app startup
+12. ⚠️ Console test: verify "Processing OCR job" + "OCR job completed" logs after PRENATAL_CHECKUP upload
 
 ---
 
@@ -2677,27 +2973,34 @@ ai.admin         — Quản lý prompt templates (future)
 ### 4. Application Layer — Services
 - [ ] `IMedicalRecordAiService` interface
 - [ ] `MedicalRecordAiService` implementation:
+  - [ ] `ProcessDocumentAsync` validates `DocumentType == PRENATAL_CHECKUP` before OCR
   - [ ] Full pipeline: OCR → RAG → Prompt → Gemini → Save
   - [ ] ReExtract: skip OCR, re-run AI with updated context/template
   - [ ] Context retrieval: pregnancy week, conditions, previous records
   - [ ] JSON validation + formatting
   - [ ] Error handling at each pipeline phase
+  - [ ] Negative test: non-PRENATAL_CHECKUP → 400 BadRequest
 
 ### 5. Infrastructure Layer — Third-party Providers
 - [ ] `GeminiAiProvider`: REST API client with typed request/response models
 - [ ] `AzureOcrProvider`: Document Intelligence with async polling
 - [ ] `SupabaseStorageService`: Supabase Storage upload/download/delete (replaces Week 4 StubFileStorageService)
-- [ ] All three use `AddHttpClient<T>` for proper lifecycle management
+- [ ] All three use `AddHttpClient<IInterface, TImpl>()` for proper HttpClient + DI mapping
 
-### 6. Infrastructure Layer — Repository + UnitOfWork
+### 6. Infrastructure Layer — Repository + UnitOfWork + Background Processing
 - [ ] `IAiPromptTemplateRepository` + `AiPromptTemplateRepository`
 - [ ] `IUnitOfWork.AiPromptTemplates` property
 - [ ] `UnitOfWork` lazy init
-- [ ] Enhanced `OcrService` (replaces Week 4 stub)
+- [ ] Enhanced `OcrService` (replaces Week 4 stub, non-blocking queue pattern)
+- [ ] `IOcrJobQueue` interface (Application layer)
+- [ ] `OcrJobQueue` implementation (Channel-based, Infrastructure layer)
+- [ ] `OcrBackgroundService` (BackgroundService, Infrastructure layer)
 
 ### 7. API Layer
-- [ ] Updated `OcrController` with 3 endpoints
+- [ ] Updated `OcrController` with 3 endpoints + backward-compat `GetByDocumentId`
 - [ ] DI registration for all AI services + SupabaseStorageService
+- [ ] DI: `AddSingleton<IOcrJobQueue, OcrJobQueue>()`
+- [ ] DI: `AddHostedService<OcrBackgroundService>()`
 - [ ] `appsettings.json` — Supabase config + AI configuration sections
 
 ### 8. Architecture Reusability (ready for Nutrition Week)
@@ -2723,15 +3026,21 @@ dotnet run --project src/FPT.EXE201.Api
 #   - Azure Doc Intelligence endpoint + key configured
 
 # Step 1: Upload ảnh phiếu khám (Week 4 endpoint — now uploads to Supabase)
+# ⚠️ Document MUST have DocumentType = PRENATAL_CHECKUP for OCR to auto-queue
+# ✅ Upload trả về ngay (<1s). OCR chạy background.
 POST /api/pregnancies/{pregnancyId}/documents
 Content-Type: multipart/form-data
 file: [ảnh phiếu khám.jpg]
+documentTypeId: {PRENATAL_CHECKUP guid}
+→ Response: MedicalDocumentDto (ngay lập tức)
 → Verify: StorageFile đã được tạo với real Supabase URL
+→ Console log: "Processing OCR job: DocumentId=..." (background)
 
-# Step 2: Trigger OCR + AI Extraction
-POST /api/documents/{documentId}/ocr/process?lang=vi
-Authorization: Bearer {token}
-→ Response: OcrResultDto with status=Succeeded, structuredJson có data
+# Step 2: Poll OCR status (Flutter sẽ poll mỗi 3-5s)
+GET /api/ocr/{ocrResultId}/status
+→ Lần 1: Status = "Pending" hoặc "OcrProcessing" hoặc "AiExtracting"
+→ ...đợi 10-30s...
+→ Lần cuối: Status = "Succeeded", structuredJson có data
 
 # Step 3: Check result
 GET /api/ocr/{ocrResultId}/status
@@ -2741,14 +3050,17 @@ GET /api/ocr/{ocrResultId}/status
 POST /api/ocr/{ocrResultId}/re-extract
 → Response: New OcrResultDto with updated extraction
 
-# 3. Verify structured JSON contains:
+# 3. Verify structured JSON contains (VitalsJsonDto schema):
 {
-  "documentInfo": { "facilityName": "Bệnh viện Phụ sản...", ... },
-  "maternalHealth": { "gestationalWeek": 28, "bloodPressure": "120/80", ... },
-  "fetalHealth": { "fetalHeartRate": 140, ... },
-  "labResults": [ { "testName": "Hemoglobin", "value": "11.5", ... } ],
-  "diagnoses": ["Thai phát triển bình thường"],
-  "medications": [...],
+  "vitalsData": {
+    "generalInfo": { "facility": "Bệnh viện Phụ sản...", ... },
+    "interview": { "gestationalWeek": 28, ... },
+    "examination": {
+      "vitalSigns": { "bloodPressureSystolic": 120, "bloodPressureDiastolic": 80, ... },
+      "obstetric": { "fetalHeartRateBpm": 140, ... }
+    },
+    "diagnosis": { "text": "Thai phát triển bình thường", ... }
+  },
   "overallConfidence": 0.85
 }
 ```

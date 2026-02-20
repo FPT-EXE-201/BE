@@ -104,12 +104,24 @@ namespace FPT.EXE201.Infrastructure.Persistence
             await SeedPermissionIfNotExists(context, "prenatal_visits.write.any", "Write Prenatal Visits", "Doctor can create visit records");
             await SeedPermissionIfNotExists(context, "prenatal_tests.write.any", "Write Prenatal Tests", "Doctor/Lab can record test results");
 
-            await SeedPermissionIfNotExists(context, "documents.upload.own", "Upload Own Documents", "User can upload their medical documents");
             await SeedPermissionIfNotExists(context, "documents.read.any", "Read Any Medical Document", "Doctor can view patient documents");
             await SeedPermissionIfNotExists(context, "documents.moderate", "Moderate Documents", "Admin can review/remove inappropriate documents");
-            await SeedPermissionIfNotExists(context, "documents.ocr.rerun", "Rerun OCR", "Admin/Doctor can request OCR reprocessing");
             await SeedPermissionIfNotExists(context, "storage.manage", "Manage Storage", "Admin can manage storage files");
             await SeedPermissionIfNotExists(context, "storage.cleanup", "Cleanup Storage", "Admin can delete orphaned files");
+
+            // Week 4 - Medical Document permissions (used by controllers)
+            await SeedPermissionIfNotExists(context, "document.create", "Create Document", "User can upload/create medical documents");
+            await SeedPermissionIfNotExists(context, "document.view", "View Documents", "User can view their own medical documents");
+            await SeedPermissionIfNotExists(context, "document.update", "Update Document", "User can update document metadata");
+            await SeedPermissionIfNotExists(context, "document.delete", "Delete Document", "User can soft-delete their own documents");
+            await SeedPermissionIfNotExists(context, "document.favorite", "Favorite Document", "User can toggle document favorite status");
+            await SeedPermissionIfNotExists(context, "ocr.trigger", "Trigger OCR", "User can trigger OCR rerun for their documents");
+            await SeedPermissionIfNotExists(context, "ocr.view", "View OCR Status", "User can check OCR processing status");
+            await SeedPermissionIfNotExists(context, "ai.admin", "AI Admin", "Admin can manage AI prompt templates");
+
+            // Week 5.5 - Auto-Fill permissions
+            await SeedPermissionIfNotExists(context, "ocr.review", "Review OCR Extraction", "User can review AI-extracted data before confirming");
+            await SeedPermissionIfNotExists(context, "ocr.confirm", "Confirm OCR Extraction", "User can confirm extraction and auto-create entities");
 
             await SeedPermissionIfNotExists(context, "weight_logs.write.own", "Log Own Weight", "User can log their weight");
             await SeedPermissionIfNotExists(context, "weight_logs.read.any", "Read Any Weight Logs", "Doctor can view patient weight logs");
@@ -149,7 +161,6 @@ namespace FPT.EXE201.Infrastructure.Persistence
             await SeedPermissionIfNotExists(context, "reminders.manage.any", "Manage Any Reminder", "Admin can manage user reminders");
 
             await SeedPermissionIfNotExists(context, "medical_fields.write", "Manage Medical Field Definitions", "Admin can manage field dictionary");
-            await SeedPermissionIfNotExists(context, "ocr.reprocess", "Reprocess OCR", "Admin/Doctor can request re-extraction");
             await SeedPermissionIfNotExists(context, "medical_data.export", "Export Medical Data", "Doctor can export structured medical data");
 
             await SeedPermissionIfNotExists(context, "premium.access", "Access Premium Features", "User with active subscription");
@@ -195,8 +206,10 @@ namespace FPT.EXE201.Infrastructure.Persistence
                 "pregnancy.condition.read", "pregnancy.condition.write", "pregnancy.condition.delete",
                 "pregnancy.visit.read", "pregnancy.visit.write", "pregnancy.visit.delete",
                 "pregnancy.test.read", "pregnancy.test.write", "pregnancy.test.delete",
+                "document.create", "document.view", "document.update", "document.delete", "document.favorite",
+                "ocr.trigger", "ocr.view",
+                "ocr.review", "ocr.confirm",
                 "weight_logs.write.own", "meal_plans.write.own",
-                "documents.upload.own",
                 "reminders.write.own",
                 "consults.request", "chat.send", "calls.join"
             };
@@ -208,14 +221,17 @@ namespace FPT.EXE201.Infrastructure.Persistence
             {
                 "user_profiles.write.own", "doctor_profiles.read", "doctor_profiles.write.own",
                 "pregnancies.write.own", "weight_logs.write.own", "meal_plans.write.own", 
-                "documents.upload.own", "reminders.write.own",
+                "reminders.write.own",
                 "pregnancy.read", "pregnancy.write", "pregnancy.delete",
                 "pregnancy.condition.read", "pregnancy.condition.write", "pregnancy.condition.delete",
                 "pregnancy.visit.read", "pregnancy.visit.write", "pregnancy.visit.delete",
                 "pregnancy.test.read", "pregnancy.test.write", "pregnancy.test.delete",
+                "document.create", "document.view", "document.update", "document.delete", "document.favorite",
+                "ocr.trigger", "ocr.view",
+                "ocr.review", "ocr.confirm",
                 "pregnancies.read.any", "pregnancies.update.any", "pregnancy_conditions.write.any",
                 "prenatal_visits.write.any", "prenatal_tests.write.any",
-                "documents.read.any", "documents.ocr.rerun", "ocr.reprocess", "medical_data.export",
+                "documents.read.any", "medical_data.export",
                 "weight_logs.read.any", "meal_plans.read.any",
                 "availability.write.own", "consults.request", "consults.accept", "consults.view.assigned",
                 "chat.send", "chat.participants.manage", "calls.join", "calls.recordings.access",

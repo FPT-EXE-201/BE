@@ -7,7 +7,7 @@ public class UpdatePrenatalVisitDtoValidator : AbstractValidator<UpdatePrenatalV
 {
     public UpdatePrenatalVisitDtoValidator()
     {
-        RuleFor(x => x.VisitDateTime).NotEmpty();
+        RuleFor(x => x.VisitDate).NotEmpty();
         RuleFor(x => x.VisitType).IsInEnum();
         RuleFor(x => x.Location).MaximumLength(200);
         RuleFor(x => x.Notes).MaximumLength(2000);

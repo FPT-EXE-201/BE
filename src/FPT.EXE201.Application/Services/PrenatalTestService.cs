@@ -116,6 +116,15 @@ public class PrenatalTestService : IPrenatalTestService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<List<PrenatalTestDto>> GetByVisitIdAsync(Guid visitId, Guid userId, string langCode, CancellationToken cancellationToken = default)
+    {
+        // Ownership: load any test belonging to this visit to verify pregnancy ownership
+        var tests = await _unitOfWork.PrenatalTests.GetByVisitIdAsync(visitId, langCode, cancellationToken);
+        if (tests.Count > 0)
+            await VerifyPregnancyOwnership(tests[0].PregnancyId, userId, cancellationToken);
+        return tests.Select(t => MapToDto(t, langCode)).ToList();
+    }
+
     public async Task<PrenatalTestDto> GetByIdAsync(Guid id, Guid userId, string langCode, CancellationToken cancellationToken = default)
     {
         var test = await _unitOfWork.PrenatalTests.GetByIdWithTranslationsAsync(id, langCode, cancellationToken)

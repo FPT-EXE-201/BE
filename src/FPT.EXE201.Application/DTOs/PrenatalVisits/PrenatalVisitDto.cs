@@ -6,7 +6,7 @@ public record PrenatalVisitDto(
     Guid Id,
     Guid PregnancyId,
     Guid? DoctorId,
-    DateTime VisitDateTime,
+    DateOnly VisitDate,
     string VisitType,
     string? Location,
     string? Notes,
@@ -16,6 +16,12 @@ public record PrenatalVisitDto(
 
     /// <summary>Số xét nghiệm đã thực hiện trong buổi khám này.</summary>
     int TestCount,
+
+    /// <summary>ID các tài liệu y tế gắn với buổi khám.</summary>
+    List<Guid> LinkedDocumentIds,
+
+    /// <summary>Ảnh tài liệu gắn với buổi khám (publicUrl từ MedicalDocument.Files).</summary>
+    List<string> LinkedDocumentImages,
 
     DateTime CreatedAt
 );

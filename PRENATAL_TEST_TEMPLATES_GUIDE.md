@@ -1,7 +1,19 @@
 # Prenatal Test — Image Upload Architecture Guide
 
 > **Scope**: PrenatalTest — server-side image upload + storage.  
-> **Status**: ✅ IMPLEMENTED (Stub). `StubFileStorageService` → sẽ thay bằng `SupabaseStorageService`.
+> **Status**: ✅ IMPLEMENTED (Stub). `StubFileStorageService` → sẽ thay bằng `SupabaseStorageService`.  
+> **Updated**: 2026-02-15 — Added `DocumentId?` FK to link test back to source MedicalDocument.
+
+### Creation Flows
+
+PrenatalTest có thể được tạo bằng 2 cách:
+
+| Flow | Khi nào | DocumentId |
+|------|---------|------------|
+| **Manual** — User tạo trực tiếp | `POST /api/pregnancies/{id}/tests` (multipart/form-data) | `NULL` |
+| **From Document** — User upload ảnh xét nghiệm → confirm | Upload MedicalDocument (Test type) → User chọn TestType, date, notes → Confirm → Tạo PrenatalTest | Set = document.Id |
+
+> **Lưu ý**: PrenatalTest chỉ lưu ảnh + metadata cơ bản (TestType, Date, Notes, IsAbnormal). **Không có extracted data** — khác với PrenatalVisit (có VitalsJson từ OCR/AI).
 
 ---
 
@@ -30,7 +42,7 @@
 
 ---
 
-## 2. 10 Test Types (Seeded)
+## 2. 12 Test Types (Seeded)
 
 | # | Code                  | Category | Ví dụ                              |
 |---|-----------------------|----------|-------------------------------------|
@@ -44,6 +56,8 @@
 | 8 | TSH                   | LAB      | Hormone tuyến giáp                 |
 | 9 | NT_SCAN               | IMAGING  | Đo độ mờ da gáy                   |
 | 10| OGTT                  | LAB      | Nghiệm pháp dung nạp glucose      |
+| 11| BLOOD_TEST            | LAB      | Xét nghiệm máu                    |
+| 12| CBC_TEST              | LAB      | Xét nghiệm công thức máu          |
 
 ---
 
@@ -95,14 +109,17 @@ public class StubFileStorageService : IFileStorageService
 public class PrenatalTest : BaseEntity
 {
     public Guid PregnancyId { get; set; }
-    public Guid? VisitId { get; set; }           // Nullable
+    public Guid? VisitId { get; set; }           // Nullable — buổi khám liên quan
     public Guid TestTypeId { get; set; }
     public DateOnly TestDate { get; set; }
     public string? ImageUrlsJson { get; set; }   // JSON array URLs (Supabase)
     public string? Notes { get; set; }           // Ghi chú tuỳ chọn
     public bool IsAbnormalResult { get; set; }
+    public Guid? DocumentId { get; set; }        // FK → MedicalDocument (source document)
 }
 ```
+
+> **`DocumentId`**: Link ngược về MedicalDocument đã tạo ra test này. Nullable vì test có thể được tạo thủ công (không từ document). Khi auto-fill từ document confirm → set `DocumentId` = document gốc. `ON DELETE SET NULL` — xóa document không mất test data.
 
 ---
 
@@ -118,6 +135,7 @@ public class PrenatalTest : BaseEntity
 | image_urls_json    | JSON          | Serialized list URLs           |
 | notes              | TEXT          | Ghi chú tuỳ chọn              |
 | is_abnormal_result | TINYINT(1)    |                                |
+| document_id        | CHAR(36) FK?  | → medical_documents.id (nullable, ON DELETE SET NULL) |
 | created_at         | DATETIME(6)   |                                |
 | updated_at         | DATETIME(6)   |                                |
 | deleted_at         | DATETIME(6)?  |                                |
