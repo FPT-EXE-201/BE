@@ -43,6 +43,13 @@ namespace FPT.EXE201.Infrastructure.Persistence
         // Week 5 — AI Prompt Templates
         public DbSet<AiPromptTemplate> AiPromptTemplates { get; set; }
 
+        // Week 6 — Weight Tracking & Motivational
+        public DbSet<WeightLog> WeightLogs { get; set; }
+        public DbSet<WeightGoalRange> WeightGoalRanges { get; set; }
+        public DbSet<WeightAlert> WeightAlerts { get; set; }
+        public DbSet<MotivationalTemplate> MotivationalTemplates { get; set; }
+        public DbSet<MotivationalTemplateTranslation> MotivationalTemplateTranslations { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -59,6 +66,9 @@ namespace FPT.EXE201.Infrastructure.Persistence
 
             // Week 4 Seeders
             DocumentTypeSeeder.Seed(modelBuilder);
+
+            // Week 6 Seeders
+            MotivationalTemplateSeeder.Seed(modelBuilder);
 
             // Apply soft delete query filter for all entities inheriting from BaseEntity
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())

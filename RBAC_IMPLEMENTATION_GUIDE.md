@@ -23,6 +23,18 @@ Hệ thống RBAC (Role-Based Access Control) đã được implement đầy đ�
 ```
 user_profiles.write.own
 doctor_profiles.read
+
+# Week 4: Documents
+document.create, document.view, document.update, document.delete, document.favorite
+
+# Week 5: OCR + AI
+ocr.trigger, ocr.view, ocr.review, ocr.confirm
+
+# Week 6: Weight Tracking
+weight_log.read, weight_log.write, weight_log.delete
+weight_goal.read, weight_goal.write
+weight_alert.read, weight_alert.resolve
+
 + premium permissions (nếu có subscription)
 ```
 
@@ -44,8 +56,12 @@ prenatal_tests.write.any
 documents.read.any
 documents.ocr.rerun
 
+# Weight Tracking (Week 6)
+weight_log.read, weight_log.write, weight_log.delete
+weight_goal.read, weight_goal.write
+weight_alert.read, weight_alert.resolve
+
 # Workflow
-weight_logs.read.any
 meal_plans.read.any
 availability.write.own
 consults.accept

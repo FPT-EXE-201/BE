@@ -1,6 +1,6 @@
 -- ╔══════════════════════════════════════════════════════════════════════════════╗
 -- ║  DATABASE SCHEMA — Pregnancy Tracking Application (MomCare)               ║
--- ║  Updated: 2026-02-12                                                       ║
+-- ║  Updated: 2026-02-22                                                       ║
 -- ║  Engine: MySQL 8.0+ / InnoDB                                              ║
 -- ╚══════════════════════════════════════════════════════════════════════════════╝
 --
@@ -23,7 +23,7 @@
 --   ├─ Section 4:  Shared File Storage                         (Week 4)   ✅
 --   ├─ Section 5:  Medical Documents + OCR                     (Week 4)   ✅
 --   ├─ Section 6:  AI Infrastructure                           (Week 5)   ✅
---   ├─ Section 7:  Weight Tracking + Motivational              (Week 6)   ⬜
+--   ├─ Section 7:  Weight Tracking + Motivational              (Week 6)   ✅
 --   ├─ Section 8:  Nutrition + Meal Planning                   (Week 7)   ⬜
 --   ├─ Section 9:  Doctor Profiles + Specialties + Scheduling  (Week 8+)  ⬜
 --   ├─ Section 10: Consult + Chat + Call                       (Week 8+)  ⬜
@@ -578,7 +578,7 @@ CREATE TABLE ai_request_logs (
 
 
 -- ═══════════════════════════════════════════════════════════════════════════════
--- SECTION 7: WEIGHT TRACKING + MOTIVATIONAL TEMPLATES (Week 6) ⬜
+-- SECTION 7: WEIGHT TRACKING + MOTIVATIONAL TEMPLATES (Week 6) ✅
 -- Daily weight logging, goal ranges based on BMI, alerts.
 -- ═══════════════════════════════════════════════════════════════════════════════
 
@@ -589,7 +589,7 @@ CREATE TABLE weight_logs (
     weight_kg       DECIMAL(5,2)   NOT NULL,
     note            VARCHAR(255)   NULL,
     source          VARCHAR(20)    NOT NULL DEFAULT 'Manual',
-                                                    -- Manual | Device
+                                                    -- Manual | OCR
 
     created_at      DATETIME(6)    NOT NULL,
     updated_at      DATETIME(6)    NOT NULL,
@@ -624,7 +624,7 @@ CREATE TABLE weight_goal_ranges (
 CREATE TABLE weight_alerts (
     id              CHAR(36)      NOT NULL,
     pregnancy_id    CHAR(36)      NOT NULL,
-    alert_type      VARCHAR(64)   NOT NULL,        -- RAPID_GAIN, RAPID_LOSS, ABOVE_RANGE, BELOW_RANGE
+    alert_type      VARCHAR(64)   NOT NULL,        -- RapidGain, RapidLoss, AboveRange, BelowRange
     triggered_at    DATETIME(6)   NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
     details_json    JSON          NULL,             -- { "currentWeight": 70, "expectedRange": [65,68] }
     resolved_at     DATETIME(6)   NULL,
@@ -638,8 +638,8 @@ CREATE TABLE weight_alerts (
 -- Motivational content — tips, baby size comparisons, milestones (per gestational week)
 CREATE TABLE motivational_templates (
     id               CHAR(36)      NOT NULL,
-    category         VARCHAR(30)   NOT NULL DEFAULT 'BABY_SIZE',
-                                                   -- BABY_SIZE | MILESTONE | TIP
+    category         VARCHAR(30)   NOT NULL DEFAULT 'BabySize',
+                                                   -- BabySize | Milestone | Tip
     week_start       INT           NOT NULL,
     week_end         INT           NOT NULL,
     is_active        TINYINT(1)    NOT NULL DEFAULT 1,

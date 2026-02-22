@@ -1,7 +1,7 @@
 # Features Workflow Guide — Medical Records, OCR, AI, Nutrition
 
 > **Mục đích**: Tổng hợp workflow, architecture, data flow cho các tính năng AI-powered — để AI đọc hiểu và implement code đúng.  
-> **Cập nhật**: 2026-02-15  
+> **Cập nhật**: 2026-02-22  
 > **Xem thêm**: `DEVELOPMENT_WORKFLOW_GUIDE.md` (conventions, patterns), `DATABASE_SCHEMA.sql` (DDL 59 tables), `WEEK_*_PROMPTS_GUIDE.md` (chi tiết code)
 
 ---
@@ -14,7 +14,8 @@
 ┌─── API Layer ─────────────────────────────────────────────────┐
 │  MedicalDocumentsController    NutritionController             │
 │  OcrController                 MealPlansController             │
-│  WeightLogsController          AiAdminController               │
+│  WeightLogsController          MotivationalController           │
+│  AiAdminController                                             │
 ├─── Application Layer ─────────────────────────────────────────┤
 │                                                                │
 │  AI/ (shared abstractions)                                     │
@@ -27,7 +28,8 @@
 │    ├── MedicalRecordAiService  → Full pipeline: OCR → AI      │
 │    ├── NutritionAiService      → Meal plan generation          │
 │    ├── MedicalDocumentService  → Upload + CRUD documents       │
-│    └── WeightLogService        → Weight tracking + alerts      │
+│    ├── WeightLogService        → Weight tracking + alerts      │
+│    └── MotivationalService     → Motivational templates by week│
 │                                                                │
 ├─── Infrastructure Layer ──────────────────────────────────────┤
 │                                                                │
@@ -40,10 +42,13 @@
 │    └── OcrService (enhanced)    → Orchestrate OCR pipeline    │
 │                                                                │
 ├─── Domain Layer ──────────────────────────────────────────────┤
-│  Entities: StorageFile, DocumentFile, MedicalDocument, OcrResult,            │
-│    AiPromptTemplate, AiRequestLog, WeightLog,                  │
+│  Entities: StorageFile, MedicalDocument, OcrResult,            │
+│    AiPromptTemplate, AiRequestLog, WeightLog, WeightGoalRange, │
+│    WeightAlert, MotivationalTemplate,                          │
+│    MotivationalTemplateTranslation,                            │
 │    RefFoodItem, MealPlan, MealPlanDay, MealItem, etc.          │
-│  Enums: OcrStatus, DocumentSource, MealType, WeightSource...  │
+│  Enums: OcrStatus, DocumentSource, MealType, WeightSource,     │
+│    WeightAlertType, MotivationalCategory                       │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -543,7 +548,9 @@ POST /api/documents/{id}/extraction/confirm  → AutoFillResultDto (entities đ�
 |-------|---------|
 | `weight_logs` | Daily weight entries per pregnancy |
 | `weight_goal_ranges` | Height, pre-pregnancy weight, BMI, recommended gain (1 per pregnancy) |
-| `weight_alerts` | Auto-generated alerts khi gain quá nhanh/chậm |
+| `weight_alerts` | Auto-generated alerts khi gain quá nhanh/chậm (NO BaseEntity — immutable audit) |
+| `motivational_templates` | Weekly motivational message templates (BabySize/Milestone/Tip) |
+| `motivational_template_translations` | Multi-language translations (composite PK: template_id + language_code) |
 
 ### 7.2 Business Rules
 
@@ -551,22 +558,28 @@ POST /api/documents/{id}/extraction/confirm  → AutoFillResultDto (entities đ�
 - Weight: `DECIMAL(5,2)`, CHECK > 0 AND < 500
 - 1 goal range per pregnancy: `uk_weight_goals_pregnancy (pregnancy_id)`
 - BMI auto-calculate: `weight_kg / (height_cm/100)²`
-- Alert types: `GAIN_TOO_FAST`, `GAIN_TOO_SLOW`, `TARGET_EXCEEDED`
+- Alert types (enum `WeightAlertType`): `RapidGain`, `RapidLoss`, `AboveRange`, `BelowRange`
+- RapidGain/RapidLoss: 7–14 day comparison window + 7-day cooldown per alert type
+- AboveRange triggers at ANY gestational week; BelowRange only at ≥37 weeks
 
 ### 7.3 API Endpoints
 
 ```
-POST   /api/pregnancies/{id}/weight-logs        → Record weight
-GET    /api/pregnancies/{id}/weight-logs        → List + chart data
-PUT    /api/weight-logs/{id}                    → Update entry
-DELETE /api/weight-logs/{id}                    → Soft delete
+POST   /api/pregnancies/{id}/weight-logs              → Record weight
+GET    /api/pregnancies/{id}/weight-logs              → List (paged)
+GET    /api/pregnancies/{id}/weight-logs/chart        → Chart data
+POST   /api/pregnancies/{id}/weight-logs/extract-weight → OCR extract weight from image
+PUT    /api/weight-logs/{id}                          → Update entry
+DELETE /api/weight-logs/{id}                          → Soft delete
 
-POST   /api/pregnancies/{id}/weight-goals       → Set goal range
-GET    /api/pregnancies/{id}/weight-goals       → Get current goals
-PUT    /api/weight-goals/{id}                   → Update goals
+POST   /api/pregnancies/{id}/weight-goals             → Set goal range
+GET    /api/pregnancies/{id}/weight-goals             → Get current goals
+PUT    /api/weight-goals/{id}                         → Update goals
 
-GET    /api/pregnancies/{id}/weight-alerts      → List alerts
-PUT    /api/weight-alerts/{id}/resolve          → Resolve alert
+GET    /api/pregnancies/{id}/weight-alerts            → List alerts
+PUT    /api/weight-alerts/{id}/resolve                → Resolve alert
+
+GET    /api/motivational?week={w}&category={c}&lang={l} → Motivational messages (PUBLIC)
 ```
 
 ---
@@ -853,7 +866,9 @@ services.AddScoped<IOcrService, OcrService>();
 | Module | Permissions |
 |--------|------------|
 | Documents | `document.create`, `document.view`, `document.update`, `document.delete`, `document.favorite`, `ocr.trigger`, `ocr.view` |
-| Weight | `weight_log.read`, `weight_log.write`, `weight_log.delete` |
+| Weight Logs | `weight_log.read`, `weight_log.write`, `weight_log.delete` |
+| Weight Goals | `weight_goal.read`, `weight_goal.write` |
+| Weight Alerts | `weight_alert.read`, `weight_alert.resolve` |
 | Nutrition | `nutrition.read`, `nutrition.write`, `ai_features.access` (premium) |
 | AI Admin | `ai_templates.manage` (admin only) |
 
@@ -871,8 +886,9 @@ public enum OcrStatus { Pending, Processing, Succeeded, Failed }
 // Week 5.5 sẽ thêm OcrStatus.Confirmed (user đã review + confirm extracted data)
 
 // Week 6
-public enum WeightSource { Manual, Device, Import }
-public enum WeightAlertType { GainTooFast, GainTooSlow, TargetExceeded }
+public enum WeightSource { Manual, OCR }
+public enum WeightAlertType { RapidGain, RapidLoss, AboveRange, BelowRange }
+public enum MotivationalCategory { BabySize, Milestone, Tip }
 
 // Week 7
 public enum MealType { Breakfast, Lunch, Dinner, Snack }

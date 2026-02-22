@@ -41,6 +41,10 @@ public static class DependencyInjection
 
         // Week 5.5 — Auto-Fill
         services.AddScoped<IAutoFillService, AutoFillService>();
+
+        // Week 6 — Weight Tracking & Motivational
+        services.AddScoped<IWeightLogService, WeightLogService>();
+        services.AddScoped<IMotivationalService, MotivationalService>();
         #endregion
 
         return services;

@@ -45,6 +45,12 @@ namespace FPT.EXE201.Infrastructure.Repositories
         // Week 5 — AI Infrastructure
         private IAiPromptTemplateRepository? _aiPromptTemplates;
 
+        // Week 6 — Weight Tracking & Motivational
+        private IWeightLogRepository? _weightLogs;
+        private IWeightGoalRangeRepository? _weightGoalRanges;
+        private IWeightAlertRepository? _weightAlerts;
+        private IMotivationalTemplateRepository? _motivationalTemplates;
+
         public UnitOfWork(AppDbContext context)
         {
             _context = context;
@@ -77,6 +83,12 @@ namespace FPT.EXE201.Infrastructure.Repositories
         // Week 5 — AI Infrastructure
         public IAiPromptTemplateRepository AiPromptTemplates
             => _aiPromptTemplates ??= new AiPromptTemplateRepository(_context);
+
+        // Week 6 — Weight Tracking & Motivational
+        public IWeightLogRepository WeightLogs => _weightLogs ??= new WeightLogRepository(_context);
+        public IWeightGoalRangeRepository WeightGoalRanges => _weightGoalRanges ??= new WeightGoalRangeRepository(_context);
+        public IWeightAlertRepository WeightAlerts => _weightAlerts ??= new WeightAlertRepository(_context);
+        public IMotivationalTemplateRepository MotivationalTemplates => _motivationalTemplates ??= new MotivationalTemplateRepository(_context);
 
         public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {

@@ -69,6 +69,9 @@ public class RefDataController : BaseApiController
             ["visitType"] = ToEnumList<VisitType>(),
             ["documentSource"] = ToEnumList<DocumentSource>(),
             ["ocrStatus"] = ToEnumList<OcrStatus>(),
+            ["weightSource"] = ToEnumList<WeightSource>(),
+            ["weightAlertType"] = ToEnumList<WeightAlertType>(),
+            ["motivationalCategory"] = ToEnumList<MotivationalCategory>(),
         };
         return Success(result);
     }
@@ -100,6 +103,9 @@ public class RefDataController : BaseApiController
             ["visitType"] = ToEnumList<VisitType>(),
             ["documentSource"] = ToEnumList<DocumentSource>(),
             ["ocrStatus"] = ToEnumList<OcrStatus>(),
+            ["weightSource"] = ToEnumList<WeightSource>(),
+            ["weightAlertType"] = ToEnumList<WeightAlertType>(),
+            ["motivationalCategory"] = ToEnumList<MotivationalCategory>(),
         };
 
         if (!enums.TryGetValue(enumName, out var values))

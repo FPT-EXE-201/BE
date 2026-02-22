@@ -89,6 +89,9 @@ namespace FPT.EXE201.Infrastructure
             // Week 5 — Background OCR Processing (Channel + BackgroundService)
             services.AddSingleton<IOcrJobQueue, OcrJobQueue>();
             services.AddHostedService<OcrBackgroundService>();
+
+            // Week 6 — Weight OCR Service
+            services.AddScoped<IWeightOcrService, WeightOcrService>();
             #endregion
 
             // Add JWT Authentication

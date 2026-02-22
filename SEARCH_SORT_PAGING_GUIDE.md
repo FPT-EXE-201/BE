@@ -390,6 +390,13 @@ Trả về toàn bộ search/sort capabilities cho tất cả paged endpoints:
     "defaultSortBy": "testdate",
     "defaultSortDir": "desc"
   },
+  "weightLogs": {
+    "searchableFields": ["note"],
+    "defaultSearchFields": ["note"],
+    "sortableFields": ["loggedon", "weightkg", "createdat"],
+    "defaultSortBy": "loggedon",
+    "defaultSortDir": "desc"
+  },
   "{module}": {
     "searchableFields": ["..."],
     "defaultSearchFields": ["..."],

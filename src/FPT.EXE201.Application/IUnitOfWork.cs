@@ -39,6 +39,12 @@ namespace FPT.EXE201.Application
         // Week 5 — AI Infrastructure
         IAiPromptTemplateRepository AiPromptTemplates { get; }
 
+        // Week 6 — Weight Tracking & Motivational
+        IWeightLogRepository WeightLogs { get; }
+        IWeightGoalRangeRepository WeightGoalRanges { get; }
+        IWeightAlertRepository WeightAlerts { get; }
+        IMotivationalTemplateRepository MotivationalTemplates { get; }
+
         // Transaction methods
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
         Task BeginTransactionAsync(CancellationToken cancellationToken = default);

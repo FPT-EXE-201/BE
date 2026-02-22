@@ -128,6 +128,15 @@ namespace FPT.EXE201.Infrastructure.Persistence
             await SeedPermissionIfNotExists(context, "weight_alerts.manage", "Manage Weight Alerts", "Admin can configure alert rules");
             await SeedPermissionIfNotExists(context, "motivational_templates.write", "Manage Motivational Templates", "Admin can create/update motivational messages");
 
+            // Week 6 — Weight Tracking (granular permissions)
+            await SeedPermissionIfNotExists(context, "weight_log.read", "Read Weight Logs", "User can view their own weight logs");
+            await SeedPermissionIfNotExists(context, "weight_log.write", "Write Weight Logs", "User can create/update weight logs + OCR extract");
+            await SeedPermissionIfNotExists(context, "weight_log.delete", "Delete Weight Logs", "User can delete their own weight logs");
+            await SeedPermissionIfNotExists(context, "weight_goal.read", "Read Weight Goals", "User can view their weight goals");
+            await SeedPermissionIfNotExists(context, "weight_goal.write", "Write Weight Goals", "User can set/update weight goals");
+            await SeedPermissionIfNotExists(context, "weight_alert.read", "Read Weight Alerts", "User can view their weight alerts");
+            await SeedPermissionIfNotExists(context, "weight_alert.resolve", "Resolve Weight Alerts", "User can resolve weight alerts");
+
             await SeedPermissionIfNotExists(context, "meal_plans.write.own", "Manage Own Meal Plans", "User can create/update their meal plans");
             await SeedPermissionIfNotExists(context, "meal_plans.read.any", "Read Any Meal Plan", "Doctor can view patient meal plans");
             await SeedPermissionIfNotExists(context, "nutrition_ai.manage", "Manage Nutrition AI", "Admin can manage AI requests and costs");
@@ -210,6 +219,9 @@ namespace FPT.EXE201.Infrastructure.Persistence
                 "ocr.trigger", "ocr.view",
                 "ocr.review", "ocr.confirm",
                 "weight_logs.write.own", "meal_plans.write.own",
+                "weight_log.read", "weight_log.write", "weight_log.delete",
+                "weight_goal.read", "weight_goal.write",
+                "weight_alert.read", "weight_alert.resolve",
                 "reminders.write.own",
                 "consults.request", "chat.send", "calls.join"
             };
@@ -233,6 +245,9 @@ namespace FPT.EXE201.Infrastructure.Persistence
                 "prenatal_visits.write.any", "prenatal_tests.write.any",
                 "documents.read.any", "medical_data.export",
                 "weight_logs.read.any", "meal_plans.read.any",
+                "weight_log.read", "weight_log.write", "weight_log.delete",
+                "weight_goal.read", "weight_goal.write",
+                "weight_alert.read", "weight_alert.resolve",
                 "availability.write.own", "consults.request", "consults.accept", "consults.view.assigned",
                 "chat.send", "chat.participants.manage", "calls.join", "calls.recordings.access",
                 "reminders.manage.any",

@@ -1,7 +1,7 @@
 # Development Workflow Guide — FPT EXE 201
 
 > **Mục đích**: Tổng hợp tất cả conventions, patterns và workflow chuẩn để AI code đúng ngay lần đầu.  
-> **Cập nhật**: 2026-02-15 · Đồng bộ với codebase qua Week 5  
+> **Cập nhật**: 2026-02-22 · Đồng bộ với codebase qua Week 6  
 > **Xem thêm**: `DATABASE_SCHEMA.sql` (DDL), `WEEK_*_PROMPTS_GUIDE.md` (chi tiết từng week)
 
 ---
@@ -413,6 +413,9 @@ pregnancy.read      pregnancy.write      pregnancy.delete
 prenatal_visit.read  prenatal_visit.write
 document.create      document.view        document.update
 document.delete      document.favorite    ocr.trigger        ocr.view
+weight_log.read      weight_log.write     weight_log.delete
+weight_goal.read     weight_goal.write
+weight_alert.read    weight_alert.resolve
 ```
 
 ---
@@ -426,9 +429,9 @@ document.delete      document.favorite    ocr.trigger        ocr.view
 | 1-2 | Auth + RBAC + Audit | ✅ Done | `users`, `user_profiles`, `roles`, `permissions`, `role_permissions`, `user_roles`, `auth_refresh_tokens`, `audit_events`, `languages` | — |
 | 3 | Pregnancy Core | ✅ Done | `pregnancies`, `pregnancy_conditions`, `prenatal_visits`, `prenatal_tests`, `ref_pregnancy_conditions` + translations, `ref_test_types` + translations | `WEEK_3_PROMPTS_GUIDE.md` |
 | 4 | Storage + Medical Documents + OCR Stub | ✅ Done | `storage_files`, `ref_document_types` + translations, `medical_documents`, `ocr_results` | `WEEK_4_PROMPTS_GUIDE.md` |
-| 5 | Third-party: Supabase Storage + Azure OCR + Gemini AI | ⬜ | `ai_prompt_templates`, `ai_request_logs` + ALTER `ocr_results` | `WEEK_5_PROMPTS_GUIDE.md` |
-| 5.5 | Auto-Fill: Review & Confirm AI Extraction → Visit/Test | ⬜ | ALTER `ocr_results` (4 confirm fields) | `WEEK_5.5_PROMPTS_GUIDE.md` |
-| 6 | Weight Tracking + Motivational | ⬜ | `weight_logs`, `weight_goal_ranges`, `weight_alerts`, `motivational_templates` + translations | — |
+| 5 | Third-party: Supabase Storage + Azure OCR + Gemini AI | ✅ Done | `ai_prompt_templates`, `ai_request_logs` + ALTER `ocr_results` | `WEEK_5_PROMPTS_GUIDE.md` |
+| 5.5 | Auto-Fill: Review & Confirm AI Extraction → Visit/Test | ✅ Done | ALTER `ocr_results` (4 confirm fields) | `WEEK_5.5_PROMPTS_GUIDE.md` |
+| 6 | Weight Tracking + Motivational | ✅ Done | `weight_logs`, `weight_goal_ranges`, `weight_alerts`, `motivational_templates` + translations | `WEEK_6_PROMPTS_GUIDE.md` |
 | 7 | Nutrition + Meal Planning | ⬜ | `ref_food_items` + translations, `ref_nutrients` + translations, `pregnancy_food_preferences`, `recipes`, `meal_plans`, `meal_plan_days`, `meal_items`, `meal_item_nutrients`, `meal_plan_feedback`, `meal_item_feedback` | — |
 | 8+ | Doctor Profiles + Chat + Consult + Call | ⬜ | `doctor_profiles`, `ref_specialties`, `doctor_specialties`, `doctor_availability_*`, `consult_requests`, `chat_conversations`, `chat_participants`, `chat_messages`, `chat_message_attachments`, `chat_read_receipts`, `call_sessions` | — |
 | Future | Reminders | ⬜ | `reminder_rules`, `reminder_events` | — |

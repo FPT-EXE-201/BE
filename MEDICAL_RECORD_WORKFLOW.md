@@ -2,7 +2,7 @@
 
 > **Mục đích**: Tài liệu workflow đầy đủ cho chức năng Medical Record — giúp developer mới hiểu flow trước khi implement hoặc maintain code.  
 > **Cập nhật**: 2026-02-15  
-> **Trạng thái**: Week 4 (CRUD + Stub) ✅ — Week 5 (OCR + AI real) chưa implement — Week 5.5 (Auto-Fill) chưa implement  
+> **Trạng thái**: Week 4 (CRUD + Stub) ✅ — Week 5 (OCR + AI real) ✅ — Week 5.5 (Auto-Fill) ✅  
 > **Xem thêm**: `WEEK_4_PROMPTS_GUIDE.md` (chi tiết code), `WEEK_5_PROMPTS_GUIDE.md` (AI pipeline), `WEEK_5.5_PROMPTS_GUIDE.md` (Auto-Fill), `FEATURES_WORKFLOW_GUIDE.md` (tổng quan tất cả features)
 
 ---
