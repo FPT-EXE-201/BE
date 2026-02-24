@@ -9,5 +9,6 @@ public record WeightLogDto(
     string Source,
     decimal? WeightGainFromBaseline,
     DateTime CreatedAt,
-    DateTime UpdatedAt
+    DateTime UpdatedAt,
+    DateTime? DeletedAt = null
 );

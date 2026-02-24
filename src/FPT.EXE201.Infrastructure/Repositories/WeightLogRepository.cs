@@ -40,7 +40,9 @@ public class WeightLogRepository : GenericRepository<WeightLog>, IWeightLogRepos
     public async Task<WeightLog?> GetByPregnancyAndDateAsync(
         Guid pregnancyId, DateOnly loggedOn, CancellationToken ct = default)
     {
+        // IgnoreQueryFilters to also find soft-deleted entries (DB unique constraint includes them)
         return await _dbSet
+            .IgnoreQueryFilters()
             .FirstOrDefaultAsync(w => w.PregnancyId == pregnancyId && w.LoggedOn == loggedOn, ct);
     }
 

@@ -26,21 +26,36 @@ public class WeightLogService : IWeightLogService
     {
         var pregnancy = await VerifyPregnancyOwnership(pregnancyId, userId, ct);
 
-        // Check duplicate date
+        // Check duplicate date (include soft-deleted to handle DB unique constraint)
         var existing = await _unitOfWork.WeightLogs.GetByPregnancyAndDateAsync(pregnancyId, dto.LoggedOn, ct);
-        if (existing != null)
+        if (existing != null && existing.DeletedAt == null)
             throw new ConflictException($"A weight log already exists for {dto.LoggedOn:yyyy-MM-dd}.");
 
-        var weightLog = new WeightLog
+        WeightLog weightLog;
+        if (existing != null && existing.DeletedAt != null)
         {
-            PregnancyId = pregnancyId,
-            LoggedOn = dto.LoggedOn,
-            WeightKg = dto.WeightKg,
-            Note = dto.Note,
-            Source = dto.Source
-        };
+            // Restore soft-deleted entry and update with new data
+            existing.DeletedAt = null;
+            existing.WeightKg = dto.WeightKg;
+            existing.Note = dto.Note;
+            existing.Source = dto.Source;
+            existing.UpdatedAt = DateTime.UtcNow;
+            _unitOfWork.WeightLogs.Update(existing);
+            weightLog = existing;
+        }
+        else
+        {
+            weightLog = new WeightLog
+            {
+                PregnancyId = pregnancyId,
+                LoggedOn = dto.LoggedOn,
+                WeightKg = dto.WeightKg,
+                Note = dto.Note,
+                Source = dto.Source
+            };
+            await _unitOfWork.WeightLogs.AddAsync(weightLog, ct);
+        }
 
-        await _unitOfWork.WeightLogs.AddAsync(weightLog, ct);
         await _unitOfWork.SaveChangesAsync(ct);
 
         // Check for alerts after logging
@@ -185,8 +200,26 @@ public class WeightLogService : IWeightLogService
         if (dto.PrePregnancyWeightKg.HasValue) goal.PrePregnancyWeightKg = dto.PrePregnancyWeightKg;
         goal.Bmi = CalculateBmi(goal.PrePregnancyWeightKg, goal.HeightCm);
 
-        if (dto.RecommendedTotalGainMin.HasValue) goal.RecommendedTotalGainMin = dto.RecommendedTotalGainMin;
-        if (dto.RecommendedTotalGainMax.HasValue) goal.RecommendedTotalGainMax = dto.RecommendedTotalGainMax;
+        // If user sends custom gain range → use it; otherwise auto-recalculate from new BMI
+        if (dto.RecommendedTotalGainMin.HasValue && dto.RecommendedTotalGainMax.HasValue)
+        {
+            goal.RecommendedTotalGainMin = dto.RecommendedTotalGainMin;
+            goal.RecommendedTotalGainMax = dto.RecommendedTotalGainMax;
+        }
+        else if (!dto.RecommendedTotalGainMin.HasValue && !dto.RecommendedTotalGainMax.HasValue)
+        {
+            // Neither provided → auto-recalculate from updated BMI
+            var (gainMin, gainMax) = GetIomRecommendation(goal.Bmi);
+            goal.RecommendedTotalGainMin = gainMin;
+            goal.RecommendedTotalGainMax = gainMax;
+        }
+        else
+        {
+            // Only one provided → update that one only
+            if (dto.RecommendedTotalGainMin.HasValue) goal.RecommendedTotalGainMin = dto.RecommendedTotalGainMin;
+            if (dto.RecommendedTotalGainMax.HasValue) goal.RecommendedTotalGainMax = dto.RecommendedTotalGainMax;
+        }
+
         if (dto.Notes != null) goal.Notes = dto.Notes;
 
         _unitOfWork.WeightGoalRanges.Update(goal);
@@ -344,7 +377,7 @@ public class WeightLogService : IWeightLogService
     private static WeightLogDto MapToDto(WeightLog w, decimal? prePregnancyWeight) => new(
         w.Id, w.PregnancyId, w.LoggedOn, w.WeightKg, w.Note, w.Source.ToString(),
         prePregnancyWeight.HasValue ? w.WeightKg - prePregnancyWeight.Value : null,
-        w.CreatedAt, w.UpdatedAt);
+        w.CreatedAt, w.UpdatedAt, w.DeletedAt);
 
     private static WeightGoalDto MapToGoalDto(WeightGoalRange g) => new(
         g.Id, g.PregnancyId, g.HeightCm, g.PrePregnancyWeightKg, g.Bmi,

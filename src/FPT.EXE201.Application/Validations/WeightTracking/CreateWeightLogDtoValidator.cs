@@ -8,9 +8,9 @@ public class CreateWeightLogDtoValidator : AbstractValidator<CreateWeightLogDto>
     public CreateWeightLogDtoValidator()
     {
         RuleFor(x => x.LoggedOn)
-            .NotEmpty().WithMessage("Logged date is required.");
-            //.LessThanOrEqualTo(DateOnly.FromDateTime(DateTime.Today))
-            //.WithMessage("Logged date cannot be in the future.");
+            .NotEmpty().WithMessage("Logged date is required.")
+            .LessThanOrEqualTo(DateOnly.FromDateTime(DateTime.Today))
+            .WithMessage("Logged date cannot be in the future.");
 
         RuleFor(x => x.WeightKg)
             .GreaterThan(0).WithMessage("Weight must be greater than 0.")

@@ -30,10 +30,9 @@ public class GenericRepository<T> : IGenericRepository<T> where T : BaseEntity
         bool includeDeleted = false,
         CancellationToken cancellationToken = default)
     {
-        var query = _dbSet.AsNoTracking();
-
-        if (!includeDeleted)
-            query = query.Where(e => e.DeletedAt == null);
+        IQueryable<T> query = includeDeleted
+            ? _dbSet.IgnoreQueryFilters().AsNoTracking()
+            : _dbSet.AsNoTracking();
 
         if (include != null)
             query = include(query);
@@ -47,10 +46,9 @@ public class GenericRepository<T> : IGenericRepository<T> where T : BaseEntity
         bool includeDeleted = false,
         CancellationToken cancellationToken = default)
     {
-        var query = _dbSet.AsQueryable(); // WITH tracking for update/delete
-
-        if (!includeDeleted)
-            query = query.Where(e => e.DeletedAt == null);
+        IQueryable<T> query = includeDeleted
+            ? _dbSet.IgnoreQueryFilters().AsQueryable()
+            : _dbSet.AsQueryable(); // WITH tracking for update/delete
 
         if (include != null)
             query = include(query);
@@ -64,10 +62,9 @@ public class GenericRepository<T> : IGenericRepository<T> where T : BaseEntity
         bool includeDeleted = false,
         CancellationToken cancellationToken = default)
     {
-        var query = _dbSet.AsNoTracking();
-
-        if (!includeDeleted)
-            query = query.Where(e => e.DeletedAt == null);
+        IQueryable<T> query = includeDeleted
+            ? _dbSet.IgnoreQueryFilters().AsNoTracking()
+            : _dbSet.AsNoTracking();
 
         if (include != null)
             query = include(query);
@@ -81,10 +78,9 @@ public class GenericRepository<T> : IGenericRepository<T> where T : BaseEntity
         bool includeDeleted = false,
         CancellationToken cancellationToken = default)
     {
-        var query = _dbSet.AsQueryable(); // WITH tracking for update/delete
-
-        if (!includeDeleted)
-            query = query.Where(e => e.DeletedAt == null);
+        IQueryable<T> query = includeDeleted
+            ? _dbSet.IgnoreQueryFilters().AsQueryable()
+            : _dbSet.AsQueryable(); // WITH tracking for update/delete
 
         if (include != null)
             query = include(query);
@@ -98,10 +94,9 @@ public class GenericRepository<T> : IGenericRepository<T> where T : BaseEntity
         bool includeDeleted = false,
         CancellationToken cancellationToken = default)
     {
-        var query = _dbSet.AsNoTracking();
-
-        if (!includeDeleted)
-            query = query.Where(e => e.DeletedAt == null);
+        IQueryable<T> query = includeDeleted
+            ? _dbSet.IgnoreQueryFilters().AsNoTracking()
+            : _dbSet.AsNoTracking();
 
         if (predicate != null)
             query = query.Where(predicate);
@@ -121,11 +116,9 @@ public class GenericRepository<T> : IGenericRepository<T> where T : BaseEntity
         LambdaExpression? defaultSort = null,
         CancellationToken cancellationToken = default)
     {
-        var query = _dbSet.AsNoTracking();
-
-        // Apply soft delete filter
-        if (!options.IncludeDeleted)
-            query = query.Where(e => e.DeletedAt == null);
+        IQueryable<T> query = options.IncludeDeleted
+            ? _dbSet.IgnoreQueryFilters().AsNoTracking()
+            : _dbSet.AsNoTracking();
 
         // Apply base predicate
         if (predicate != null)
@@ -166,11 +159,9 @@ public class GenericRepository<T> : IGenericRepository<T> where T : BaseEntity
         LambdaExpression? defaultSort = null,
         CancellationToken cancellationToken = default)
     {
-        var query = _dbSet.AsNoTracking();
-
-        // Apply soft delete filter
-        if (!options.IncludeDeleted)
-            query = query.Where(e => e.DeletedAt == null);
+        IQueryable<T> query = options.IncludeDeleted
+            ? _dbSet.IgnoreQueryFilters().AsNoTracking()
+            : _dbSet.AsNoTracking();
 
         // Apply base predicate
         if (predicate != null)
@@ -207,10 +198,9 @@ public class GenericRepository<T> : IGenericRepository<T> where T : BaseEntity
         bool includeDeleted = false,
         CancellationToken cancellationToken = default)
     {
-        var query = _dbSet.AsNoTracking();
-
-        if (!includeDeleted)
-            query = query.Where(e => e.DeletedAt == null);
+        IQueryable<T> query = includeDeleted
+            ? _dbSet.IgnoreQueryFilters().AsNoTracking()
+            : _dbSet.AsNoTracking();
 
         return await query.AnyAsync(predicate, cancellationToken);
     }
@@ -220,10 +210,9 @@ public class GenericRepository<T> : IGenericRepository<T> where T : BaseEntity
         bool includeDeleted = false,
         CancellationToken cancellationToken = default)
     {
-        var query = _dbSet.AsNoTracking();
-
-        if (!includeDeleted)
-            query = query.Where(e => e.DeletedAt == null);
+        IQueryable<T> query = includeDeleted
+            ? _dbSet.IgnoreQueryFilters().AsNoTracking()
+            : _dbSet.AsNoTracking();
 
         if (predicate != null)
             query = query.Where(predicate);

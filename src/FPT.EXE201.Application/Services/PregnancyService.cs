@@ -160,6 +160,9 @@ public class PregnancyService : IPregnancyService
             pregnancy.DeliveryMethod = dto.DeliveryMethod;
         }
 
+        // Recalculate gestational week on status change
+        pregnancy.CurrentGestationalWeek = CalculateCurrentGestationalWeek(pregnancy.LastMenstrualPeriodDate);
+
         _unitOfWork.Pregnancies.Update(pregnancy);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
