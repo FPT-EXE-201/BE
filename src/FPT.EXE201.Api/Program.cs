@@ -3,6 +3,7 @@ using FPT.EXE201.Application;
 using FPT.EXE201.Api.Filters;
 using FPT.EXE201.Infrastructure.Persistence;
 using FluentValidation.AspNetCore;
+using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Serilog.Formatting.Compact;
 using Microsoft.OpenApi.Models;
@@ -232,19 +233,36 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-// Seed database
+// Apply pending migrations and seed database
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     try
     {
         var context = services.GetRequiredService<AppDbContext>();
+
+        // Auto-apply pending migrations on startup
+        // EF Core tracks applied migrations in __EFMigrationsHistory table,
+        // so only NEW migrations will be executed — safe for shared DB
+        var pendingMigrations = await context.Database.GetPendingMigrationsAsync();
+        if (pendingMigrations.Any())
+        {
+            Log.Information("Applying {Count} pending migration(s): {Migrations}",
+                pendingMigrations.Count(), string.Join(", ", pendingMigrations));
+            await context.Database.MigrateAsync();
+            Log.Information("Database migrations applied successfully");
+        }
+        else
+        {
+            Log.Information("Database is up to date — no pending migrations");
+        }
+
         await DatabaseSeeder.SeedAsync(context);
         Log.Information("Database seeding completed successfully");
     }
     catch (Exception ex)
     {
-        Log.Error(ex, "An error occurred while seeding the database");
+        Log.Error(ex, "An error occurred while migrating/seeding the database");
     }
 }
 

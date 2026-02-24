@@ -10,6 +10,11 @@ namespace FPT.EXE201.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            // Drop FK constraint first to avoid collation incompatibility
+            // between user_profiles.preferred_lang and languages.code
+            migrationBuilder.Sql(
+                "ALTER TABLE `user_profiles` DROP FOREIGN KEY `FK_user_profiles_languages_preferred_lang`;");
+
             migrationBuilder.AlterColumn<string>(
                 name: "status",
                 table: "users",
@@ -199,6 +204,12 @@ namespace FPT.EXE201.Infrastructure.Migrations
                 oldMaxLength: 10)
                 .Annotation("MySql:CharSet", "utf8mb4")
                 .OldAnnotation("MySql:CharSet", "utf8mb4");
+
+            // Re-add FK constraint after both columns have matching collation
+            migrationBuilder.Sql(
+                @"ALTER TABLE `user_profiles` ADD CONSTRAINT `FK_user_profiles_languages_preferred_lang`
+                  FOREIGN KEY (`preferred_lang`) REFERENCES `languages` (`code`)
+                  ON DELETE RESTRICT;");
         }
 
         /// <inheritdoc />
