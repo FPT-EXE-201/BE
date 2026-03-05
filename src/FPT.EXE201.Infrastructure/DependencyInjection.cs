@@ -64,6 +64,9 @@ namespace FPT.EXE201.Infrastructure
                     new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", serviceKey);
             });
 
+            // Google Sign-In — uses Google.Apis.Auth library (manages its own HTTP)
+            services.AddScoped<IGoogleTokenVerifier, GoogleTokenVerifier>();
+
             // Week 4 — Infrastructure Services
             services.AddScoped<IOcrService, OcrService>();
 
