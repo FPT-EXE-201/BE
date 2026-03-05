@@ -13,10 +13,12 @@ namespace FPT.EXE201.Api.Controllers
     public class AuthController : BaseApiController
     {
         private readonly IAuthService _authService;
+        private readonly IUserProfileService _userProfileService;
 
-        public AuthController(IAuthService authService)
+        public AuthController(IAuthService authService, IUserProfileService userProfileService)
         {
             _authService = authService;
+            _userProfileService = userProfileService;
         }
 
         /// <summary>
@@ -115,6 +117,76 @@ namespace FPT.EXE201.Api.Controllers
 
             var user = await _authService.GetMeAsync(userId, ct);
             return Success(user, "User information retrieved successfully");
+        }
+
+        /// <summary>
+        /// Sign in or auto-register via Google (mobile). Gửi idToken từ Flutter google_sign_in.
+        /// </summary>
+        [HttpPost("google")]
+        [AllowAnonymous]
+        [ProducesResponseType(typeof(ApiResponse<AuthResponseDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> GoogleSignIn([FromBody] GoogleSignInRequestDto request, CancellationToken ct)
+        {
+            var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+            var ua = HttpContext.Request.Headers.UserAgent.ToString();
+            var response = await _authService.GoogleSignInAsync(request, ip, ua, ct);
+            return Success(response, "Google sign-in successful");
+        }
+
+
+        /// <summary>
+        /// Update current user profile (fullName, dateOfBirth, preferredLanguage, phone, avatar image)
+        /// </summary>
+        [HttpPut("profile")]
+        [Authorize]
+        [Consumes("multipart/form-data")]
+        [ProducesResponseType(typeof(ApiResponse<UserResponseDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status409Conflict)]
+        public async Task<IActionResult> UpdateProfile(
+            [FromForm] UpdateProfileRequestDto request,
+            IFormFile? avatar,
+            CancellationToken ct)
+        {
+            // Xử lý IFormFile ở Controller (Application layer không reference ASP.NET types)
+            Stream? avatarStream = null;
+            try
+            {
+                AvatarUploadInfo? avatarUpload = null;
+                if (avatar is not null)
+                {
+                    avatarStream = avatar.OpenReadStream();
+                    avatarUpload = new AvatarUploadInfo(
+                        avatarStream,
+                        avatar.FileName,
+                        avatar.ContentType,
+                        avatar.Length);
+                }
+
+                var result = await _userProfileService.UpdateProfileAsync(GetCurrentUserId(), request, avatarUpload, ct);
+                return Success(result, "Profile updated successfully");
+            }
+            finally
+            {
+                avatarStream?.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Change password — requires current password verification
+        /// </summary>
+        [HttpPost("change-password")]
+        [Authorize]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequestDto request, CancellationToken ct)
+        {
+            await _userProfileService.ChangePasswordAsync(GetCurrentUserId(), request, ct);
+            return Success<object?>(null, "Password changed successfully");
         }
     }
 }
