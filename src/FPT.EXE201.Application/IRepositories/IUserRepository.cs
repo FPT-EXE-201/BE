@@ -20,6 +20,7 @@ namespace FPT.EXE201.Application.IRepositories
         Task<User?> GetByEmailAsync(string emailNormalized, bool includeProfile = false, bool includeDeleted = false, CancellationToken ct = default);
         Task<User?> GetByEmailNormalizedAsync(string emailNormalized, bool includeProfile = false, bool includeDeleted = false, CancellationToken ct = default);
         Task<User?> GetByPhoneAsync(string phone, bool includeProfile = false, bool includeDeleted = false, CancellationToken ct = default);
+        Task<User?> GetByGoogleIdAsync(string googleId, bool includeProfile = false, CancellationToken ct = default);
         Task<PagedResult<User>> GetPagedUsersAsync(QueryOptions options, CancellationToken ct = default);
     }
 }

@@ -51,5 +51,15 @@ namespace FPT.EXE201.Application.IServices
         /// Get current user info by userId
         /// </summary>
         Task<UserResponseDto> GetMeAsync(Guid userId, CancellationToken ct = default);
+
+        /// <summary>
+        /// Sign in or auto-register via Google ID Token (mobile)
+        /// </summary>
+        Task<AuthResponseDto> GoogleSignInAsync(
+            GoogleSignInRequestDto request,
+            string? ipAddress = null,
+            string? userAgent = null,
+            CancellationToken ct = default);
     }
 }
+
