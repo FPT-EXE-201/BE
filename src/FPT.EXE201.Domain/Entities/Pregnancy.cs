@@ -158,4 +158,23 @@ public class Pregnancy : BaseEntity
 
     /// <summary>Danh sách kết quả xét nghiệm.</summary>
     public ICollection<PrenatalTest> Tests { get; set; } = new List<PrenatalTest>();
+
+    // ══════════════════════════════════════
+    // Week 7 — Nutrition + Meal Planning
+    // ══════════════════════════════════════
+
+    /// <summary>Danh sách dị ứng / không thích theo thai kỳ.</summary>
+    public ICollection<PregnancyFoodPreference> FoodPreferences { get; set; } = new List<PregnancyFoodPreference>();
+
+    /// <summary>Ghi chú dinh dưỡng dạng text tự do.</summary>
+    public ICollection<PregnancyNutritionNote> NutritionNotes { get; set; } = new List<PregnancyNutritionNote>();
+
+    /// <summary>Công thức nấu ăn (AI-generated).</summary>
+    public ICollection<Recipe> Recipes { get; set; } = new List<Recipe>();
+
+    /// <summary>Kế hoạch bữa ăn hàng tuần.</summary>
+    public ICollection<MealPlan> MealPlans { get; set; } = new List<MealPlan>();
+
+    /// <summary>Log các request AI (Gemini/OCR).</summary>
+    public ICollection<AiRequestLog> AiRequestLogs { get; set; } = new List<AiRequestLog>();
 }

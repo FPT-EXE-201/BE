@@ -1,3 +1,4 @@
+using FPT.EXE201.Application.DTOs.Nutrition;
 using FPT.EXE201.Application.DTOs.RefData;
 using FPT.EXE201.Application.IServices;
 
@@ -46,6 +47,32 @@ public class RefDataService : IRefDataService
                 r.Id, r.Code,
                 translation?.DisplayName ?? r.Code,
                 translation?.Description);
+        }).ToList();
+    }
+
+    // Week 7 — Nutrition
+
+    public async Task<List<RefFoodItemDto>> GetActiveFoodItemsAsync(
+        string langCode, CancellationToken cancellationToken = default)
+    {
+        var items = await _unitOfWork.RefFoodItems
+            .GetActiveWithTranslationsAsync(langCode, cancellationToken);
+        return items.Select(f =>
+        {
+            var t = f.Translations.FirstOrDefault(tr => tr.LanguageCode == langCode);
+            return new RefFoodItemDto(f.Id, f.Code, t?.DisplayName ?? f.Code);
+        }).ToList();
+    }
+
+    public async Task<List<RefNutrientDto>> GetActiveNutrientsAsync(
+        string langCode, CancellationToken cancellationToken = default)
+    {
+        var nutrients = await _unitOfWork.RefNutrients
+            .GetActiveWithTranslationsAsync(langCode, cancellationToken);
+        return nutrients.Select(n =>
+        {
+            var t = n.Translations.FirstOrDefault(tr => tr.LanguageCode == langCode);
+            return new RefNutrientDto(n.Id, n.Code, n.Unit, t?.DisplayName ?? n.Code);
         }).ToList();
     }
 }

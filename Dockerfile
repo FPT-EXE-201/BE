@@ -62,4 +62,16 @@ ENV ASPNETCORE_URLS=http://+:8080
 ENV ASPNETCORE_ENVIRONMENT=Production
 ENV DOTNET_RUNNING_IN_CONTAINER=true
 
+# ============================================
+# Sensitive env vars — pass at runtime, NOT here:
+#   docker run -e ConnectionStrings__DefaultConnection="..." \
+#              -e Jwt__SecretKey="..." \
+#              -e AI__Gemini__ApiKey="..." \
+#              your-image
+#
+# Or use docker-compose with env_file:
+#   env_file:
+#     - .env
+# ============================================
+
 ENTRYPOINT ["dotnet", "FPT.EXE201.Api.dll"]

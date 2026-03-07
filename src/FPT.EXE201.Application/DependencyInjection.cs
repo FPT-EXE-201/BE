@@ -45,6 +45,12 @@ public static class DependencyInjection
         // Week 6 — Weight Tracking & Motivational
         services.AddScoped<IWeightLogService, WeightLogService>();
         services.AddScoped<IMotivationalService, MotivationalService>();
+
+        // Week 7 — Nutrition + Meal Planning
+        services.AddScoped<IFoodPreferenceService, FoodPreferenceService>();
+        services.AddScoped<IMealPlanService, MealPlanService>();
+        services.AddScoped<IRecipeService, RecipeService>();
+        services.AddScoped<INutritionFeedbackService, NutritionFeedbackService>();
         #endregion
 
         return services;

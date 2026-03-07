@@ -193,6 +193,20 @@ namespace FPT.EXE201.Infrastructure.Persistence
             await SeedPermissionIfNotExists(context, "pregnancy.test.write", "Write Prenatal Tests", "User can create/update prenatal tests");
             await SeedPermissionIfNotExists(context, "pregnancy.test.delete", "Delete Prenatal Tests", "User can delete prenatal tests");
 
+            // Week 7 — Nutrition + Meal Planning
+            await SeedPermissionIfNotExists(context, "food_preference.read", "Read Food Preferences", "User can view their food preferences and allergies");
+            await SeedPermissionIfNotExists(context, "food_preference.write", "Write Food Preferences", "User can add/update food preferences and allergies");
+            await SeedPermissionIfNotExists(context, "food_preference.delete", "Delete Food Preferences", "User can remove food preferences");
+            await SeedPermissionIfNotExists(context, "nutrition_note.read", "Read Nutrition Notes", "User can view their nutrition notes");
+            await SeedPermissionIfNotExists(context, "nutrition_note.write", "Write Nutrition Notes", "User can add/update nutrition notes");
+            await SeedPermissionIfNotExists(context, "nutrition_note.delete", "Delete Nutrition Notes", "User can remove nutrition notes");
+            await SeedPermissionIfNotExists(context, "meal_plan.read", "Read Meal Plans", "User can view their meal plans");
+            await SeedPermissionIfNotExists(context, "meal_plan.generate", "Generate Meal Plan", "User can generate AI meal plans");
+            await SeedPermissionIfNotExists(context, "meal_plan.delete", "Delete Meal Plans", "User can delete their meal plans");
+            await SeedPermissionIfNotExists(context, "recipe.read", "Read Recipes", "User can view recipes in their meal plans");
+            await SeedPermissionIfNotExists(context, "meal_plan_feedback.write", "Write Meal Plan Feedback", "User can rate meal plans");
+            await SeedPermissionIfNotExists(context, "meal_item_feedback.write", "Write Meal Item Feedback", "User can like/dislike meal items");
+
             await context.SaveChangesAsync();
 
             // Load all permissions from database
@@ -223,7 +237,13 @@ namespace FPT.EXE201.Infrastructure.Persistence
                 "weight_goal.read", "weight_goal.write",
                 "weight_alert.read", "weight_alert.resolve",
                 "reminders.write.own",
-                "consults.request", "chat.send", "calls.join"
+                "consults.request", "chat.send", "calls.join",
+                // Week 7 — Nutrition
+                "food_preference.read", "food_preference.write", "food_preference.delete",
+                "nutrition_note.read", "nutrition_note.write", "nutrition_note.delete",
+                "meal_plan.read", "meal_plan.generate", "meal_plan.delete",
+                "recipe.read",
+                "meal_plan_feedback.write", "meal_item_feedback.write"
             };
             var userPermissionIds = permissions.Where(p => userPermissionCodes.Contains(p.Code)).Select(p => p.Id).ToList();
             await AssignPermissionsToRole(context, userRole.Id, userPermissionIds);
@@ -251,7 +271,13 @@ namespace FPT.EXE201.Infrastructure.Persistence
                 "availability.write.own", "consults.request", "consults.accept", "consults.view.assigned",
                 "chat.send", "chat.participants.manage", "calls.join", "calls.recordings.access",
                 "reminders.manage.any",
-                "premium.access", "ai_features.access", "reports.advanced"
+                "premium.access", "ai_features.access", "reports.advanced",
+                // Week 7 — Nutrition (same as USER except meal_plan.generate)
+                "food_preference.read", "food_preference.write", "food_preference.delete",
+                "nutrition_note.read", "nutrition_note.write", "nutrition_note.delete",
+                "meal_plan.read", "meal_plan.delete",
+                "recipe.read",
+                "meal_plan_feedback.write", "meal_item_feedback.write"
             };
             var doctorPermissionIds = permissions.Where(p => doctorPermissionCodes.Contains(p.Code)).Select(p => p.Id).ToList();
             await AssignPermissionsToRole(context, doctorRole.Id, doctorPermissionIds);

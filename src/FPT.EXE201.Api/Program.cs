@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Serilog.Formatting.Compact;
 using Microsoft.OpenApi.Models;
+using DotNetEnv;
 
 // Configure Serilog
 Log.Logger = new LoggerConfiguration()
@@ -35,6 +36,14 @@ Log.Logger = new LoggerConfiguration()
 try
 {
     Log.Information("Starting FPT.EXE201 API application...");
+
+    // Load .env file if exists (local dev) — environment variables override appsettings.json
+    var envPath = Path.Combine(Directory.GetCurrentDirectory(), ".env");
+    if (File.Exists(envPath))
+    {
+        Env.Load(envPath);
+        Log.Information("Loaded environment variables from .env file");
+    }
 
     var builder = WebApplication.CreateBuilder(args);
 

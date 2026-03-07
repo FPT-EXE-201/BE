@@ -51,6 +51,19 @@ namespace FPT.EXE201.Infrastructure.Repositories
         private IWeightAlertRepository? _weightAlerts;
         private IMotivationalTemplateRepository? _motivationalTemplates;
 
+        // Week 7 — Nutrition + Meal Planning
+        private IRefFoodItemRepository? _refFoodItems;
+        private IRefNutrientRepository? _refNutrients;
+        private IPregnancyFoodPreferenceRepository? _foodPreferences;
+        private IPregnancyNutritionNoteRepository? _nutritionNotes;
+        private IRecipeRepository? _recipes;
+        private IMealPlanRepository? _mealPlans;
+        private IMealPlanDayRepository? _mealPlanDays;
+        private IMealItemRepository? _mealItems;
+        private IMealPlanFeedbackRepository? _mealPlanFeedbacks;
+        private IMealItemFeedbackRepository? _mealItemFeedbacks;
+        private IAiRequestLogRepository? _aiRequestLogs;
+
         public UnitOfWork(AppDbContext context)
         {
             _context = context;
@@ -89,6 +102,19 @@ namespace FPT.EXE201.Infrastructure.Repositories
         public IWeightGoalRangeRepository WeightGoalRanges => _weightGoalRanges ??= new WeightGoalRangeRepository(_context);
         public IWeightAlertRepository WeightAlerts => _weightAlerts ??= new WeightAlertRepository(_context);
         public IMotivationalTemplateRepository MotivationalTemplates => _motivationalTemplates ??= new MotivationalTemplateRepository(_context);
+
+        // Week 7 — Nutrition + Meal Planning
+        public IRefFoodItemRepository RefFoodItems => _refFoodItems ??= new RefFoodItemRepository(_context);
+        public IRefNutrientRepository RefNutrients => _refNutrients ??= new RefNutrientRepository(_context);
+        public IPregnancyFoodPreferenceRepository FoodPreferences => _foodPreferences ??= new PregnancyFoodPreferenceRepository(_context);
+        public IPregnancyNutritionNoteRepository NutritionNotes => _nutritionNotes ??= new PregnancyNutritionNoteRepository(_context);
+        public IRecipeRepository Recipes => _recipes ??= new RecipeRepository(_context);
+        public IMealPlanRepository MealPlans => _mealPlans ??= new MealPlanRepository(_context);
+        public IMealPlanDayRepository MealPlanDays => _mealPlanDays ??= new MealPlanDayRepository(_context);
+        public IMealItemRepository MealItems => _mealItems ??= new MealItemRepository(_context);
+        public IMealPlanFeedbackRepository MealPlanFeedbacks => _mealPlanFeedbacks ??= new MealPlanFeedbackRepository(_context);
+        public IMealItemFeedbackRepository MealItemFeedbacks => _mealItemFeedbacks ??= new MealItemFeedbackRepository(_context);
+        public IAiRequestLogRepository AiRequestLogs => _aiRequestLogs ??= new AiRequestLogRepository(_context);
 
         public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {

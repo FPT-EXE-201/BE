@@ -50,6 +50,22 @@ namespace FPT.EXE201.Infrastructure.Persistence
         public DbSet<MotivationalTemplate> MotivationalTemplates { get; set; }
         public DbSet<MotivationalTemplateTranslation> MotivationalTemplateTranslations { get; set; }
 
+        // Week 7 — Nutrition + Meal Planning
+        public DbSet<RefFoodItem> RefFoodItems { get; set; }
+        public DbSet<RefFoodItemTranslation> RefFoodItemTranslations { get; set; }
+        public DbSet<RefNutrient> RefNutrients { get; set; }
+        public DbSet<RefNutrientTranslation> RefNutrientTranslations { get; set; }
+        public DbSet<PregnancyFoodPreference> PregnancyFoodPreferences { get; set; }
+        public DbSet<PregnancyNutritionNote> PregnancyNutritionNotes { get; set; }
+        public DbSet<Recipe> Recipes { get; set; }
+        public DbSet<MealPlan> MealPlans { get; set; }
+        public DbSet<MealPlanDay> MealPlanDays { get; set; }
+        public DbSet<MealItem> MealItems { get; set; }
+        public DbSet<MealItemNutrient> MealItemNutrients { get; set; }
+        public DbSet<MealPlanFeedback> MealPlanFeedbacks { get; set; }
+        public DbSet<MealItemFeedback> MealItemFeedbacks { get; set; }
+        public DbSet<AiRequestLog> AiRequestLogs { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -69,6 +85,10 @@ namespace FPT.EXE201.Infrastructure.Persistence
 
             // Week 6 Seeders
             MotivationalTemplateSeeder.Seed(modelBuilder);
+
+            // Week 7 — Nutrition Seeders
+            NutritionFoodItemSeeder.Seed(modelBuilder);
+            NutrientSeeder.Seed(modelBuilder);
 
             // Apply soft delete query filter for all entities inheriting from BaseEntity
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())
@@ -138,6 +158,15 @@ namespace FPT.EXE201.Infrastructure.Persistence
                 else if (entry.Entity is UserRole userRole && entry.State == EntityState.Added)
                 {
                     userRole.CreatedAt = DateTime.UtcNow;
+                }
+                // Week 7 — RefNutrient (custom entity, not BaseEntity)
+                else if (entry.Entity is RefNutrient nutrient)
+                {
+                    if (entry.State == EntityState.Added)
+                    {
+                        nutrient.CreatedAt = DateTime.UtcNow;
+                    }
+                    nutrient.UpdatedAt = DateTime.UtcNow;
                 }
             }
         }

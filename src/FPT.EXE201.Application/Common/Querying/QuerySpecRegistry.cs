@@ -1,5 +1,6 @@
 using FPT.EXE201.Application.DTOs.Common;
 using FPT.EXE201.Application.Features.Languages;
+using FPT.EXE201.Application.Features.MealPlans;
 using FPT.EXE201.Application.Features.PrenatalTests;
 using FPT.EXE201.Application.Features.PrenatalVisits;
 using FPT.EXE201.Application.Features.WeightLogs;
@@ -24,5 +25,6 @@ public static class QuerySpecRegistry
             ["prenatalTests"] = PrenatalTestListQuerySpec.Metadata,
             ["languages"] = LanguageListQuerySpec.Metadata,
             ["weightLogs"] = WeightLogListQuerySpec.Metadata,
+            ["mealPlans"] = MealPlanListQuerySpec.Metadata,
         };
 }

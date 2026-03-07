@@ -45,6 +45,19 @@ namespace FPT.EXE201.Application
         IWeightAlertRepository WeightAlerts { get; }
         IMotivationalTemplateRepository MotivationalTemplates { get; }
 
+        // Week 7 — Nutrition + Meal Planning
+        IRefFoodItemRepository RefFoodItems { get; }
+        IRefNutrientRepository RefNutrients { get; }
+        IPregnancyFoodPreferenceRepository FoodPreferences { get; }
+        IPregnancyNutritionNoteRepository NutritionNotes { get; }
+        IRecipeRepository Recipes { get; }
+        IMealPlanRepository MealPlans { get; }
+        IMealPlanDayRepository MealPlanDays { get; }
+        IMealItemRepository MealItems { get; }
+        IMealPlanFeedbackRepository MealPlanFeedbacks { get; }
+        IMealItemFeedbackRepository MealItemFeedbacks { get; }
+        IAiRequestLogRepository AiRequestLogs { get; }
+
         // Transaction methods
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
         Task BeginTransactionAsync(CancellationToken cancellationToken = default);

@@ -1,0 +1,1440 @@
+{
+	"info": {
+		"_postman_id": "week7-nutrition-meal-planning",
+		"name": "Week 7 — Nutrition & Meal Planning (Full Setup)",
+		"description": "Complete test collection for Week 7: Nutrition & Meal Planning.\n\n**DB mới hoàn toàn** — Collection bao gồm:\n- 0️⃣ SETUP: Register, Login, Create Pregnancy, Create Weight Goal\n- 1️⃣ Reference Data (food items, nutrients)\n- 2️⃣ Food Preferences CRUD\n- 3️⃣ Nutrition Notes CRUD\n- 4️⃣ Query Specs\n- 5️⃣ Meal Plan Generate (AI)\n- 6️⃣ Meal Plan List/Detail/Delete\n- 7️⃣ Meal Day Detail\n- 8️⃣ Recipe Detail\n- 9️⃣ Feedback\n- 🔟 Authorization\n- 1️⃣1️⃣ Edge Cases\n\n**Cách dùng:**\n1. Set variable `baseUrl` = https://localhost:PORT (hoặc http://)\n2. Chạy folder \"0 - SETUP\" trước\n3. Chạy các folder theo thứ tự 1 → 11\n4. Các biến (token, pregnancyId, ...) tự động lưu từ response",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{ "key": "baseUrl", "value": "https://localhost:7048", "type": "string" },
+		{ "key": "token", "value": "", "type": "string" },
+		{ "key": "pregnancyId", "value": "", "type": "string" },
+		{ "key": "weightGoalId", "value": "", "type": "string" },
+		{ "key": "prefId_allergy", "value": "", "type": "string" },
+		{ "key": "prefId_dislike", "value": "", "type": "string" },
+		{ "key": "prefId_shrimp", "value": "", "type": "string" },
+		{ "key": "prefId_peanut_dislike", "value": "", "type": "string" },
+		{ "key": "noteId_diet", "value": "", "type": "string" },
+		{ "key": "noteId_note", "value": "", "type": "string" },
+		{ "key": "noteId_other", "value": "", "type": "string" },
+		{ "key": "mealPlanId", "value": "", "type": "string" },
+		{ "key": "mealPlanId_2weeks", "value": "", "type": "string" },
+		{ "key": "mealPlanId_new", "value": "", "type": "string" },
+		{ "key": "planDate", "value": "2026-03-09", "type": "string" },
+		{ "key": "recipeId", "value": "", "type": "string" },
+		{ "key": "mealItemId", "value": "", "type": "string" },
+		{ "key": "mealItemId_2", "value": "", "type": "string" },
+		{ "key": "mealItemId_3", "value": "", "type": "string" },
+		{ "key": "feedbackId_plan", "value": "", "type": "string" },
+		{ "key": "userId", "value": "", "type": "string" },
+		{ "key": "foodItemId_peanut", "value": "c7010002-0000-0000-0000-000000000002", "type": "string" },
+		{ "key": "foodItemId_shrimp", "value": "c7010001-0000-0000-0000-000000000007", "type": "string" },
+		{ "key": "foodItemId_cilantro", "value": "c7010003-0000-0000-0000-000000000001", "type": "string" },
+		{ "key": "foodItemId_durian", "value": "c7010004-0000-0000-0000-000000000001", "type": "string" },
+		{ "key": "foodItemId_chicken", "value": "c7010001-0000-0000-0000-000000000001", "type": "string" },
+		{ "key": "foodItemId_shellfish", "value": "c7010002-0000-0000-0000-000000000007", "type": "string" },
+		{ "key": "foodItemId_bitter_melon", "value": "c7010003-0000-0000-0000-000000000002", "type": "string" }
+	],
+	"item": [
+		{
+			"name": "0 - SETUP (Chạy trước tiên)",
+			"description": "Tạo user, login, tạo pregnancy, tạo weight goal.\nChạy folder này TRƯỚC khi test Week 7.",
+			"item": [
+				{
+					"name": "S01 — Register User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const res = pm.response.json();",
+									"",
+									"pm.test('Register — 201 Created', () => {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test('Response has accessToken', () => {",
+									"    pm.expect(res.data).to.have.property('accessToken');",
+									"    pm.expect(res.data.accessToken).to.be.a('string').and.not.empty;",
+									"});",
+									"",
+									"if (res.data && res.data.accessToken) {",
+									"    pm.collectionVariables.set('token', res.data.accessToken);",
+									"    pm.collectionVariables.set('userId', res.data.user.id);",
+									"    console.log('✅ Token saved, userId:', res.data.user.id);",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"testweek7@example.com\",\n  \"password\": \"Test@123456\",\n  \"fullName\": \"Test User Week 7\",\n  \"phone\": \"0901234567\",\n  \"preferredLanguage\": \"vi\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/register",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "register"]
+						}
+					}
+				},
+				{
+					"name": "S02 — Login (lấy token mới)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const res = pm.response.json();",
+									"",
+									"pm.test('Login — 200 OK', () => {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has accessToken', () => {",
+									"    pm.expect(res.data).to.have.property('accessToken');",
+									"});",
+									"",
+									"if (res.data && res.data.accessToken) {",
+									"    pm.collectionVariables.set('token', res.data.accessToken);",
+									"    pm.collectionVariables.set('userId', res.data.user.id);",
+									"    console.log('✅ Token refreshed');",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"emailOrPhone\": \"testweek7@example.com\",\n  \"password\": \"Test@123456\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "login"]
+						}
+					}
+				},
+				{
+					"name": "S03 — Create Pregnancy",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const res = pm.response.json();",
+									"",
+									"pm.test('Create Pregnancy — 201 Created', () => {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test('Pregnancy has id', () => {",
+									"    pm.expect(res.data).to.have.property('id');",
+									"});",
+									"",
+									"if (res.data && res.data.id) {",
+									"    pm.collectionVariables.set('pregnancyId', res.data.id);",
+									"    console.log('✅ pregnancyId saved:', res.data.id);",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "Authorization", "value": "Bearer {{token}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"lastMenstrualPeriodDate\": \"2025-12-01\",\n  \"babyNickname\": \"Baby Week7\",\n  \"babyGender\": 0,\n  \"pregnancyType\": 0,\n  \"prePregnancyWeightKg\": 55.0,\n  \"heightCm\": 160.0,\n  \"notes\": \"Pregnancy for Week 7 testing\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/pregnancies",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "pregnancies"]
+						}
+					}
+				},
+				{
+					"name": "S04 — Get Active Pregnancy (verify)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const res = pm.response.json();",
+									"",
+									"pm.test('Get Active Pregnancy — 200 OK', () => {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Pregnancy is Active', () => {",
+									"    pm.expect(res.data).to.have.property('id');",
+									"    pm.expect(res.data.id).to.eql(pm.collectionVariables.get('pregnancyId'));",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token}}" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/pregnancies/active",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "pregnancies", "active"]
+						}
+					}
+				},
+				{
+					"name": "S05 — Create Weight Goal (heightCm + prePregnancyWeightKg)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const res = pm.response.json();",
+									"",
+									"pm.test('Create Weight Goal — 201 Created', () => {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"if (res.data && res.data.id) {",
+									"    pm.collectionVariables.set('weightGoalId', res.data.id);",
+									"    console.log('✅ weightGoalId saved:', res.data.id);",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "Authorization", "value": "Bearer {{token}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"heightCm\": 160.0,\n  \"prePregnancyWeightKg\": 55.0,\n  \"notes\": \"Weight goal for Week 7 test\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/weight-goals",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "pregnancies", "{{pregnancyId}}", "weight-goals"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "0 - PRE-TEST (TC-N00 → N03)",
+			"item": [
+				{
+					"name": "TC-N01 — Get Active Pregnancy",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const res = pm.response.json();",
+									"pm.test('TC-N01 — 200 OK, Active pregnancy exists', () => {",
+									"    pm.response.to.have.status(200);",
+									"    pm.expect(res.data).to.have.property('id');",
+									"});",
+									"if (res.data) { pm.collectionVariables.set('pregnancyId', res.data.id); }"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/active", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "active"] }
+					}
+				},
+				{
+					"name": "TC-N02 — Get All Enums (verify Week 7 enums)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const res = pm.response.json();",
+									"pm.test('TC-N02 — 200 OK', () => { pm.response.to.have.status(200); });",
+									"pm.test('Has foodPreferenceType', () => { pm.expect(res.data).to.have.property('foodPreferenceType'); });",
+									"pm.test('Has allergySeverity', () => { pm.expect(res.data).to.have.property('allergySeverity'); });",
+									"pm.test('Has mealType', () => { pm.expect(res.data).to.have.property('mealType'); });",
+									"pm.test('Has nutritionNoteType', () => { pm.expect(res.data).to.have.property('nutritionNoteType'); });",
+									"pm.test('Has aiFeature', () => { pm.expect(res.data).to.have.property('aiFeature'); });"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": { "raw": "{{baseUrl}}/api/ref/enums", "host": ["{{baseUrl}}"], "path": ["api", "ref", "enums"] }
+					}
+				},
+				{
+					"name": "TC-N03a — Enum foodPreferenceType",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('TC-N03a — 200 OK', () => { pm.response.to.have.status(200); });",
+									"const res = pm.response.json();",
+									"pm.test('Has Allergy & Dislike', () => {",
+									"    pm.expect(res.data).to.have.property('Allergy');",
+									"    pm.expect(res.data).to.have.property('Dislike');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": { "raw": "{{baseUrl}}/api/ref/enums/foodPreferenceType", "host": ["{{baseUrl}}"], "path": ["api", "ref", "enums", "foodPreferenceType"] }
+					}
+				},
+				{
+					"name": "TC-N03b — Enum allergySeverity",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('TC-N03b — 200 OK', () => { pm.response.to.have.status(200); });",
+									"const res = pm.response.json();",
+									"pm.test('Has Low, Medium, High', () => {",
+									"    pm.expect(res.data).to.have.property('Low');",
+									"    pm.expect(res.data).to.have.property('Medium');",
+									"    pm.expect(res.data).to.have.property('High');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": { "raw": "{{baseUrl}}/api/ref/enums/allergySeverity", "host": ["{{baseUrl}}"], "path": ["api", "ref", "enums", "allergySeverity"] }
+					}
+				}
+			]
+		},
+		{
+			"name": "1 - REFERENCE DATA (TC-R01 → R04)",
+			"item": [
+				{
+					"name": "TC-R01 — Food Items (Vietnamese)",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"const res = pm.response.json();",
+						"pm.test('TC-R01 — 200 OK', () => { pm.response.to.have.status(200); });",
+						"pm.test('Has food items array', () => { pm.expect(res.data).to.be.an('array'); });",
+						"pm.test('Has 45 food items', () => { pm.expect(res.data.length).to.eql(45); });",
+						"pm.test('First item has required fields', () => {",
+						"    const item = res.data[0];",
+						"    pm.expect(item).to.have.property('id');",
+						"    pm.expect(item).to.have.property('code');",
+						"    pm.expect(item).to.have.property('displayName');",
+						"});"
+					] } }],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": { "raw": "{{baseUrl}}/api/ref/food-items?lang=vi", "host": ["{{baseUrl}}"], "path": ["api", "ref", "food-items"], "query": [{ "key": "lang", "value": "vi" }] }
+					}
+				},
+				{
+					"name": "TC-R02 — Food Items (English)",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"const res = pm.response.json();",
+						"pm.test('TC-R02 — 200 OK', () => { pm.response.to.have.status(200); });",
+						"pm.test('Has 45 items', () => { pm.expect(res.data.length).to.eql(45); });",
+						"pm.test('DisplayName is English', () => {",
+						"    const chicken = res.data.find(i => i.code === 'CHICKEN');",
+						"    if (chicken) pm.expect(chicken.displayName).to.include('Chicken');",
+						"});"
+					] } }],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": { "raw": "{{baseUrl}}/api/ref/food-items?lang=en", "host": ["{{baseUrl}}"], "path": ["api", "ref", "food-items"], "query": [{ "key": "lang", "value": "en" }] }
+					}
+				},
+				{
+					"name": "TC-R03 — Nutrients (Vietnamese)",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"const res = pm.response.json();",
+						"pm.test('TC-R03 — 200 OK', () => { pm.response.to.have.status(200); });",
+						"pm.test('Has 15 nutrients', () => { pm.expect(res.data.length).to.eql(15); });",
+						"pm.test('Nutrient has required fields', () => {",
+						"    const item = res.data[0];",
+						"    pm.expect(item).to.have.property('id');",
+						"    pm.expect(item).to.have.property('code');",
+						"    pm.expect(item).to.have.property('displayName');",
+						"    pm.expect(item).to.have.property('unit');",
+						"});"
+					] } }],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": { "raw": "{{baseUrl}}/api/ref/nutrients?lang=vi", "host": ["{{baseUrl}}"], "path": ["api", "ref", "nutrients"], "query": [{ "key": "lang", "value": "vi" }] }
+					}
+				},
+				{
+					"name": "TC-R04 — Nutrients (English)",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"const res = pm.response.json();",
+						"pm.test('TC-R04 — 200 OK', () => { pm.response.to.have.status(200); });",
+						"pm.test('Has 15 nutrients', () => { pm.expect(res.data.length).to.eql(15); });",
+						"pm.test('DisplayName is English', () => {",
+						"    const protein = res.data.find(i => i.code === 'PROTEIN');",
+						"    if (protein) pm.expect(protein.displayName).to.include('Protein');",
+						"});"
+					] } }],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": { "raw": "{{baseUrl}}/api/ref/nutrients?lang=en", "host": ["{{baseUrl}}"], "path": ["api", "ref", "nutrients"], "query": [{ "key": "lang", "value": "en" }] }
+					}
+				}
+			]
+		},
+		{
+			"name": "2 - FOOD PREFERENCES (TC-FP01 → FP19)",
+			"item": [
+				{
+					"name": "TC-FP01 ✅ Create Allergy (PEANUT, High)",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"const res = pm.response.json();",
+						"pm.test('TC-FP01 — 201 Created', () => { pm.response.to.have.status(201); });",
+						"pm.test('preferenceType = Allergy', () => { pm.expect(res.data.preferenceType).to.eql('Allergy'); });",
+						"pm.test('severity = High', () => { pm.expect(res.data.severity).to.eql('High'); });",
+						"pm.test('foodItemCode = PEANUT', () => { pm.expect(res.data.foodItemCode).to.eql('PEANUT'); });",
+						"pm.test('foodItemDisplayName Vietnamese', () => { pm.expect(res.data.foodItemDisplayName).to.include('phộng'); });",
+						"if (res.data) { pm.collectionVariables.set('prefId_allergy', res.data.id); }"
+					] } }],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"foodItemId\": \"{{foodItemId_peanut}}\",\n  \"preferenceType\": \"Allergy\",\n  \"severity\": \"High\",\n  \"notes\": \"Dị ứng đậu phộng nặng, có triệu chứng sốc phản vệ\"\n}" },
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/food-preferences?lang=vi", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "food-preferences"], "query": [{ "key": "lang", "value": "vi" }] }
+					}
+				},
+				{
+					"name": "TC-FP02 ✅ Create Dislike (CILANTRO)",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"const res = pm.response.json();",
+						"pm.test('TC-FP02 — 201 Created', () => { pm.response.to.have.status(201); });",
+						"pm.test('preferenceType = Dislike', () => { pm.expect(res.data.preferenceType).to.eql('Dislike'); });",
+						"pm.test('severity = null', () => { pm.expect(res.data.severity).to.be.null; });",
+						"pm.test('foodItemCode = CILANTRO', () => { pm.expect(res.data.foodItemCode).to.eql('CILANTRO'); });",
+						"if (res.data) { pm.collectionVariables.set('prefId_dislike', res.data.id); }"
+					] } }],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"foodItemId\": \"{{foodItemId_cilantro}}\",\n  \"preferenceType\": \"Dislike\",\n  \"notes\": \"Không thích mùi rau mùi\"\n}" },
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/food-preferences?lang=vi", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "food-preferences"], "query": [{ "key": "lang", "value": "vi" }] }
+					}
+				},
+				{
+					"name": "TC-FP03 ✅ Create Allergy (SHRIMP, Low)",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"const res = pm.response.json();",
+						"pm.test('TC-FP03 — 201 Created', () => { pm.response.to.have.status(201); });",
+						"pm.test('foodItemCode = SHRIMP', () => { pm.expect(res.data.foodItemCode).to.eql('SHRIMP'); });",
+						"pm.test('severity = Low', () => { pm.expect(res.data.severity).to.eql('Low'); });",
+						"if (res.data) { pm.collectionVariables.set('prefId_shrimp', res.data.id); }"
+					] } }],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"foodItemId\": \"{{foodItemId_shrimp}}\",\n  \"preferenceType\": \"Allergy\",\n  \"severity\": \"Low\",\n  \"notes\": \"Ngứa nhẹ khi ăn tôm\"\n}" },
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/food-preferences?lang=vi", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "food-preferences"], "query": [{ "key": "lang", "value": "vi" }] }
+					}
+				},
+				{
+					"name": "TC-FP04 ❌ Duplicate (PEANUT Allergy) → 409",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-FP04 — 409 Conflict', () => { pm.response.to.have.status(409); });",
+						"const res = pm.response.json();",
+						"pm.test('Error message about duplicate', () => { pm.expect(res.message).to.include('already exists'); });"
+					] } }],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"foodItemId\": \"{{foodItemId_peanut}}\",\n  \"preferenceType\": \"Allergy\",\n  \"severity\": \"Medium\"\n}" },
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/food-preferences?lang=vi", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "food-preferences"], "query": [{ "key": "lang", "value": "vi" }] }
+					}
+				},
+				{
+					"name": "TC-FP05 ✅ Same food different type (PEANUT Dislike) → OK",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"const res = pm.response.json();",
+						"pm.test('TC-FP05 — 201 Created', () => { pm.response.to.have.status(201); });",
+						"pm.test('preferenceType = Dislike', () => { pm.expect(res.data.preferenceType).to.eql('Dislike'); });",
+						"pm.test('foodItemCode = PEANUT', () => { pm.expect(res.data.foodItemCode).to.eql('PEANUT'); });",
+						"if (res.data) { pm.collectionVariables.set('prefId_peanut_dislike', res.data.id); }"
+					] } }],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"foodItemId\": \"{{foodItemId_peanut}}\",\n  \"preferenceType\": \"Dislike\",\n  \"notes\": \"Cũng không thích vị đậu phộng\"\n}" },
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/food-preferences?lang=vi", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "food-preferences"], "query": [{ "key": "lang", "value": "vi" }] }
+					}
+				},
+				{
+					"name": "TC-FP06 ❌ Food item not found → 404",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-FP06 — 404 Not Found', () => { pm.response.to.have.status(404); });",
+						"const res = pm.response.json();",
+						"pm.test('Message: Food item not found', () => { pm.expect(res.message).to.include('not found'); });"
+					] } }],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"foodItemId\": \"00000000-0000-0000-0000-000000000000\",\n  \"preferenceType\": \"Allergy\"\n}" },
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/food-preferences?lang=vi", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "food-preferences"], "query": [{ "key": "lang", "value": "vi" }] }
+					}
+				},
+				{
+					"name": "TC-FP07 ❌ Missing foodItemId → 400",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-FP07 — 400 Bad Request', () => { pm.response.to.have.status(400); });"
+					] } }],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"preferenceType\": \"Allergy\"\n}" },
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/food-preferences", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "food-preferences"] }
+					}
+				},
+				{
+					"name": "TC-FP08 ❌ Invalid PreferenceType → 400",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-FP08 — 400 Bad Request', () => { pm.response.to.have.status(400); });"
+					] } }],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"foodItemId\": \"{{foodItemId_chicken}}\",\n  \"preferenceType\": \"InvalidType\"\n}" },
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/food-preferences", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "food-preferences"] }
+					}
+				},
+				{
+					"name": "TC-FP09 ❌ Notes > 255 chars → 400",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-FP09 — 400 Bad Request', () => { pm.response.to.have.status(400); });"
+					] } }],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"foodItemId\": \"{{foodItemId_chicken}}\",\n  \"preferenceType\": \"Dislike\",\n  \"notes\": \"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\"\n}" },
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/food-preferences", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "food-preferences"] }
+					}
+				},
+				{
+					"name": "TC-FP10 ✅ List food preferences (vi)",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"const res = pm.response.json();",
+						"pm.test('TC-FP10 — 200 OK', () => { pm.response.to.have.status(200); });",
+						"pm.test('Has preferences array', () => { pm.expect(res.data).to.be.an('array'); });",
+						"pm.test('Has at least 3 preferences', () => { pm.expect(res.data.length).to.be.at.least(3); });"
+					] } }],
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/food-preferences?lang=vi", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "food-preferences"], "query": [{ "key": "lang", "value": "vi" }] }
+					}
+				},
+				{
+					"name": "TC-FP11 ✅ List food preferences (en)",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"const res = pm.response.json();",
+						"pm.test('TC-FP11 — 200 OK', () => { pm.response.to.have.status(200); });",
+						"pm.test('DisplayName in English', () => {",
+						"    const peanut = res.data.find(i => i.foodItemCode === 'PEANUT');",
+						"    if (peanut) pm.expect(peanut.foodItemDisplayName).to.include('Peanut');",
+						"});"
+					] } }],
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/food-preferences?lang=en", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "food-preferences"], "query": [{ "key": "lang", "value": "en" }] }
+					}
+				},
+				{
+					"name": "TC-FP12 ✅ Update preference (severity High→Medium)",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"const res = pm.response.json();",
+						"pm.test('TC-FP12 — 200 OK', () => { pm.response.to.have.status(200); });",
+						"pm.test('severity = Medium', () => { pm.expect(res.data.severity).to.eql('Medium'); });",
+						"pm.test('notes updated', () => { pm.expect(res.data.notes).to.include('giảm mức độ'); });"
+					] } }],
+					"request": {
+						"method": "PUT",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"severity\": \"Medium\",\n  \"notes\": \"Đã giảm mức độ sau điều trị\"\n}" },
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/food-preferences/{{prefId_allergy}}?lang=vi", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "food-preferences", "{{prefId_allergy}}"], "query": [{ "key": "lang", "value": "vi" }] }
+					}
+				},
+				{
+					"name": "TC-FP13 ✅ Update preference — only severity",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"const res = pm.response.json();",
+						"pm.test('TC-FP13 — 200 OK', () => { pm.response.to.have.status(200); });",
+						"pm.test('severity = High', () => { pm.expect(res.data.severity).to.eql('High'); });"
+					] } }],
+					"request": {
+						"method": "PUT",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"severity\": \"High\"\n}" },
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/food-preferences/{{prefId_shrimp}}?lang=vi", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "food-preferences", "{{prefId_shrimp}}"], "query": [{ "key": "lang", "value": "vi" }] }
+					}
+				},
+				{
+					"name": "TC-FP14 ❌ Update non-existent → 404",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-FP14 — 404 Not Found', () => { pm.response.to.have.status(404); });"
+					] } }],
+					"request": {
+						"method": "PUT",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"severity\": \"Low\"\n}" },
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/food-preferences/00000000-0000-0000-0000-000000000000?lang=vi", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "food-preferences", "00000000-0000-0000-0000-000000000000"], "query": [{ "key": "lang", "value": "vi" }] }
+					}
+				},
+				{
+					"name": "TC-FP15 ✅ Delete preference (CILANTRO dislike)",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-FP15 — 200 OK', () => { pm.response.to.have.status(200); });",
+						"const res = pm.response.json();",
+						"pm.test('Deleted successfully', () => { pm.expect(res.message).to.include('deleted'); });"
+					] } }],
+					"request": {
+						"method": "DELETE",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/food-preferences/{{prefId_dislike}}", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "food-preferences", "{{prefId_dislike}}"] }
+					}
+				},
+				{
+					"name": "TC-FP16 ✅ Re-create deleted (CILANTRO Dislike) → Restore",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"const res = pm.response.json();",
+						"pm.test('TC-FP16 — 201 Created (restored)', () => { pm.response.to.have.status(201); });",
+						"pm.test('notes updated', () => { pm.expect(res.data.notes).to.include('restored'); });",
+						"if (res.data) { pm.collectionVariables.set('prefId_dislike', res.data.id); }"
+					] } }],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"foodItemId\": \"{{foodItemId_cilantro}}\",\n  \"preferenceType\": \"Dislike\",\n  \"notes\": \"Tạo lại sau khi xóa — restored from soft-deleted\"\n}" },
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/food-preferences?lang=vi", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "food-preferences"], "query": [{ "key": "lang", "value": "vi" }] }
+					}
+				},
+				{
+					"name": "TC-FP17 ❌ Other pregnancy → 403",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-FP17 — 403 or 404', () => {",
+						"    pm.expect(pm.response.code).to.be.oneOf([403, 404]);",
+						"});"
+					] } }],
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/00000000-0000-0000-0000-999999999999/food-preferences", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "00000000-0000-0000-0000-999999999999", "food-preferences"] }
+					}
+				},
+				{
+					"name": "TC-FP18 ❌ Pregnancy not found → 404",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-FP18 — 404 Not Found', () => { pm.response.to.have.status(404); });"
+					] } }],
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/00000000-0000-0000-0000-000000000099/food-preferences", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "00000000-0000-0000-0000-000000000099", "food-preferences"] }
+					}
+				},
+				{
+					"name": "TC-FP19 ❌ No token → 401",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-FP19 — 401 Unauthorized', () => { pm.response.to.have.status(401); });"
+					] } }],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/food-preferences", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "food-preferences"] }
+					}
+				}
+			]
+		},
+		{
+			"name": "3 - NUTRITION NOTES (TC-NN01 → NN12)",
+			"item": [
+				{
+					"name": "TC-NN01 ✅ Create note — Diet",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"const res = pm.response.json();",
+						"pm.test('TC-NN01 — 201 Created', () => { pm.response.to.have.status(201); });",
+						"pm.test('noteType = Diet', () => { pm.expect(res.data.noteType).to.eql('Diet'); });",
+						"pm.test('valueText Vietnamese', () => { pm.expect(res.data.valueText).to.include('chay'); });",
+						"if (res.data) { pm.collectionVariables.set('noteId_diet', res.data.id); }"
+					] } }],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"noteType\": \"Diet\",\n  \"valueText\": \"Ăn chay trường, không ăn thịt\"\n}" },
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/nutrition-notes", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "nutrition-notes"] }
+					}
+				},
+				{
+					"name": "TC-NN02 ✅ Create note — Note",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"const res = pm.response.json();",
+						"pm.test('TC-NN02 — 201 Created', () => { pm.response.to.have.status(201); });",
+						"pm.test('noteType = Note', () => { pm.expect(res.data.noteType).to.eql('Note'); });",
+						"if (res.data) { pm.collectionVariables.set('noteId_note', res.data.id); }"
+					] } }],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"noteType\": \"Note\",\n  \"valueText\": \"Bác sĩ khuyên bổ sung thêm sắt và acid folic\"\n}" },
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/nutrition-notes", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "nutrition-notes"] }
+					}
+				},
+				{
+					"name": "TC-NN03 ✅ Create note — Other",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"const res = pm.response.json();",
+						"pm.test('TC-NN03 — 201 Created', () => { pm.response.to.have.status(201); });",
+						"pm.test('noteType = Other', () => { pm.expect(res.data.noteType).to.eql('Other'); });",
+						"if (res.data) { pm.collectionVariables.set('noteId_other', res.data.id); }"
+					] } }],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"noteType\": \"Other\",\n  \"valueText\": \"Thích ăn chua, nghén nặng 3 tháng đầu\"\n}" },
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/nutrition-notes", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "nutrition-notes"] }
+					}
+				},
+				{
+					"name": "TC-NN04 ❌ Missing valueText → 400",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-NN04 — 400 Bad Request', () => { pm.response.to.have.status(400); });"
+					] } }],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"noteType\": \"Diet\"\n}" },
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/nutrition-notes", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "nutrition-notes"] }
+					}
+				},
+				{
+					"name": "TC-NN05 ❌ Empty valueText → 400",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-NN05 — 400 Bad Request', () => { pm.response.to.have.status(400); });"
+					] } }],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"noteType\": \"Diet\",\n  \"valueText\": \"\"\n}" },
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/nutrition-notes", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "nutrition-notes"] }
+					}
+				},
+				{
+					"name": "TC-NN06 ❌ valueText > 200 chars → 400",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-NN06 — 400 Bad Request', () => { pm.response.to.have.status(400); });"
+					] } }],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"noteType\": \"Note\",\n  \"valueText\": \"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\"\n}" },
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/nutrition-notes", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "nutrition-notes"] }
+					}
+				},
+				{
+					"name": "TC-NN07 ❌ Invalid NoteType → 400",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-NN07 — 400 Bad Request', () => { pm.response.to.have.status(400); });"
+					] } }],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"noteType\": \"InvalidType\",\n  \"valueText\": \"Test\"\n}" },
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/nutrition-notes", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "nutrition-notes"] }
+					}
+				},
+				{
+					"name": "TC-NN08 ✅ List nutrition notes",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"const res = pm.response.json();",
+						"pm.test('TC-NN08 — 200 OK', () => { pm.response.to.have.status(200); });",
+						"pm.test('Has notes array', () => { pm.expect(res.data).to.be.an('array'); });",
+						"pm.test('Has 3 notes', () => { pm.expect(res.data.length).to.eql(3); });"
+					] } }],
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/nutrition-notes", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "nutrition-notes"] }
+					}
+				},
+				{
+					"name": "TC-NN09 ✅ Update note (Diet → Other)",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"const res = pm.response.json();",
+						"pm.test('TC-NN09 — 200 OK', () => { pm.response.to.have.status(200); });",
+						"pm.test('noteType = Other', () => { pm.expect(res.data.noteType).to.eql('Other'); });",
+						"pm.test('valueText updated', () => { pm.expect(res.data.valueText).to.include('flexitarian'); });"
+					] } }],
+					"request": {
+						"method": "PUT",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"noteType\": \"Other\",\n  \"valueText\": \"Đã đổi sang ăn chay linh hoạt (flexitarian)\"\n}" },
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/nutrition-notes/{{noteId_diet}}", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "nutrition-notes", "{{noteId_diet}}"] }
+					}
+				},
+				{
+					"name": "TC-NN10 ✅ Update note — partial (only valueText)",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"const res = pm.response.json();",
+						"pm.test('TC-NN10 — 200 OK', () => { pm.response.to.have.status(200); });",
+						"pm.test('valueText updated', () => { pm.expect(res.data.valueText).to.include('vitamin D'); });"
+					] } }],
+					"request": {
+						"method": "PUT",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"valueText\": \"Thêm vitamin D vào buổi sáng\"\n}" },
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/nutrition-notes/{{noteId_note}}", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "nutrition-notes", "{{noteId_note}}"] }
+					}
+				},
+				{
+					"name": "TC-NN11 ✅ Delete note",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-NN11 — 200 OK', () => { pm.response.to.have.status(200); });",
+						"const res = pm.response.json();",
+						"pm.test('Deleted successfully', () => { pm.expect(res.message).to.include('deleted'); });"
+					] } }],
+					"request": {
+						"method": "DELETE",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/nutrition-notes/{{noteId_other}}", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "nutrition-notes", "{{noteId_other}}"] }
+					}
+				},
+				{
+					"name": "TC-NN12 ❌ Delete non-existent → 404",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-NN12 — 404 Not Found', () => { pm.response.to.have.status(404); });"
+					] } }],
+					"request": {
+						"method": "DELETE",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/nutrition-notes/00000000-0000-0000-0000-000000000000", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "nutrition-notes", "00000000-0000-0000-0000-000000000000"] }
+					}
+				}
+			]
+		},
+		{
+			"name": "4 - QUERY SPECS (TC-QS01)",
+			"item": [
+				{
+					"name": "TC-QS01 ✅ Query specs for mealPlans",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"const res = pm.response.json();",
+						"pm.test('TC-QS01 — 200 OK', () => { pm.response.to.have.status(200); });",
+						"pm.test('Has searchKeys', () => { pm.expect(res.data.searchKeys).to.be.an('array'); });",
+						"pm.test('Has sortableFields', () => { pm.expect(res.data.sortableFields).to.be.an('array'); });",
+						"pm.test('defaultSort is createdat_desc', () => { pm.expect(res.data.defaultSort).to.eql('createdat_desc'); });"
+					] } }],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": { "raw": "{{baseUrl}}/api/ref/query-specs/mealPlans", "host": ["{{baseUrl}}"], "path": ["api", "ref", "query-specs", "mealPlans"] }
+					}
+				}
+			]
+		},
+		{
+			"name": "5 - MEAL PLAN GENERATE AI (TC-MP01 → MP09)",
+			"description": "⚠️ Cần Gemini API key.\n⚠️ Timeout ≥ 120s.\n⚠️ Rate limit: 15 calls/day.",
+			"item": [
+				{
+					"name": "TC-MP01 ✅ Generate 1 week",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"const res = pm.response.json();",
+						"pm.test('TC-MP01 — 201 Created', () => { pm.response.to.have.status(201); });",
+						"pm.test('source = AI', () => { pm.expect(res.data.source).to.eql('AI'); });",
+						"pm.test('Has 7 days', () => { pm.expect(res.data.days.length).to.eql(7); });",
+						"pm.test('startDate correct', () => { pm.expect(res.data.startDate).to.include('2026-03-09'); });",
+						"pm.test('title not null', () => { pm.expect(res.data.title).to.not.be.null; });",
+						"if (res.data) {",
+						"    pm.collectionVariables.set('mealPlanId', res.data.id);",
+						"    if (res.data.days && res.data.days.length > 0) {",
+						"        pm.collectionVariables.set('planDate', res.data.days[0].planDate);",
+						"    }",
+						"    console.log('✅ mealPlanId saved:', res.data.id);",
+						"}"
+					] } }],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"startDate\": \"2026-03-09\",\n  \"durationWeeks\": 1,\n  \"additionalNotes\": \"Ưu tiên món Việt Nam, dễ nấu cho người bận rộn\"\n}" },
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/meal-plans/generate", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "meal-plans", "generate"] }
+					}
+				},
+				{
+					"name": "TC-MP02 ✅ Generate 2 weeks",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"const res = pm.response.json();",
+						"pm.test('TC-MP02 — 201 Created', () => { pm.response.to.have.status(201); });",
+						"pm.test('Has 14 days', () => { pm.expect(res.data.days.length).to.eql(14); });",
+						"pm.test('endDate correct', () => { pm.expect(res.data.endDate).to.include('2026-03-29'); });",
+						"if (res.data) { pm.collectionVariables.set('mealPlanId_2weeks', res.data.id); }"
+					] } }],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"startDate\": \"2026-03-16\",\n  \"durationWeeks\": 2\n}" },
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/meal-plans/generate", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "meal-plans", "generate"] }
+					}
+				},
+				{
+					"name": "TC-MP03 ✅ Generate overlap → auto-delete old",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"const res = pm.response.json();",
+						"pm.test('TC-MP03 — 201 Created', () => { pm.response.to.have.status(201); });",
+						"pm.test('New plan created', () => { pm.expect(res.data.id).to.not.eql(pm.collectionVariables.get('mealPlanId')); });",
+						"if (res.data) {",
+						"    pm.collectionVariables.set('mealPlanId_new', res.data.id);",
+						"    console.log('✅ mealPlanId_new saved (overlap replaced):', res.data.id);",
+						"}"
+					] } }],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"startDate\": \"2026-03-09\",\n  \"durationWeeks\": 1,\n  \"additionalNotes\": \"Thay thế plan cũ, muốn ăn đa dạng hơn\"\n}" },
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/meal-plans/generate", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "meal-plans", "generate"] }
+					}
+				},
+				{
+					"name": "TC-MP04 ❌ DurationWeeks = 0 → 400",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-MP04 — 400 Bad Request', () => { pm.response.to.have.status(400); });"
+					] } }],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"startDate\": \"2026-03-09\",\n  \"durationWeeks\": 0\n}" },
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/meal-plans/generate", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "meal-plans", "generate"] }
+					}
+				},
+				{
+					"name": "TC-MP05 ❌ DurationWeeks = 5 → 400",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-MP05 — 400 Bad Request', () => { pm.response.to.have.status(400); });"
+					] } }],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"startDate\": \"2026-03-09\",\n  \"durationWeeks\": 5\n}" },
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/meal-plans/generate", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "meal-plans", "generate"] }
+					}
+				},
+				{
+					"name": "TC-MP06 ❌ StartDate in past → 400",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-MP06 — 400 Bad Request', () => { pm.response.to.have.status(400); });"
+					] } }],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"startDate\": \"2025-01-01\",\n  \"durationWeeks\": 1\n}" },
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/meal-plans/generate", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "meal-plans", "generate"] }
+					}
+				},
+				{
+					"name": "TC-MP07 ❌ AdditionalNotes > 500 chars → 400",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-MP07 — 400 Bad Request', () => { pm.response.to.have.status(400); });"
+					] } }],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"startDate\": \"2026-03-09\",\n  \"durationWeeks\": 1,\n  \"additionalNotes\": \"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\"\n}" },
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/meal-plans/generate", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "meal-plans", "generate"] }
+					}
+				}
+			]
+		},
+		{
+			"name": "6 - MEAL PLAN LIST/DETAIL/DELETE (TC-ML01 → ML08)",
+			"item": [
+				{
+					"name": "TC-ML01 ✅ List meal plans (paging)",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"const res = pm.response.json();",
+						"pm.test('TC-ML01 — 200 OK', () => { pm.response.to.have.status(200); });",
+						"pm.test('Has paging structure', () => {",
+						"    pm.expect(res.data).to.have.property('items');",
+						"    pm.expect(res.data).to.have.property('page');",
+						"    pm.expect(res.data).to.have.property('pageSize');",
+						"    pm.expect(res.data).to.have.property('totalItems');",
+						"});",
+						"pm.test('Has items', () => { pm.expect(res.data.items.length).to.be.at.least(1); });"
+					] } }],
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/meal-plans?page=1&pageSize=10", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "meal-plans"], "query": [{ "key": "page", "value": "1" }, { "key": "pageSize", "value": "10" }] }
+					}
+				},
+				{
+					"name": "TC-ML02 ✅ Sort by startdate_asc",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"const res = pm.response.json();",
+						"pm.test('TC-ML02 — 200 OK', () => { pm.response.to.have.status(200); });",
+						"pm.test('Sorted ascending', () => {",
+						"    if (res.data.items.length >= 2) {",
+						"        pm.expect(res.data.items[0].startDate <= res.data.items[1].startDate).to.be.true;",
+						"    }",
+						"});"
+					] } }],
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/meal-plans?sort=startdate_asc", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "meal-plans"], "query": [{ "key": "sort", "value": "startdate_asc" }] }
+					}
+				},
+				{
+					"name": "TC-ML03 ✅ Search meal plans by title",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-ML03 — 200 OK', () => { pm.response.to.have.status(200); });"
+					] } }],
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/meal-plans?search=meal&searchBy=title", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "meal-plans"], "query": [{ "key": "search", "value": "meal" }, { "key": "searchBy", "value": "title" }] }
+					}
+				},
+				{
+					"name": "TC-ML04 ✅ Meal plan detail",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"const res = pm.response.json();",
+						"pm.test('TC-ML04 — 200 OK', () => { pm.response.to.have.status(200); });",
+						"pm.test('Has days array', () => { pm.expect(res.data.days).to.be.an('array'); });",
+						"pm.test('Has 7 days', () => { pm.expect(res.data.days.length).to.eql(7); });",
+						"pm.test('source = AI', () => { pm.expect(res.data.source).to.eql('AI'); });"
+					] } }],
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/meal-plans/{{mealPlanId_new}}", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "meal-plans", "{{mealPlanId_new}}"] }
+					}
+				},
+				{
+					"name": "TC-ML05 ❌ Detail not found → 404",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-ML05 — 404 Not Found', () => { pm.response.to.have.status(404); });"
+					] } }],
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/meal-plans/00000000-0000-0000-0000-000000000000", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "meal-plans", "00000000-0000-0000-0000-000000000000"] }
+					}
+				},
+				{
+					"name": "TC-ML06 ❌ Other user pregnancy → 403",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-ML06 — 403 or 404', () => { pm.expect(pm.response.code).to.be.oneOf([403, 404]); });"
+					] } }],
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/00000000-0000-0000-0000-999999999999/meal-plans/{{mealPlanId_new}}", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "00000000-0000-0000-0000-999999999999", "meal-plans", "{{mealPlanId_new}}"] }
+					}
+				},
+				{
+					"name": "TC-ML07 ✅ Delete meal plan (2 weeks)",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-ML07 — 200 OK', () => { pm.response.to.have.status(200); });",
+						"const res = pm.response.json();",
+						"pm.test('Deleted successfully', () => { pm.expect(res.message).to.include('deleted'); });"
+					] } }],
+					"request": {
+						"method": "DELETE",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/meal-plans/{{mealPlanId_2weeks}}", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "meal-plans", "{{mealPlanId_2weeks}}"] }
+					}
+				},
+				{
+					"name": "TC-ML08 ❌ Delete not found → 404",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-ML08 — 404 Not Found', () => { pm.response.to.have.status(404); });"
+					] } }],
+					"request": {
+						"method": "DELETE",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/meal-plans/00000000-0000-0000-0000-000000000000", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "meal-plans", "00000000-0000-0000-0000-000000000000"] }
+					}
+				}
+			]
+		},
+		{
+			"name": "7 - MEAL DAY DETAIL (TC-DD01 → DD04)",
+			"item": [
+				{
+					"name": "TC-DD01 ✅ Day detail (Vietnamese)",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"const res = pm.response.json();",
+						"pm.test('TC-DD01 — 200 OK', () => { pm.response.to.have.status(200); });",
+						"pm.test('Has meals array', () => { pm.expect(res.data.meals).to.be.an('array'); });",
+						"pm.test('Has 4 meals', () => { pm.expect(res.data.meals.length).to.eql(4); });",
+						"pm.test('Has totalCalories', () => { pm.expect(res.data.totalCalories).to.be.above(0); });",
+						"",
+						"// Save recipeId and mealItemIds for later tests",
+						"if (res.data && res.data.meals && res.data.meals.length >= 3) {",
+						"    const meals = res.data.meals;",
+						"    if (meals[0].recipeId) pm.collectionVariables.set('recipeId', meals[0].recipeId);",
+						"    pm.collectionVariables.set('mealItemId', meals[0].id);",
+						"    pm.collectionVariables.set('mealItemId_2', meals[1].id);",
+						"    if (meals.length >= 3) pm.collectionVariables.set('mealItemId_3', meals[2].id);",
+						"    console.log('✅ recipeId:', meals[0].recipeId, 'mealItemIds saved');",
+						"}"
+					] } }],
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/meal-plans/{{mealPlanId_new}}/days/{{planDate}}?lang=vi", "host": ["{{baseUrl}}"], "path": ["api", "meal-plans", "{{mealPlanId_new}}", "days", "{{planDate}}"], "query": [{ "key": "lang", "value": "vi" }] }
+					}
+				},
+				{
+					"name": "TC-DD02 ✅ Day detail (English)",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"const res = pm.response.json();",
+						"pm.test('TC-DD02 — 200 OK', () => { pm.response.to.have.status(200); });",
+						"pm.test('Has meals', () => { pm.expect(res.data.meals).to.be.an('array'); });"
+					] } }],
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/meal-plans/{{mealPlanId_new}}/days/{{planDate}}?lang=en", "host": ["{{baseUrl}}"], "path": ["api", "meal-plans", "{{mealPlanId_new}}", "days", "{{planDate}}"], "query": [{ "key": "lang", "value": "en" }] }
+					}
+				},
+				{
+					"name": "TC-DD03 ❌ Day not in plan → 404",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-DD03 — 404 Not Found', () => { pm.response.to.have.status(404); });"
+					] } }],
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/meal-plans/{{mealPlanId_new}}/days/2026-12-25?lang=vi", "host": ["{{baseUrl}}"], "path": ["api", "meal-plans", "{{mealPlanId_new}}", "days", "2026-12-25"], "query": [{ "key": "lang", "value": "vi" }] }
+					}
+				},
+				{
+					"name": "TC-DD04 ❌ Plan not found → 404",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-DD04 — 404 Not Found', () => { pm.response.to.have.status(404); });"
+					] } }],
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/meal-plans/00000000-0000-0000-0000-000000000000/days/2026-03-09", "host": ["{{baseUrl}}"], "path": ["api", "meal-plans", "00000000-0000-0000-0000-000000000000", "days", "2026-03-09"] }
+					}
+				}
+			]
+		},
+		{
+			"name": "8 - RECIPE (TC-RC01 → RC02)",
+			"item": [
+				{
+					"name": "TC-RC01 ✅ Recipe detail",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"const res = pm.response.json();",
+						"pm.test('TC-RC01 — 200 OK', () => { pm.response.to.have.status(200); });",
+						"pm.test('Has title', () => { pm.expect(res.data.title).to.not.be.null; });",
+						"pm.test('Has instructions', () => { pm.expect(res.data.instructions).to.not.be.null; });",
+						"pm.test('servings > 0', () => { pm.expect(res.data.servings).to.be.above(0); });"
+					] } }],
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/recipes/{{recipeId}}", "host": ["{{baseUrl}}"], "path": ["api", "recipes", "{{recipeId}}"] }
+					}
+				},
+				{
+					"name": "TC-RC02 ❌ Recipe not found → 404",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-RC02 — 404 Not Found', () => { pm.response.to.have.status(404); });"
+					] } }],
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/recipes/00000000-0000-0000-0000-000000000000", "host": ["{{baseUrl}}"], "path": ["api", "recipes", "00000000-0000-0000-0000-000000000000"] }
+					}
+				}
+			]
+		},
+		{
+			"name": "9 - FEEDBACK (TC-FB01 → FB12)",
+			"item": [
+				{
+					"name": "TC-FB01 ✅ Meal plan feedback (5 stars)",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"const res = pm.response.json();",
+						"pm.test('TC-FB01 — 201 Created', () => { pm.response.to.have.status(201); });",
+						"pm.test('rating = 5', () => { pm.expect(res.data.rating).to.eql(5); });",
+						"pm.test('comment correct', () => { pm.expect(res.data.comment).to.include('phù hợp'); });",
+						"if (res.data) { pm.collectionVariables.set('feedbackId_plan', res.data.id); }"
+					] } }],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"rating\": 5,\n  \"comment\": \"Thực đơn rất phù hợp, đa dạng và ngon miệng!\"\n}" },
+						"url": { "raw": "{{baseUrl}}/api/meal-plans/{{mealPlanId_new}}/feedback", "host": ["{{baseUrl}}"], "path": ["api", "meal-plans", "{{mealPlanId_new}}", "feedback"] }
+					}
+				},
+				{
+					"name": "TC-FB02 ❌ Duplicate plan feedback → 409",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-FB02 — 409 Conflict', () => { pm.response.to.have.status(409); });",
+						"const res = pm.response.json();",
+						"pm.test('Already rated message', () => { pm.expect(res.message).to.include('already'); });"
+					] } }],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"rating\": 3,\n  \"comment\": \"Muốn đánh giá lại\"\n}" },
+						"url": { "raw": "{{baseUrl}}/api/meal-plans/{{mealPlanId_new}}/feedback", "host": ["{{baseUrl}}"], "path": ["api", "meal-plans", "{{mealPlanId_new}}", "feedback"] }
+					}
+				},
+				{
+					"name": "TC-FB03 ❌ Rating = 0 → 400",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-FB03 — 400 Bad Request', () => { pm.response.to.have.status(400); });"
+					] } }],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"rating\": 0\n}" },
+						"url": { "raw": "{{baseUrl}}/api/meal-plans/{{mealPlanId_new}}/feedback", "host": ["{{baseUrl}}"], "path": ["api", "meal-plans", "{{mealPlanId_new}}", "feedback"] }
+					}
+				},
+				{
+					"name": "TC-FB04 ❌ Rating = 6 → 400",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-FB04 — 400 Bad Request', () => { pm.response.to.have.status(400); });"
+					] } }],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"rating\": 6\n}" },
+						"url": { "raw": "{{baseUrl}}/api/meal-plans/{{mealPlanId_new}}/feedback", "host": ["{{baseUrl}}"], "path": ["api", "meal-plans", "{{mealPlanId_new}}", "feedback"] }
+					}
+				},
+				{
+					"name": "TC-FB05 ❌ Comment > 500 chars → 400",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-FB05 — 400 Bad Request', () => { pm.response.to.have.status(400); });"
+					] } }],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"rating\": 4,\n  \"comment\": \"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\"\n}" },
+						"url": { "raw": "{{baseUrl}}/api/meal-plans/{{mealPlanId_new}}/feedback", "host": ["{{baseUrl}}"], "path": ["api", "meal-plans", "{{mealPlanId_new}}", "feedback"] }
+					}
+				},
+				{
+					"name": "TC-FB06 ❌ Plan not found → 404",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-FB06 — 404 Not Found', () => { pm.response.to.have.status(404); });"
+					] } }],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"rating\": 5\n}" },
+						"url": { "raw": "{{baseUrl}}/api/meal-plans/00000000-0000-0000-0000-000000000000/feedback", "host": ["{{baseUrl}}"], "path": ["api", "meal-plans", "00000000-0000-0000-0000-000000000000", "feedback"] }
+					}
+				},
+				{
+					"name": "TC-FB07 ✅ Meal item feedback — Like",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"const res = pm.response.json();",
+						"pm.test('TC-FB07 — 201 Created', () => { pm.response.to.have.status(201); });",
+						"pm.test('liked = true', () => { pm.expect(res.data.liked).to.eql(true); });"
+					] } }],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"liked\": true,\n  \"comment\": \"Món này rất ngon và dễ nấu\"\n}" },
+						"url": { "raw": "{{baseUrl}}/api/meal-items/{{mealItemId}}/feedback", "host": ["{{baseUrl}}"], "path": ["api", "meal-items", "{{mealItemId}}", "feedback"] }
+					}
+				},
+				{
+					"name": "TC-FB08 ✅ Meal item feedback — Dislike",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"const res = pm.response.json();",
+						"pm.test('TC-FB08 — 201 Created', () => { pm.response.to.have.status(201); });",
+						"pm.test('liked = false', () => { pm.expect(res.data.liked).to.eql(false); });"
+					] } }],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"liked\": false,\n  \"comment\": \"Không hợp khẩu vị\"\n}" },
+						"url": { "raw": "{{baseUrl}}/api/meal-items/{{mealItemId_2}}/feedback", "host": ["{{baseUrl}}"], "path": ["api", "meal-items", "{{mealItemId_2}}", "feedback"] }
+					}
+				},
+				{
+					"name": "TC-FB09 ❌ Duplicate meal item feedback → 409",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-FB09 — 409 Conflict', () => { pm.response.to.have.status(409); });"
+					] } }],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"liked\": false,\n  \"comment\": \"Thay đổi ý kiến\"\n}" },
+						"url": { "raw": "{{baseUrl}}/api/meal-items/{{mealItemId}}/feedback", "host": ["{{baseUrl}}"], "path": ["api", "meal-items", "{{mealItemId}}", "feedback"] }
+					}
+				},
+				{
+					"name": "TC-FB10 ❌ Comment > 300 chars → 400",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-FB10 — 400 Bad Request', () => { pm.response.to.have.status(400); });"
+					] } }],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"liked\": true,\n  \"comment\": \"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\"\n}" },
+						"url": { "raw": "{{baseUrl}}/api/meal-items/{{mealItemId}}/feedback", "host": ["{{baseUrl}}"], "path": ["api", "meal-items", "{{mealItemId}}", "feedback"] }
+					}
+				},
+				{
+					"name": "TC-FB11 ❌ Meal item not found → 404",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-FB11 — 404 Not Found', () => { pm.response.to.have.status(404); });"
+					] } }],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"liked\": true\n}" },
+						"url": { "raw": "{{baseUrl}}/api/meal-items/00000000-0000-0000-0000-000000000000/feedback", "host": ["{{baseUrl}}"], "path": ["api", "meal-items", "00000000-0000-0000-0000-000000000000", "feedback"] }
+					}
+				},
+				{
+					"name": "TC-FB12 ✅ Feedback — comment optional",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"const res = pm.response.json();",
+						"pm.test('TC-FB12 — 201 Created', () => { pm.response.to.have.status(201); });",
+						"pm.test('comment is null', () => { pm.expect(res.data.comment).to.be.oneOf([null, undefined]); });"
+					] } }],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"liked\": true\n}" },
+						"url": { "raw": "{{baseUrl}}/api/meal-items/{{mealItemId_3}}/feedback", "host": ["{{baseUrl}}"], "path": ["api", "meal-items", "{{mealItemId_3}}", "feedback"] }
+					}
+				}
+			]
+		},
+		{
+			"name": "10 - AUTHORIZATION (TC-A01 → A04)",
+			"description": "TC-A02, A03, A04 cần DOCTOR token hoặc token không có permission.\nBạn cần tạo thêm doctor user hoặc skip nếu chưa có.",
+			"item": [
+				{
+					"name": "TC-A01 ❌ No token → 401",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-A01 — 401 Unauthorized', () => { pm.response.to.have.status(401); });"
+					] } }],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": { "mode": "raw", "raw": "{\n  \"foodItemId\": \"{{foodItemId_chicken}}\",\n  \"preferenceType\": \"Dislike\"\n}" },
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/food-preferences", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "food-preferences"] }
+					}
+				}
+			]
+		},
+		{
+			"name": "11 - EDGE CASES (TC-E01 → E06)",
+			"item": [
+				{
+					"name": "TC-E01 ✅ Unicode + emoji in notes",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"const res = pm.response.json();",
+						"pm.test('TC-E01 — 201 Created', () => { pm.response.to.have.status(201); });",
+						"pm.test('Notes with emoji preserved', () => { pm.expect(res.data.notes).to.include('🤢'); });"
+					] } }],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": { "mode": "raw", "raw": "{\n  \"foodItemId\": \"{{foodItemId_durian}}\",\n  \"preferenceType\": \"Dislike\",\n  \"notes\": \"Không thích mùi sầu riêng 🤢, nhất là khi mang thai\"\n}" },
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/food-preferences?lang=vi", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "food-preferences"], "query": [{ "key": "lang", "value": "vi" }] }
+					}
+				},
+				{
+					"name": "TC-E04 ✅ Empty food preferences (use bogus pregnancy for clean test — or verify count)",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-E04 — 200 OK (may return data or empty)', () => { pm.response.to.have.status(200); });",
+						"const res = pm.response.json();",
+						"pm.test('Data is array', () => { pm.expect(res.data).to.be.an('array'); });"
+					] } }],
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/food-preferences?lang=vi", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "food-preferences"], "query": [{ "key": "lang", "value": "vi" }] }
+					}
+				},
+				{
+					"name": "TC-E05 ✅ Nutrition notes returns array",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-E05 — 200 OK', () => { pm.response.to.have.status(200); });",
+						"const res = pm.response.json();",
+						"pm.test('Data is array', () => { pm.expect(res.data).to.be.an('array'); });"
+					] } }],
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/nutrition-notes", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "nutrition-notes"] }
+					}
+				},
+				{
+					"name": "TC-E06 ✅ Meal plans paged response structure",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-E06 — 200 OK', () => { pm.response.to.have.status(200); });",
+						"const res = pm.response.json();",
+						"pm.test('Has paged structure', () => {",
+						"    pm.expect(res.data).to.have.property('items');",
+						"    pm.expect(res.data).to.have.property('page');",
+						"    pm.expect(res.data).to.have.property('totalItems');",
+						"});"
+					] } }],
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/meal-plans", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "meal-plans"] }
+					}
+				}
+			]
+		}
+	]
+}

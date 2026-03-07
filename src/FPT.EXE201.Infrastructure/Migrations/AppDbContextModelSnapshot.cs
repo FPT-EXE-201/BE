@@ -134,7 +134,121 @@ namespace FPT.EXE201.Infrastructure.Migrations
                             TemplateKey = "medical_record.extraction",
                             UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Version = 1
+                        },
+                        new
+                        {
+                            Id = new Guid("a1000002-0000-0000-0000-000000000001"),
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Generate 7-day AI meal plans with Vietnamese dishes, recipes, and nutrients for pregnant women.",
+                            DisplayName = "Nutrition Meal Plan Generator",
+                            DomainRules = "Pregnancy nutrition guidelines (IOM):\r\n- Trimester 1 (week 1-12): Focus folic acid (600mcg/day), no extra calories.\r\n- Trimester 2 (week 13-26): +340 kcal/day, iron (27mg/day), calcium (1000mg/day).\r\n- Trimester 3 (week 27-40): +450 kcal/day, increase protein, DHA.\r\n- Daily water: 2.3L minimum.\r\n- Avoid: raw fish, high-mercury fish, unpasteurized dairy, alcohol.\r\n- Gestational diabetes: low GI foods, split meals, limit sugar.\r\n- Preeclampsia: reduce sodium, increase potassium.",
+                            FeatureRules = "Generate a 7-day meal plan with exactly 4 meals per day: BREAKFAST, LUNCH, DINNER, SNACK.\r\n\r\nFor EVERY meal item, you MUST provide:\r\n- itemName: Vietnamese dish name (concise)\r\n- portionText: serving size in Vietnamese\r\n- caloriesKcal: integer\r\n- notes: brief nutrition note in Vietnamese (nullable)\r\n- recipe: REQUIRED object with:\r\n  - title: dish name\r\n  - instructions: step-by-step cooking instructions in Vietnamese\r\n  - servings: integer\r\n  - prepMinutes: integer\r\n  - cookMinutes: integer\r\n- nutrients: array of objects, ONLY use these codes:\r\n  PROTEIN, CARBOHYDRATES, FAT, FIBER, IRON, CALCIUM,\r\n  FOLIC_ACID, VITAMIN_D, VITAMIN_C, VITAMIN_A,\r\n  VITAMIN_B12, OMEGA_3, DHA, ZINC\r\n  Each: { \"code\": \"PROTEIN\", \"amount\": 12.5 }\r\n\r\nEnsure variety: do not repeat the same dish within 3 days.\r\nEach day's total calories should be close to {targetCalories} kcal.",
+                            IsActive = true,
+                            MaxOutputTokens = 8192,
+                            ModelName = "gemini-2.5-flash",
+                            OutputSchema = "{\r\n  \"title\": \"string\",\r\n  \"totalDailyCalories\": \"number\",\r\n  \"notes\": \"string\",\r\n  \"days\": [\r\n    {\r\n      \"date\": \"YYYY-MM-DD\",\r\n      \"meals\": [\r\n        {\r\n          \"mealType\": \"BREAKFAST|LUNCH|DINNER|SNACK\",\r\n          \"itemName\": \"string\",\r\n          \"portionText\": \"string\",\r\n          \"caloriesKcal\": \"number\",\r\n          \"notes\": \"string|null\",\r\n          \"recipe\": {\r\n            \"title\": \"string\",\r\n            \"instructions\": \"string\",\r\n            \"servings\": \"number\",\r\n            \"prepMinutes\": \"number\",\r\n            \"cookMinutes\": \"number\"\r\n          },\r\n          \"nutrients\": [\r\n            { \"code\": \"string\", \"amount\": \"number\" }\r\n          ]\r\n        }\r\n      ]\r\n    }\r\n  ]\r\n}",
+                            SystemRules = "You are a certified prenatal nutritionist AI assistant.\r\nRespond in Vietnamese.\r\nOutput ONLY valid JSON matching the provided schema.\r\nNo markdown, no explanation, no extra text outside JSON.",
+                            Temperature = 0.7m,
+                            TemplateKey = "nutrition.meal_plan",
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Version = 1
                         });
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.AiRequestLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("error_message");
+
+                    b.Property<string>("Feature")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("feature");
+
+                    b.Property<string>("Model")
+                        .HasMaxLength(80)
+                        .HasColumnType("varchar(80)")
+                        .HasColumnName("model");
+
+                    b.Property<Guid?>("PregnancyId")
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("pregnancy_id");
+
+                    b.Property<int?>("ProcessingTimeMs")
+                        .HasColumnType("int")
+                        .HasColumnName("processing_time_ms");
+
+                    b.Property<string>("PromptVersion")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("prompt_version");
+
+                    b.Property<string>("RequestPayload")
+                        .HasColumnType("JSON")
+                        .HasColumnName("request_payload");
+
+                    b.Property<string>("ResponsePayload")
+                        .HasColumnType("JSON")
+                        .HasColumnName("response_payload");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid?>("TemplateId")
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("template_id");
+
+                    b.Property<int?>("TokensInput")
+                        .HasColumnType("int")
+                        .HasColumnName("tokens_input");
+
+                    b.Property<int?>("TokensOutput")
+                        .HasColumnType("int")
+                        .HasColumnName("tokens_output");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TemplateId");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("Feature", "CreatedAt")
+                        .HasDatabaseName("idx_ai_logs_feature");
+
+                    b.HasIndex("PregnancyId", "CreatedAt")
+                        .HasDatabaseName("idx_ai_logs_pregnancy");
+
+                    b.HasIndex("Status", "CreatedAt")
+                        .HasDatabaseName("idx_ai_logs_status");
+
+                    b.ToTable("ai_request_logs", (string)null);
                 });
 
             modelBuilder.Entity("FPT.EXE201.Domain.Entities.AuditEvent", b =>
@@ -383,6 +497,291 @@ namespace FPT.EXE201.Infrastructure.Migrations
                             IsActive = true,
                             Name = "English",
                             UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        });
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.MealItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("id");
+
+                    b.Property<int?>("CaloriesKcal")
+                        .HasColumnType("int")
+                        .HasColumnName("calories_kcal");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("ItemName")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasColumnName("item_name");
+
+                    b.Property<Guid>("MealDayId")
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("meal_day_id");
+
+                    b.Property<string>("MealType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("meal_type");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("PortionText")
+                        .HasMaxLength(120)
+                        .HasColumnType("varchar(120)")
+                        .HasColumnName("portion_text");
+
+                    b.Property<Guid?>("RecipeId")
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("recipe_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RecipeId");
+
+                    b.HasIndex("MealDayId", "MealType")
+                        .HasDatabaseName("idx_meal_items_day_type");
+
+                    b.ToTable("meal_items", null, t =>
+                        {
+                            t.HasCheckConstraint("chk_meal_item_name", "recipe_id IS NOT NULL OR item_name IS NOT NULL");
+                        });
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.MealItemFeedback", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Comment")
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)")
+                        .HasColumnName("comment");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<bool>("Liked")
+                        .HasColumnType("TINYINT(1)")
+                        .HasColumnName("liked");
+
+                    b.Property<Guid>("MealItemId")
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("meal_item_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("MealItemId", "UserId")
+                        .IsUnique()
+                        .HasDatabaseName("uk_meal_item_feedback");
+
+                    b.ToTable("meal_item_feedback", (string)null);
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.MealItemNutrient", b =>
+                {
+                    b.Property<Guid>("MealItemId")
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("meal_item_id");
+
+                    b.Property<Guid>("NutrientId")
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("nutrient_id");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("DECIMAL(10,3)")
+                        .HasColumnName("amount");
+
+                    b.HasKey("MealItemId", "NutrientId");
+
+                    b.HasIndex("NutrientId");
+
+                    b.ToTable("meal_item_nutrients", null, t =>
+                        {
+                            t.HasCheckConstraint("chk_nutrient_amount", "amount >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.MealPlan", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("AiRequestLogId")
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("ai_request_log_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<DateOnly>("EndDate")
+                        .HasColumnType("DATE")
+                        .HasColumnName("end_date");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("notes");
+
+                    b.Property<Guid>("PregnancyId")
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("pregnancy_id");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("source");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("DATE")
+                        .HasColumnName("start_date");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AiRequestLogId");
+
+                    b.HasIndex("PregnancyId", "StartDate")
+                        .HasDatabaseName("idx_meal_plans_pregnancy");
+
+                    b.ToTable("meal_plans", null, t =>
+                        {
+                            t.HasCheckConstraint("chk_meal_plan_dates", "end_date >= start_date");
+                        });
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.MealPlanDay", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid>("MealPlanId")
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("meal_plan_id");
+
+                    b.Property<DateOnly>("PlanDate")
+                        .HasColumnType("DATE")
+                        .HasColumnName("plan_date");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MealPlanId", "PlanDate")
+                        .IsUnique()
+                        .HasDatabaseName("uk_meal_plan_days");
+
+                    b.ToTable("meal_plan_days", (string)null);
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.MealPlanFeedback", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Comment")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("comment");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid>("MealPlanId")
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("meal_plan_id");
+
+                    b.Property<sbyte>("Rating")
+                        .HasColumnType("TINYINT")
+                        .HasColumnName("rating");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("MealPlanId", "UserId")
+                        .IsUnique()
+                        .HasDatabaseName("uk_meal_plan_feedback");
+
+                    b.ToTable("meal_plan_feedback", null, t =>
+                        {
+                            t.HasCheckConstraint("chk_plan_rating", "rating BETWEEN 1 AND 5");
                         });
                 });
 
@@ -1642,6 +2041,103 @@ namespace FPT.EXE201.Infrastructure.Migrations
                     b.ToTable("pregnancy_conditions", (string)null);
                 });
 
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.PregnancyFoodPreference", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid>("FoodItemId")
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("food_item_id");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("PreferenceType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("preference_type");
+
+                    b.Property<Guid>("PregnancyId")
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("pregnancy_id");
+
+                    b.Property<string>("Severity")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("severity");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FoodItemId");
+
+                    b.HasIndex("PregnancyId", "FoodItemId", "PreferenceType")
+                        .IsUnique()
+                        .HasDatabaseName("uk_food_pref_pregnancy");
+
+                    b.ToTable("pregnancy_food_preferences", (string)null);
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.PregnancyNutritionNote", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("NoteType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("note_type");
+
+                    b.Property<Guid>("PregnancyId")
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("pregnancy_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("ValueText")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasColumnName("value_text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PregnancyId", "CreatedAt")
+                        .HasDatabaseName("idx_nutrition_notes_pregnancy");
+
+                    b.ToTable("pregnancy_nutrition_notes", (string)null);
+                });
+
             modelBuilder.Entity("FPT.EXE201.Domain.Entities.PrenatalTest", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1773,6 +2269,59 @@ namespace FPT.EXE201.Infrastructure.Migrations
                         .HasDatabaseName("idx_prenatal_visits_date");
 
                     b.ToTable("prenatal_visits", (string)null);
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.Recipe", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("id");
+
+                    b.Property<int?>("CookMinutes")
+                        .HasColumnType("int")
+                        .HasColumnName("cook_minutes");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("Instructions")
+                        .HasColumnType("LONGTEXT")
+                        .HasColumnName("instructions");
+
+                    b.Property<Guid>("PregnancyId")
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("pregnancy_id");
+
+                    b.Property<int?>("PrepMinutes")
+                        .HasColumnType("int")
+                        .HasColumnName("prep_minutes");
+
+                    b.Property<int?>("Servings")
+                        .HasColumnType("int")
+                        .HasColumnName("servings");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PregnancyId", "CreatedAt")
+                        .HasDatabaseName("idx_recipes_pregnancy");
+
+                    b.ToTable("recipes", (string)null);
                 });
 
             modelBuilder.Entity("FPT.EXE201.Domain.Entities.RefDocumentType", b =>
@@ -2153,6 +2702,1361 @@ namespace FPT.EXE201.Infrastructure.Migrations
                             LanguageCode = "en",
                             Description = "Nuchal translucency scan result",
                             DisplayName = "NT Scan"
+                        });
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.RefFoodItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("varchar(80)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TINYINT(1)")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("uk_ref_food_items_code");
+
+                    b.ToTable("ref_food_items", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("c7010001-0000-0000-0000-000000000001"),
+                            Code = "CHICKEN",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010001-0000-0000-0000-000000000002"),
+                            Code = "PORK",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010001-0000-0000-0000-000000000003"),
+                            Code = "BEEF",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010001-0000-0000-0000-000000000004"),
+                            Code = "FISH_SALMON",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010001-0000-0000-0000-000000000005"),
+                            Code = "FISH_TUNA",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010001-0000-0000-0000-000000000006"),
+                            Code = "FISH_MACKEREL",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010001-0000-0000-0000-000000000007"),
+                            Code = "SHRIMP",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010001-0000-0000-0000-000000000008"),
+                            Code = "CRAB",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010001-0000-0000-0000-000000000009"),
+                            Code = "SQUID",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010001-0000-0000-0000-00000000000a"),
+                            Code = "CLAM",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010001-0000-0000-0000-00000000000b"),
+                            Code = "EGG",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010001-0000-0000-0000-00000000000c"),
+                            Code = "TOFU",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010001-0000-0000-0000-00000000000d"),
+                            Code = "TEMPEH",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010002-0000-0000-0000-000000000001"),
+                            Code = "SEAFOOD_GENERAL",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010002-0000-0000-0000-000000000002"),
+                            Code = "PEANUT",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010002-0000-0000-0000-000000000003"),
+                            Code = "TREE_NUT",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010002-0000-0000-0000-000000000004"),
+                            Code = "MILK_COW",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010002-0000-0000-0000-000000000005"),
+                            Code = "GLUTEN",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010002-0000-0000-0000-000000000006"),
+                            Code = "SOYBEAN",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010002-0000-0000-0000-000000000007"),
+                            Code = "SHELLFISH",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010002-0000-0000-0000-000000000008"),
+                            Code = "SESAME",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010003-0000-0000-0000-000000000001"),
+                            Code = "CILANTRO",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010003-0000-0000-0000-000000000002"),
+                            Code = "BITTER_MELON",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010003-0000-0000-0000-000000000003"),
+                            Code = "MORNING_GLORY",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010003-0000-0000-0000-000000000004"),
+                            Code = "SPINACH",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010003-0000-0000-0000-000000000005"),
+                            Code = "BOK_CHOY",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010003-0000-0000-0000-000000000006"),
+                            Code = "BEAN_SPROUT",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010003-0000-0000-0000-000000000007"),
+                            Code = "ONION",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010003-0000-0000-0000-000000000008"),
+                            Code = "GARLIC",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010003-0000-0000-0000-000000000009"),
+                            Code = "GINGER",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010004-0000-0000-0000-000000000001"),
+                            Code = "DURIAN",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010004-0000-0000-0000-000000000002"),
+                            Code = "JACKFRUIT",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010004-0000-0000-0000-000000000003"),
+                            Code = "PINEAPPLE",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010004-0000-0000-0000-000000000004"),
+                            Code = "PAPAYA_GREEN",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010005-0000-0000-0000-000000000001"),
+                            Code = "SHRIMP_PASTE",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010005-0000-0000-0000-000000000002"),
+                            Code = "FISH_SAUCE_STRONG",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010005-0000-0000-0000-000000000003"),
+                            Code = "MSG",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010005-0000-0000-0000-000000000004"),
+                            Code = "ORGAN_MEAT_LIVER",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010005-0000-0000-0000-000000000005"),
+                            Code = "ORGAN_MEAT_GENERAL",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010005-0000-0000-0000-000000000006"),
+                            Code = "CAFFEINE",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010005-0000-0000-0000-000000000007"),
+                            Code = "ALCOHOL",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010006-0000-0000-0000-000000000001"),
+                            Code = "RAW_FISH",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010006-0000-0000-0000-000000000002"),
+                            Code = "SOFT_CHEESE",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010006-0000-0000-0000-000000000003"),
+                            Code = "RAW_EGG",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7010006-0000-0000-0000-000000000004"),
+                            Code = "DELI_MEAT",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        });
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.RefFoodItemTranslation", b =>
+                {
+                    b.Property<Guid>("FoodItemId")
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("food_item_id");
+
+                    b.Property<string>("LanguageCode")
+                        .HasMaxLength(10)
+                        .HasColumnType("varchar(10)")
+                        .HasColumnName("language_code")
+                        .UseCollation("utf8mb4_unicode_ci");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("varchar(120)")
+                        .HasColumnName("display_name");
+
+                    b.HasKey("FoodItemId", "LanguageCode");
+
+                    b.HasIndex("LanguageCode");
+
+                    b.ToTable("ref_food_item_translations", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            FoodItemId = new Guid("c7010001-0000-0000-0000-000000000001"),
+                            LanguageCode = "vi",
+                            DisplayName = "Thịt gà"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010001-0000-0000-0000-000000000002"),
+                            LanguageCode = "vi",
+                            DisplayName = "Thịt heo"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010001-0000-0000-0000-000000000003"),
+                            LanguageCode = "vi",
+                            DisplayName = "Thịt bò"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010001-0000-0000-0000-000000000004"),
+                            LanguageCode = "vi",
+                            DisplayName = "Cá hồi"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010001-0000-0000-0000-000000000005"),
+                            LanguageCode = "vi",
+                            DisplayName = "Cá ngừ"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010001-0000-0000-0000-000000000006"),
+                            LanguageCode = "vi",
+                            DisplayName = "Cá thu"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010001-0000-0000-0000-000000000007"),
+                            LanguageCode = "vi",
+                            DisplayName = "Tôm"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010001-0000-0000-0000-000000000008"),
+                            LanguageCode = "vi",
+                            DisplayName = "Cua"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010001-0000-0000-0000-000000000009"),
+                            LanguageCode = "vi",
+                            DisplayName = "Mực"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010001-0000-0000-0000-00000000000a"),
+                            LanguageCode = "vi",
+                            DisplayName = "Nghêu / Sò"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010001-0000-0000-0000-00000000000b"),
+                            LanguageCode = "vi",
+                            DisplayName = "Trứng"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010001-0000-0000-0000-00000000000c"),
+                            LanguageCode = "vi",
+                            DisplayName = "Đậu phụ"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010001-0000-0000-0000-00000000000d"),
+                            LanguageCode = "vi",
+                            DisplayName = "Tempeh"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010002-0000-0000-0000-000000000001"),
+                            LanguageCode = "vi",
+                            DisplayName = "Hải sản (chung)"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010002-0000-0000-0000-000000000002"),
+                            LanguageCode = "vi",
+                            DisplayName = "Đậu phộng"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010002-0000-0000-0000-000000000003"),
+                            LanguageCode = "vi",
+                            DisplayName = "Hạt cây (óc chó, hạnh nhân...)"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010002-0000-0000-0000-000000000004"),
+                            LanguageCode = "vi",
+                            DisplayName = "Sữa bò"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010002-0000-0000-0000-000000000005"),
+                            LanguageCode = "vi",
+                            DisplayName = "Gluten (lúa mì)"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010002-0000-0000-0000-000000000006"),
+                            LanguageCode = "vi",
+                            DisplayName = "Đậu nành"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010002-0000-0000-0000-000000000007"),
+                            LanguageCode = "vi",
+                            DisplayName = "Động vật có vỏ"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010002-0000-0000-0000-000000000008"),
+                            LanguageCode = "vi",
+                            DisplayName = "Mè (vừng)"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010003-0000-0000-0000-000000000001"),
+                            LanguageCode = "vi",
+                            DisplayName = "Rau mùi (ngò)"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010003-0000-0000-0000-000000000002"),
+                            LanguageCode = "vi",
+                            DisplayName = "Khổ qua (mướp đắng)"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010003-0000-0000-0000-000000000003"),
+                            LanguageCode = "vi",
+                            DisplayName = "Rau muống"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010003-0000-0000-0000-000000000004"),
+                            LanguageCode = "vi",
+                            DisplayName = "Rau bina (cải bó xôi)"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010003-0000-0000-0000-000000000005"),
+                            LanguageCode = "vi",
+                            DisplayName = "Cải thìa"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010003-0000-0000-0000-000000000006"),
+                            LanguageCode = "vi",
+                            DisplayName = "Giá đỗ"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010003-0000-0000-0000-000000000007"),
+                            LanguageCode = "vi",
+                            DisplayName = "Hành"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010003-0000-0000-0000-000000000008"),
+                            LanguageCode = "vi",
+                            DisplayName = "Tỏi"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010003-0000-0000-0000-000000000009"),
+                            LanguageCode = "vi",
+                            DisplayName = "Gừng"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010004-0000-0000-0000-000000000001"),
+                            LanguageCode = "vi",
+                            DisplayName = "Sầu riêng"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010004-0000-0000-0000-000000000002"),
+                            LanguageCode = "vi",
+                            DisplayName = "Mít"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010004-0000-0000-0000-000000000003"),
+                            LanguageCode = "vi",
+                            DisplayName = "Dứa (thơm)"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010004-0000-0000-0000-000000000004"),
+                            LanguageCode = "vi",
+                            DisplayName = "Đu đủ xanh"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010005-0000-0000-0000-000000000001"),
+                            LanguageCode = "vi",
+                            DisplayName = "Mắm tôm"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010005-0000-0000-0000-000000000002"),
+                            LanguageCode = "vi",
+                            DisplayName = "Nước mắm nặng mùi"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010005-0000-0000-0000-000000000003"),
+                            LanguageCode = "vi",
+                            DisplayName = "Bột ngọt (MSG)"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010005-0000-0000-0000-000000000004"),
+                            LanguageCode = "vi",
+                            DisplayName = "Gan"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010005-0000-0000-0000-000000000005"),
+                            LanguageCode = "vi",
+                            DisplayName = "Nội tạng (chung)"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010005-0000-0000-0000-000000000006"),
+                            LanguageCode = "vi",
+                            DisplayName = "Caffeine"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010005-0000-0000-0000-000000000007"),
+                            LanguageCode = "vi",
+                            DisplayName = "Rượu bia"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010006-0000-0000-0000-000000000001"),
+                            LanguageCode = "vi",
+                            DisplayName = "Cá sống / Sashimi"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010006-0000-0000-0000-000000000002"),
+                            LanguageCode = "vi",
+                            DisplayName = "Phô mai mềm"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010006-0000-0000-0000-000000000003"),
+                            LanguageCode = "vi",
+                            DisplayName = "Trứng sống"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010006-0000-0000-0000-000000000004"),
+                            LanguageCode = "vi",
+                            DisplayName = "Thịt nguội (deli meat)"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010001-0000-0000-0000-000000000001"),
+                            LanguageCode = "en",
+                            DisplayName = "Chicken"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010001-0000-0000-0000-000000000002"),
+                            LanguageCode = "en",
+                            DisplayName = "Pork"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010001-0000-0000-0000-000000000003"),
+                            LanguageCode = "en",
+                            DisplayName = "Beef"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010001-0000-0000-0000-000000000004"),
+                            LanguageCode = "en",
+                            DisplayName = "Salmon"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010001-0000-0000-0000-000000000005"),
+                            LanguageCode = "en",
+                            DisplayName = "Tuna"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010001-0000-0000-0000-000000000006"),
+                            LanguageCode = "en",
+                            DisplayName = "Mackerel"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010001-0000-0000-0000-000000000007"),
+                            LanguageCode = "en",
+                            DisplayName = "Shrimp"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010001-0000-0000-0000-000000000008"),
+                            LanguageCode = "en",
+                            DisplayName = "Crab"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010001-0000-0000-0000-000000000009"),
+                            LanguageCode = "en",
+                            DisplayName = "Squid"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010001-0000-0000-0000-00000000000a"),
+                            LanguageCode = "en",
+                            DisplayName = "Clam / Mussel"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010001-0000-0000-0000-00000000000b"),
+                            LanguageCode = "en",
+                            DisplayName = "Egg"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010001-0000-0000-0000-00000000000c"),
+                            LanguageCode = "en",
+                            DisplayName = "Tofu"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010001-0000-0000-0000-00000000000d"),
+                            LanguageCode = "en",
+                            DisplayName = "Tempeh"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010002-0000-0000-0000-000000000001"),
+                            LanguageCode = "en",
+                            DisplayName = "Seafood (general)"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010002-0000-0000-0000-000000000002"),
+                            LanguageCode = "en",
+                            DisplayName = "Peanut"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010002-0000-0000-0000-000000000003"),
+                            LanguageCode = "en",
+                            DisplayName = "Tree nuts (walnut, almond...)"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010002-0000-0000-0000-000000000004"),
+                            LanguageCode = "en",
+                            DisplayName = "Cow's milk"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010002-0000-0000-0000-000000000005"),
+                            LanguageCode = "en",
+                            DisplayName = "Gluten (wheat)"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010002-0000-0000-0000-000000000006"),
+                            LanguageCode = "en",
+                            DisplayName = "Soybean"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010002-0000-0000-0000-000000000007"),
+                            LanguageCode = "en",
+                            DisplayName = "Shellfish"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010002-0000-0000-0000-000000000008"),
+                            LanguageCode = "en",
+                            DisplayName = "Sesame"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010003-0000-0000-0000-000000000001"),
+                            LanguageCode = "en",
+                            DisplayName = "Cilantro (coriander)"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010003-0000-0000-0000-000000000002"),
+                            LanguageCode = "en",
+                            DisplayName = "Bitter melon"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010003-0000-0000-0000-000000000003"),
+                            LanguageCode = "en",
+                            DisplayName = "Morning glory (water spinach)"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010003-0000-0000-0000-000000000004"),
+                            LanguageCode = "en",
+                            DisplayName = "Spinach"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010003-0000-0000-0000-000000000005"),
+                            LanguageCode = "en",
+                            DisplayName = "Bok choy"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010003-0000-0000-0000-000000000006"),
+                            LanguageCode = "en",
+                            DisplayName = "Bean sprouts"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010003-0000-0000-0000-000000000007"),
+                            LanguageCode = "en",
+                            DisplayName = "Onion"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010003-0000-0000-0000-000000000008"),
+                            LanguageCode = "en",
+                            DisplayName = "Garlic"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010003-0000-0000-0000-000000000009"),
+                            LanguageCode = "en",
+                            DisplayName = "Ginger"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010004-0000-0000-0000-000000000001"),
+                            LanguageCode = "en",
+                            DisplayName = "Durian"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010004-0000-0000-0000-000000000002"),
+                            LanguageCode = "en",
+                            DisplayName = "Jackfruit"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010004-0000-0000-0000-000000000003"),
+                            LanguageCode = "en",
+                            DisplayName = "Pineapple"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010004-0000-0000-0000-000000000004"),
+                            LanguageCode = "en",
+                            DisplayName = "Green papaya"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010005-0000-0000-0000-000000000001"),
+                            LanguageCode = "en",
+                            DisplayName = "Shrimp paste"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010005-0000-0000-0000-000000000002"),
+                            LanguageCode = "en",
+                            DisplayName = "Strong fish sauce"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010005-0000-0000-0000-000000000003"),
+                            LanguageCode = "en",
+                            DisplayName = "MSG"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010005-0000-0000-0000-000000000004"),
+                            LanguageCode = "en",
+                            DisplayName = "Liver"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010005-0000-0000-0000-000000000005"),
+                            LanguageCode = "en",
+                            DisplayName = "Organ meat (general)"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010005-0000-0000-0000-000000000006"),
+                            LanguageCode = "en",
+                            DisplayName = "Caffeine"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010005-0000-0000-0000-000000000007"),
+                            LanguageCode = "en",
+                            DisplayName = "Alcohol"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010006-0000-0000-0000-000000000001"),
+                            LanguageCode = "en",
+                            DisplayName = "Raw fish / Sashimi"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010006-0000-0000-0000-000000000002"),
+                            LanguageCode = "en",
+                            DisplayName = "Soft cheese"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010006-0000-0000-0000-000000000003"),
+                            LanguageCode = "en",
+                            DisplayName = "Raw egg"
+                        },
+                        new
+                        {
+                            FoodItemId = new Guid("c7010006-0000-0000-0000-000000000004"),
+                            LanguageCode = "en",
+                            DisplayName = "Deli meat"
+                        });
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.RefNutrient", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TINYINT(1)")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("unit");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("uk_ref_nutrients_code");
+
+                    b.ToTable("ref_nutrients", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("c7020001-0000-0000-0000-000000000001"),
+                            Code = "CALORIES",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            Unit = "kcal",
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7020001-0000-0000-0000-000000000002"),
+                            Code = "PROTEIN",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            Unit = "g",
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7020001-0000-0000-0000-000000000003"),
+                            Code = "CARBOHYDRATES",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            Unit = "g",
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7020001-0000-0000-0000-000000000004"),
+                            Code = "FAT",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            Unit = "g",
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7020001-0000-0000-0000-000000000005"),
+                            Code = "FIBER",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            Unit = "g",
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7020001-0000-0000-0000-000000000006"),
+                            Code = "IRON",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            Unit = "mg",
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7020001-0000-0000-0000-000000000007"),
+                            Code = "CALCIUM",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            Unit = "mg",
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7020001-0000-0000-0000-000000000008"),
+                            Code = "FOLIC_ACID",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            Unit = "mcg",
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7020001-0000-0000-0000-000000000009"),
+                            Code = "VITAMIN_D",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            Unit = "mcg",
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7020001-0000-0000-0000-00000000000a"),
+                            Code = "VITAMIN_C",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            Unit = "mg",
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7020001-0000-0000-0000-00000000000b"),
+                            Code = "VITAMIN_A",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            Unit = "mcg",
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7020001-0000-0000-0000-00000000000c"),
+                            Code = "VITAMIN_B12",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            Unit = "mcg",
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7020001-0000-0000-0000-00000000000d"),
+                            Code = "OMEGA_3",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            Unit = "mg",
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7020001-0000-0000-0000-00000000000e"),
+                            Code = "DHA",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            Unit = "mg",
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("c7020001-0000-0000-0000-00000000000f"),
+                            Code = "ZINC",
+                            CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsActive = true,
+                            Unit = "mg",
+                            UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        });
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.RefNutrientTranslation", b =>
+                {
+                    b.Property<Guid>("NutrientId")
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("nutrient_id");
+
+                    b.Property<string>("LanguageCode")
+                        .HasMaxLength(10)
+                        .HasColumnType("varchar(10)")
+                        .HasColumnName("language_code")
+                        .UseCollation("utf8mb4_unicode_ci");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("varchar(120)")
+                        .HasColumnName("display_name");
+
+                    b.HasKey("NutrientId", "LanguageCode");
+
+                    b.HasIndex("LanguageCode");
+
+                    b.ToTable("ref_nutrient_translations", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            NutrientId = new Guid("c7020001-0000-0000-0000-000000000001"),
+                            LanguageCode = "vi",
+                            DisplayName = "Năng lượng"
+                        },
+                        new
+                        {
+                            NutrientId = new Guid("c7020001-0000-0000-0000-000000000001"),
+                            LanguageCode = "en",
+                            DisplayName = "Calories"
+                        },
+                        new
+                        {
+                            NutrientId = new Guid("c7020001-0000-0000-0000-000000000002"),
+                            LanguageCode = "vi",
+                            DisplayName = "Chất đạm"
+                        },
+                        new
+                        {
+                            NutrientId = new Guid("c7020001-0000-0000-0000-000000000002"),
+                            LanguageCode = "en",
+                            DisplayName = "Protein"
+                        },
+                        new
+                        {
+                            NutrientId = new Guid("c7020001-0000-0000-0000-000000000003"),
+                            LanguageCode = "vi",
+                            DisplayName = "Tinh bột"
+                        },
+                        new
+                        {
+                            NutrientId = new Guid("c7020001-0000-0000-0000-000000000003"),
+                            LanguageCode = "en",
+                            DisplayName = "Carbohydrates"
+                        },
+                        new
+                        {
+                            NutrientId = new Guid("c7020001-0000-0000-0000-000000000004"),
+                            LanguageCode = "vi",
+                            DisplayName = "Chất béo"
+                        },
+                        new
+                        {
+                            NutrientId = new Guid("c7020001-0000-0000-0000-000000000004"),
+                            LanguageCode = "en",
+                            DisplayName = "Fat"
+                        },
+                        new
+                        {
+                            NutrientId = new Guid("c7020001-0000-0000-0000-000000000005"),
+                            LanguageCode = "vi",
+                            DisplayName = "Chất xơ"
+                        },
+                        new
+                        {
+                            NutrientId = new Guid("c7020001-0000-0000-0000-000000000005"),
+                            LanguageCode = "en",
+                            DisplayName = "Fiber"
+                        },
+                        new
+                        {
+                            NutrientId = new Guid("c7020001-0000-0000-0000-000000000006"),
+                            LanguageCode = "vi",
+                            DisplayName = "Sắt"
+                        },
+                        new
+                        {
+                            NutrientId = new Guid("c7020001-0000-0000-0000-000000000006"),
+                            LanguageCode = "en",
+                            DisplayName = "Iron"
+                        },
+                        new
+                        {
+                            NutrientId = new Guid("c7020001-0000-0000-0000-000000000007"),
+                            LanguageCode = "vi",
+                            DisplayName = "Canxi"
+                        },
+                        new
+                        {
+                            NutrientId = new Guid("c7020001-0000-0000-0000-000000000007"),
+                            LanguageCode = "en",
+                            DisplayName = "Calcium"
+                        },
+                        new
+                        {
+                            NutrientId = new Guid("c7020001-0000-0000-0000-000000000008"),
+                            LanguageCode = "vi",
+                            DisplayName = "Axit folic"
+                        },
+                        new
+                        {
+                            NutrientId = new Guid("c7020001-0000-0000-0000-000000000008"),
+                            LanguageCode = "en",
+                            DisplayName = "Folic acid"
+                        },
+                        new
+                        {
+                            NutrientId = new Guid("c7020001-0000-0000-0000-000000000009"),
+                            LanguageCode = "vi",
+                            DisplayName = "Vitamin D"
+                        },
+                        new
+                        {
+                            NutrientId = new Guid("c7020001-0000-0000-0000-000000000009"),
+                            LanguageCode = "en",
+                            DisplayName = "Vitamin D"
+                        },
+                        new
+                        {
+                            NutrientId = new Guid("c7020001-0000-0000-0000-00000000000a"),
+                            LanguageCode = "vi",
+                            DisplayName = "Vitamin C"
+                        },
+                        new
+                        {
+                            NutrientId = new Guid("c7020001-0000-0000-0000-00000000000a"),
+                            LanguageCode = "en",
+                            DisplayName = "Vitamin C"
+                        },
+                        new
+                        {
+                            NutrientId = new Guid("c7020001-0000-0000-0000-00000000000b"),
+                            LanguageCode = "vi",
+                            DisplayName = "Vitamin A"
+                        },
+                        new
+                        {
+                            NutrientId = new Guid("c7020001-0000-0000-0000-00000000000b"),
+                            LanguageCode = "en",
+                            DisplayName = "Vitamin A"
+                        },
+                        new
+                        {
+                            NutrientId = new Guid("c7020001-0000-0000-0000-00000000000c"),
+                            LanguageCode = "vi",
+                            DisplayName = "Vitamin B12"
+                        },
+                        new
+                        {
+                            NutrientId = new Guid("c7020001-0000-0000-0000-00000000000c"),
+                            LanguageCode = "en",
+                            DisplayName = "Vitamin B12"
+                        },
+                        new
+                        {
+                            NutrientId = new Guid("c7020001-0000-0000-0000-00000000000d"),
+                            LanguageCode = "vi",
+                            DisplayName = "Omega-3"
+                        },
+                        new
+                        {
+                            NutrientId = new Guid("c7020001-0000-0000-0000-00000000000d"),
+                            LanguageCode = "en",
+                            DisplayName = "Omega-3"
+                        },
+                        new
+                        {
+                            NutrientId = new Guid("c7020001-0000-0000-0000-00000000000e"),
+                            LanguageCode = "vi",
+                            DisplayName = "DHA"
+                        },
+                        new
+                        {
+                            NutrientId = new Guid("c7020001-0000-0000-0000-00000000000e"),
+                            LanguageCode = "en",
+                            DisplayName = "DHA"
+                        },
+                        new
+                        {
+                            NutrientId = new Guid("c7020001-0000-0000-0000-00000000000f"),
+                            LanguageCode = "vi",
+                            DisplayName = "Kẽm"
+                        },
+                        new
+                        {
+                            NutrientId = new Guid("c7020001-0000-0000-0000-00000000000f"),
+                            LanguageCode = "en",
+                            DisplayName = "Zinc"
                         });
                 });
 
@@ -3289,6 +5193,30 @@ namespace FPT.EXE201.Infrastructure.Migrations
                     b.ToTable("weight_logs", (string)null);
                 });
 
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.AiRequestLog", b =>
+                {
+                    b.HasOne("FPT.EXE201.Domain.Entities.Pregnancy", "Pregnancy")
+                        .WithMany("AiRequestLogs")
+                        .HasForeignKey("PregnancyId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("FPT.EXE201.Domain.Entities.AiPromptTemplate", "Template")
+                        .WithMany()
+                        .HasForeignKey("TemplateId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("FPT.EXE201.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Pregnancy");
+
+                    b.Navigation("Template");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("FPT.EXE201.Domain.Entities.AuditEvent", b =>
                 {
                     b.HasOne("FPT.EXE201.Domain.Entities.User", "ActorUser")
@@ -3337,6 +5265,110 @@ namespace FPT.EXE201.Infrastructure.Migrations
                     b.Navigation("Document");
 
                     b.Navigation("StorageFile");
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.MealItem", b =>
+                {
+                    b.HasOne("FPT.EXE201.Domain.Entities.MealPlanDay", "MealDay")
+                        .WithMany("Items")
+                        .HasForeignKey("MealDayId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FPT.EXE201.Domain.Entities.Recipe", "Recipe")
+                        .WithMany("MealItems")
+                        .HasForeignKey("RecipeId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("MealDay");
+
+                    b.Navigation("Recipe");
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.MealItemFeedback", b =>
+                {
+                    b.HasOne("FPT.EXE201.Domain.Entities.MealItem", "MealItem")
+                        .WithMany("Feedbacks")
+                        .HasForeignKey("MealItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FPT.EXE201.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("MealItem");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.MealItemNutrient", b =>
+                {
+                    b.HasOne("FPT.EXE201.Domain.Entities.MealItem", "MealItem")
+                        .WithMany("Nutrients")
+                        .HasForeignKey("MealItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FPT.EXE201.Domain.Entities.RefNutrient", "Nutrient")
+                        .WithMany("MealItemNutrients")
+                        .HasForeignKey("NutrientId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("MealItem");
+
+                    b.Navigation("Nutrient");
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.MealPlan", b =>
+                {
+                    b.HasOne("FPT.EXE201.Domain.Entities.AiRequestLog", "AiRequestLog")
+                        .WithMany()
+                        .HasForeignKey("AiRequestLogId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("FPT.EXE201.Domain.Entities.Pregnancy", "Pregnancy")
+                        .WithMany("MealPlans")
+                        .HasForeignKey("PregnancyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AiRequestLog");
+
+                    b.Navigation("Pregnancy");
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.MealPlanDay", b =>
+                {
+                    b.HasOne("FPT.EXE201.Domain.Entities.MealPlan", "MealPlan")
+                        .WithMany("Days")
+                        .HasForeignKey("MealPlanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("MealPlan");
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.MealPlanFeedback", b =>
+                {
+                    b.HasOne("FPT.EXE201.Domain.Entities.MealPlan", "MealPlan")
+                        .WithMany("Feedbacks")
+                        .HasForeignKey("MealPlanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FPT.EXE201.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("MealPlan");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("FPT.EXE201.Domain.Entities.MedicalDocument", b =>
@@ -3431,6 +5463,36 @@ namespace FPT.EXE201.Infrastructure.Migrations
                     b.Navigation("Pregnancy");
                 });
 
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.PregnancyFoodPreference", b =>
+                {
+                    b.HasOne("FPT.EXE201.Domain.Entities.RefFoodItem", "FoodItem")
+                        .WithMany("FoodPreferences")
+                        .HasForeignKey("FoodItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FPT.EXE201.Domain.Entities.Pregnancy", "Pregnancy")
+                        .WithMany("FoodPreferences")
+                        .HasForeignKey("PregnancyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("FoodItem");
+
+                    b.Navigation("Pregnancy");
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.PregnancyNutritionNote", b =>
+                {
+                    b.HasOne("FPT.EXE201.Domain.Entities.Pregnancy", "Pregnancy")
+                        .WithMany("NutritionNotes")
+                        .HasForeignKey("PregnancyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Pregnancy");
+                });
+
             modelBuilder.Entity("FPT.EXE201.Domain.Entities.PrenatalTest", b =>
                 {
                     b.HasOne("FPT.EXE201.Domain.Entities.MedicalDocument", "Document")
@@ -3475,6 +5537,17 @@ namespace FPT.EXE201.Infrastructure.Migrations
                     b.Navigation("Pregnancy");
                 });
 
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.Recipe", b =>
+                {
+                    b.HasOne("FPT.EXE201.Domain.Entities.Pregnancy", "Pregnancy")
+                        .WithMany("Recipes")
+                        .HasForeignKey("PregnancyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Pregnancy");
+                });
+
             modelBuilder.Entity("FPT.EXE201.Domain.Entities.RefDocumentTypeTranslation", b =>
                 {
                     b.HasOne("FPT.EXE201.Domain.Entities.RefDocumentType", "DocumentType")
@@ -3492,6 +5565,44 @@ namespace FPT.EXE201.Infrastructure.Migrations
                     b.Navigation("DocumentType");
 
                     b.Navigation("Language");
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.RefFoodItemTranslation", b =>
+                {
+                    b.HasOne("FPT.EXE201.Domain.Entities.RefFoodItem", "FoodItem")
+                        .WithMany("Translations")
+                        .HasForeignKey("FoodItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FPT.EXE201.Domain.Entities.Language", "Language")
+                        .WithMany()
+                        .HasForeignKey("LanguageCode")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("FoodItem");
+
+                    b.Navigation("Language");
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.RefNutrientTranslation", b =>
+                {
+                    b.HasOne("FPT.EXE201.Domain.Entities.Language", "Language")
+                        .WithMany()
+                        .HasForeignKey("LanguageCode")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FPT.EXE201.Domain.Entities.RefNutrient", "Nutrient")
+                        .WithMany("Translations")
+                        .HasForeignKey("NutrientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Language");
+
+                    b.Navigation("Nutrient");
                 });
 
             modelBuilder.Entity("FPT.EXE201.Domain.Entities.RefPregnancyConditionTranslation", b =>
@@ -3632,6 +5743,25 @@ namespace FPT.EXE201.Infrastructure.Migrations
                     b.Navigation("Pregnancy");
                 });
 
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.MealItem", b =>
+                {
+                    b.Navigation("Feedbacks");
+
+                    b.Navigation("Nutrients");
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.MealPlan", b =>
+                {
+                    b.Navigation("Days");
+
+                    b.Navigation("Feedbacks");
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.MealPlanDay", b =>
+                {
+                    b.Navigation("Items");
+                });
+
             modelBuilder.Entity("FPT.EXE201.Domain.Entities.MedicalDocument", b =>
                 {
                     b.Navigation("Files");
@@ -3651,7 +5781,17 @@ namespace FPT.EXE201.Infrastructure.Migrations
 
             modelBuilder.Entity("FPT.EXE201.Domain.Entities.Pregnancy", b =>
                 {
+                    b.Navigation("AiRequestLogs");
+
                     b.Navigation("Conditions");
+
+                    b.Navigation("FoodPreferences");
+
+                    b.Navigation("MealPlans");
+
+                    b.Navigation("NutritionNotes");
+
+                    b.Navigation("Recipes");
 
                     b.Navigation("Tests");
 
@@ -3665,9 +5805,28 @@ namespace FPT.EXE201.Infrastructure.Migrations
                     b.Navigation("Tests");
                 });
 
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.Recipe", b =>
+                {
+                    b.Navigation("MealItems");
+                });
+
             modelBuilder.Entity("FPT.EXE201.Domain.Entities.RefDocumentType", b =>
                 {
                     b.Navigation("Documents");
+
+                    b.Navigation("Translations");
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.RefFoodItem", b =>
+                {
+                    b.Navigation("FoodPreferences");
+
+                    b.Navigation("Translations");
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.RefNutrient", b =>
+                {
+                    b.Navigation("MealItemNutrients");
 
                     b.Navigation("Translations");
                 });

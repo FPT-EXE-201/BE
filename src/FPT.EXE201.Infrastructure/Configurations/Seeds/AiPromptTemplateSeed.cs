@@ -242,5 +242,90 @@ CRITICAL:
                 UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)
             }
         );
+
+        // Week 7 — Nutrition Meal Plan Template
+        builder.HasData(
+            new
+            {
+                Id = Guid.Parse("a1000002-0000-0000-0000-000000000001"),
+                TemplateKey = "nutrition.meal_plan",
+                Version = 1,
+                DisplayName = "Nutrition Meal Plan Generator",
+                Description = "Generate 7-day AI meal plans with Vietnamese dishes, recipes, and nutrients for pregnant women.",
+
+                SystemRules = @"You are a certified prenatal nutritionist AI assistant.
+Respond in Vietnamese.
+Output ONLY valid JSON matching the provided schema.
+No markdown, no explanation, no extra text outside JSON.",
+
+                DomainRules = @"Pregnancy nutrition guidelines (IOM):
+- Trimester 1 (week 1-12): Focus folic acid (600mcg/day), no extra calories.
+- Trimester 2 (week 13-26): +340 kcal/day, iron (27mg/day), calcium (1000mg/day).
+- Trimester 3 (week 27-40): +450 kcal/day, increase protein, DHA.
+- Daily water: 2.3L minimum.
+- Avoid: raw fish, high-mercury fish, unpasteurized dairy, alcohol.
+- Gestational diabetes: low GI foods, split meals, limit sugar.
+- Preeclampsia: reduce sodium, increase potassium.",
+
+                FeatureRules = @"Generate a 7-day meal plan with exactly 4 meals per day: BREAKFAST, LUNCH, DINNER, SNACK.
+
+For EVERY meal item, you MUST provide:
+- itemName: Vietnamese dish name (concise)
+- portionText: serving size in Vietnamese
+- caloriesKcal: integer
+- notes: brief nutrition note in Vietnamese (nullable)
+- recipe: REQUIRED object with:
+  - title: dish name
+  - instructions: step-by-step cooking instructions in Vietnamese
+  - servings: integer
+  - prepMinutes: integer
+  - cookMinutes: integer
+- nutrients: array of objects, ONLY use these codes:
+  PROTEIN, CARBOHYDRATES, FAT, FIBER, IRON, CALCIUM,
+  FOLIC_ACID, VITAMIN_D, VITAMIN_C, VITAMIN_A,
+  VITAMIN_B12, OMEGA_3, DHA, ZINC
+  Each: { ""code"": ""PROTEIN"", ""amount"": 12.5 }
+
+Ensure variety: do not repeat the same dish within 3 days.
+Each day's total calories should be close to {targetCalories} kcal.",
+
+                OutputSchema = @"{
+  ""title"": ""string"",
+  ""totalDailyCalories"": ""number"",
+  ""notes"": ""string"",
+  ""days"": [
+    {
+      ""date"": ""YYYY-MM-DD"",
+      ""meals"": [
+        {
+          ""mealType"": ""BREAKFAST|LUNCH|DINNER|SNACK"",
+          ""itemName"": ""string"",
+          ""portionText"": ""string"",
+          ""caloriesKcal"": ""number"",
+          ""notes"": ""string|null"",
+          ""recipe"": {
+            ""title"": ""string"",
+            ""instructions"": ""string"",
+            ""servings"": ""number"",
+            ""prepMinutes"": ""number"",
+            ""cookMinutes"": ""number""
+          },
+          ""nutrients"": [
+            { ""code"": ""string"", ""amount"": ""number"" }
+          ]
+        }
+      ]
+    }
+  ]
+}",
+
+                ModelName = "gemini-2.5-flash",
+                Temperature = 0.7,
+                MaxOutputTokens = 8192,
+                IsActive = true,
+                CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc),
+                UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc)
+            }
+        );
     }
 }

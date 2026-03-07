@@ -52,6 +52,28 @@ public class RefDataController : BaseApiController
     }
 
     /// <summary>
+    /// Lấy danh mục thực phẩm cho UI chọn dị ứng/không thích.
+    /// </summary>
+    [HttpGet("food-items")]
+    public async Task<IActionResult> GetFoodItems(
+        [FromQuery] string lang = "vi", CancellationToken ct = default)
+    {
+        var result = await _refDataService.GetActiveFoodItemsAsync(lang, ct);
+        return Success(result);
+    }
+
+    /// <summary>
+    /// Lấy danh mục dưỡng chất (PROTEIN, IRON, CALCIUM...).
+    /// </summary>
+    [HttpGet("nutrients")]
+    public async Task<IActionResult> GetNutrients(
+        [FromQuery] string lang = "vi", CancellationToken ct = default)
+    {
+        var result = await _refDataService.GetActiveNutrientsAsync(lang, ct);
+        return Success(result);
+    }
+
+    /// <summary>
     /// Trả về tất cả enum values để FE biết các giá trị hợp lệ.
     /// Mỗi enum trả về danh sách { value (int), name (string) }.
     /// </summary>
@@ -72,6 +94,14 @@ public class RefDataController : BaseApiController
             ["weightSource"] = ToEnumList<WeightSource>(),
             ["weightAlertType"] = ToEnumList<WeightAlertType>(),
             ["motivationalCategory"] = ToEnumList<MotivationalCategory>(),
+            // Week 7 — Nutrition
+            ["foodPreferenceType"] = ToEnumList<FoodPreferenceType>(),
+            ["allergySeverity"] = ToEnumList<AllergySeverity>(),
+            ["mealType"] = ToEnumList<MealType>(),
+            ["mealPlanSource"] = ToEnumList<MealPlanSource>(),
+            ["nutritionNoteType"] = ToEnumList<NutritionNoteType>(),
+            ["aiFeature"] = ToEnumList<AiFeature>(),
+            ["aiRequestStatus"] = ToEnumList<AiRequestStatus>(),
         };
         return Success(result);
     }
@@ -106,6 +136,14 @@ public class RefDataController : BaseApiController
             ["weightSource"] = ToEnumList<WeightSource>(),
             ["weightAlertType"] = ToEnumList<WeightAlertType>(),
             ["motivationalCategory"] = ToEnumList<MotivationalCategory>(),
+            // Week 7 — Nutrition
+            ["foodPreferenceType"] = ToEnumList<FoodPreferenceType>(),
+            ["allergySeverity"] = ToEnumList<AllergySeverity>(),
+            ["mealType"] = ToEnumList<MealType>(),
+            ["mealPlanSource"] = ToEnumList<MealPlanSource>(),
+            ["nutritionNoteType"] = ToEnumList<NutritionNoteType>(),
+            ["aiFeature"] = ToEnumList<AiFeature>(),
+            ["aiRequestStatus"] = ToEnumList<AiRequestStatus>(),
         };
 
         if (!enums.TryGetValue(enumName, out var values))
