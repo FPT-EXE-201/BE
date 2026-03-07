@@ -1,4 +1,5 @@
 using FPT.EXE201.Domain.Entities;
+using FPT.EXE201.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -24,6 +25,16 @@ public class MealPlanConfiguration : IEntityTypeConfiguration<MealPlan>
         builder.Property(m => m.Source)
             .IsRequired().HasColumnName("source")
             .HasConversion<string>().HasMaxLength(20);
+        builder.Property(m => m.Status)
+            .IsRequired().HasColumnName("status")
+            .HasConversion<string>().HasMaxLength(20)
+            .HasDefaultValue(MealPlanStatus.Pending);
+        builder.Property(m => m.CompletedWeeks)
+            .HasColumnName("completed_weeks").HasDefaultValue(0);
+        builder.Property(m => m.TotalWeeks)
+            .HasColumnName("total_weeks").HasDefaultValue(0);
+        builder.Property(m => m.ErrorMessage)
+            .HasColumnName("error_message").HasMaxLength(500);
         builder.Property(m => m.Title)
             .HasColumnName("title").HasMaxLength(200);
         builder.Property(m => m.Notes)

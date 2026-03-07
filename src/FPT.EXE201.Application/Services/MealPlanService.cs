@@ -15,6 +15,7 @@ public class MealPlanService : IMealPlanService
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IAiProvider _aiProvider;
+    private readonly IMealPlanJobQueue _jobQueue;
     private readonly ILogger<MealPlanService> _logger;
 
     private const string TemplateKey = "nutrition.meal_plan";
@@ -30,18 +31,20 @@ public class MealPlanService : IMealPlanService
     public MealPlanService(
         IUnitOfWork unitOfWork,
         IAiProvider aiProvider,
+        IMealPlanJobQueue jobQueue,
         ILogger<MealPlanService> logger)
     {
         _unitOfWork = unitOfWork;
         _aiProvider = aiProvider;
+        _jobQueue = jobQueue;
         _logger = logger;
     }
 
     // ═══════════════════════════════════════════════════
-    // PUBLIC: Generate Meal Plan (AI Pipeline)
+    // PUBLIC: Queue Meal Plan Generation (returns 202 Accepted)
     // ═══════════════════════════════════════════════════
 
-    public async Task<MealPlanDetailDto> GenerateAsync(
+    public async Task<MealPlanStatusDto> GenerateAsync(
         Guid pregnancyId, Guid userId, GenerateMealPlanDto dto,
         CancellationToken ct = default)
     {
@@ -52,27 +55,21 @@ public class MealPlanService : IMealPlanService
         if (dto.DurationWeeks < 1 || dto.DurationWeeks > 4)
             throw new BadRequestException("Duration must be between 1 and 4 weeks.");
 
-        // Step 3: Rate limit check (Decision #3)
+        // Step 3: Rate limit check
         var todayCount = await _unitOfWork.AiRequestLogs.CountTodayByUserAsync(userId, ct);
         var remaining = DailyRateLimit - todayCount;
         if (remaining < dto.DurationWeeks)
             throw new BadRequestException(
                 $"Daily AI limit: need {dto.DurationWeeks} calls, remaining {remaining}/{DailyRateLimit}. Try again tomorrow.");
 
-        // Step 4: Calculate BMI + target calories (Decision #4)
+        // Step 4: Validate BMI data exists (fail-fast before queuing)
         var currentWeight = await GetCurrentWeight(pregnancyId, ct);
         var bmiWeight = pregnancy.PrePregnancyWeightKg ?? currentWeight;
         if (bmiWeight == null || pregnancy.HeightCm == null || pregnancy.HeightCm == 0)
             throw new BadRequestException(
                 "Pre-pregnancy weight (or current weight) and height are required for calorie calculation.");
 
-        var heightM = pregnancy.HeightCm.Value / 100m;
-        var bmi = Math.Round(bmiWeight.Value / (heightM * heightM), 1);
-        var gestWeek = pregnancy.CurrentGestationalWeek
-                       ?? CalculateGestationalWeek(pregnancy.LastMenstrualPeriodDate);
-        var targetCalories = CalculateTargetCalories(bmi, gestWeek ?? 20);
-
-        // Step 5: Handle overlap (Decision #5) — auto soft-delete
+        // Step 5: Handle overlap — auto soft-delete
         var endDate = dto.StartDate.AddDays(dto.DurationWeeks * 7 - 1);
         var overlapping = await _unitOfWork.MealPlans
             .GetOverlappingAsync(pregnancyId, dto.StartDate, endDate, ct);
@@ -82,15 +79,68 @@ public class MealPlanService : IMealPlanService
             _logger.LogInformation("Auto-deleted overlapping meal plan {PlanId}", plan.Id);
         }
 
-        // Step 6: Collect nutrition context
-        var foodPrefs = await _unitOfWork.FoodPreferences
-            .GetByPregnancyIdAsync(pregnancyId, "vi", ct);
-        var nutritionNotes = await _unitOfWork.NutritionNotes
-            .GetByPregnancyIdAsync(pregnancyId, ct);
-        var conditions = await _unitOfWork.PregnancyConditions
-            .GetByPregnancyIdAsync(pregnancyId, "vi", ct);
+        // Step 6: Create MealPlan entity with Pending status
+        var mealPlan = new MealPlan
+        {
+            PregnancyId = pregnancyId,
+            StartDate = dto.StartDate,
+            EndDate = endDate,
+            Source = MealPlanSource.AI,
+            Status = MealPlanStatus.Pending,
+            TotalWeeks = dto.DurationWeeks,
+            CompletedWeeks = 0,
+            Notes = dto.AdditionalNotes
+        };
+        await _unitOfWork.MealPlans.AddAsync(mealPlan, ct);
+        await _unitOfWork.SaveChangesAsync(ct);
 
-        // Step 7: Load AI template + nutrient cache
+        // Step 7: Enqueue for background processing
+        await _jobQueue.EnqueueAsync(new MealPlanJobItem(
+            mealPlan.Id, pregnancyId, userId,
+            dto.DurationWeeks, dto.AdditionalNotes), ct);
+
+        _logger.LogInformation(
+            "Meal plan {PlanId} queued for generation ({Weeks} weeks)",
+            mealPlan.Id, dto.DurationWeeks);
+
+        return MapToStatusDto(mealPlan);
+    }
+
+    // ═══════════════════════════════════════════════════
+    // PUBLIC: Background Processing (called by BackgroundService)
+    // ═══════════════════════════════════════════════════
+
+    public async Task ProcessGenerationAsync(MealPlanJobItem job, CancellationToken ct = default)
+    {
+        var mealPlan = await _unitOfWork.MealPlans.GetByIdAsync(job.MealPlanId, cancellationToken: ct)
+            ?? throw new NotFoundException($"MealPlan {job.MealPlanId} not found.");
+
+        var pregnancy = await _unitOfWork.Pregnancies
+            .GetByIdAsync(job.PregnancyId, cancellationToken: ct)
+            ?? throw new NotFoundException("Pregnancy not found.");
+
+        // Update status → Generating
+        mealPlan.Status = MealPlanStatus.Generating;
+        await _unitOfWork.SaveChangesAsync(ct);
+
+        // Calculate BMI + target calories
+        var currentWeight = await GetCurrentWeight(job.PregnancyId, ct);
+        var bmiWeight = pregnancy.PrePregnancyWeightKg ?? currentWeight;
+        var heightM = pregnancy.HeightCm!.Value / 100m;
+        var bmi = Math.Round(bmiWeight!.Value / (heightM * heightM), 1);
+        var gestWeek = pregnancy.CurrentGestationalWeek
+                       ?? CalculateGestationalWeek(pregnancy.LastMenstrualPeriodDate);
+        var targetCalories = CalculateTargetCalories(bmi, gestWeek ?? 20);
+
+        // Collect nutrition context
+        var foodPrefs = await _unitOfWork.FoodPreferences
+            .GetByPregnancyIdAsync(job.PregnancyId, "vi", ct);
+        var nutritionNotes = await _unitOfWork.NutritionNotes
+            .GetByPregnancyIdAsync(job.PregnancyId, ct);
+        var conditions = await _unitOfWork.PregnancyConditions
+            .GetByPregnancyIdAsync(job.PregnancyId, "vi", ct);
+
+        // Load AI template + nutrient cache
         var template = await _unitOfWork.AiPromptTemplates
             .GetActiveByKeyAsync(TemplateKey, ct)
             ?? throw new NotFoundException($"AI prompt template '{TemplateKey}' not found.");
@@ -99,41 +149,29 @@ public class MealPlanService : IMealPlanService
             .GetActiveWithTranslationsAsync("vi", ct);
         var nutrientMap = allNutrients.ToDictionary(n => n.Code, n => n.Id);
 
-        // Step 8: Create MealPlan entity
-        var mealPlan = new MealPlan
-        {
-            PregnancyId = pregnancyId,
-            StartDate = dto.StartDate,
-            EndDate = endDate,
-            Source = MealPlanSource.AI,
-            Notes = dto.AdditionalNotes
-        };
-
-        // Step 9: Transaction — Generate week by week
+        // Transaction — Generate week by week
         await _unitOfWork.BeginTransactionAsync(ct);
         int week = 0;
         try
         {
-            await _unitOfWork.MealPlans.AddAsync(mealPlan, ct);
             string? previousWeekSummary = null;
 
-            for (week = 0; week < dto.DurationWeeks; week++)
+            for (week = 0; week < job.DurationWeeks; week++)
             {
-                var weekStart = dto.StartDate.AddDays(week * 7);
+                var weekStart = mealPlan.StartDate.AddDays(week * 7);
                 var weekEnd = weekStart.AddDays(6);
 
                 // Create AiRequestLog
                 var aiLog = new AiRequestLog
                 {
                     Feature = AiFeature.NutritionMealPlan,
-                    PregnancyId = pregnancyId,
-                    UserId = userId,
+                    PregnancyId = job.PregnancyId,
+                    UserId = job.UserId,
                     TemplateId = template.Id,
                     Status = AiRequestStatus.Processing
                 };
                 await _unitOfWork.AiRequestLogs.AddAsync(aiLog, ct);
 
-                // Link first AI log to MealPlan
                 if (week == 0) mealPlan.AiRequestLogId = aiLog.Id;
 
                 // Build prompt
@@ -142,7 +180,7 @@ public class MealPlanService : IMealPlanService
                     currentWeight, bmi, gestWeek, targetCalories);
                 var userMessage = BuildWeekPrompt(
                     week, weekStart, weekEnd, targetCalories,
-                    previousWeekSummary, dto.AdditionalNotes);
+                    previousWeekSummary, job.AdditionalNotes);
 
                 var prompt = PromptBuilder.FromTemplate(template)
                     .WithContext("NUTRITION PROFILE", contextText)
@@ -151,7 +189,7 @@ public class MealPlanService : IMealPlanService
 
                 _logger.LogInformation(
                     "Generating meal plan week {Week}/{Total} for pregnancy {Id}",
-                    week + 1, dto.DurationWeeks, pregnancyId);
+                    week + 1, job.DurationWeeks, job.PregnancyId);
 
                 // Call Gemini
                 var aiResponse = await _aiProvider.GenerateAsync(prompt, ct);
@@ -179,18 +217,20 @@ public class MealPlanService : IMealPlanService
                     week + 1, aiResponse.PromptTokens,
                     aiResponse.CompletionTokens, aiResponse.TotalTokens);
 
-                // Build summary for next week
+                // Update progress (visible to polling)
+                mealPlan.CompletedWeeks = week + 1;
+                await _unitOfWork.SaveChangesAsync(ct);
+
                 previousWeekSummary = BuildWeekSummary(weekPlan);
             }
 
+            // All weeks done → Succeeded
+            mealPlan.Status = MealPlanStatus.Succeeded;
             await _unitOfWork.CommitTransactionAsync(ct);
 
             _logger.LogInformation(
                 "Meal plan {PlanId} generated successfully ({Weeks} weeks)",
-                mealPlan.Id, dto.DurationWeeks);
-
-            // Return full detail
-            return await GetDetailAsync(mealPlan.Id, userId, ct);
+                mealPlan.Id, job.DurationWeeks);
         }
         catch (Exception ex)
         {
@@ -199,16 +239,27 @@ public class MealPlanService : IMealPlanService
             _logger.LogError(ex,
                 "Meal plan generation failed for pregnancy {Id}. " +
                 "Completed {CompletedWeeks}/{TotalWeeks} weeks before failure.",
-                pregnancyId, week, dto.DurationWeeks);
+                job.PregnancyId, week, job.DurationWeeks);
 
-            // Persist a Failed AiRequestLog AFTER rollback so analytics are not lost
+            // Update MealPlan status → Failed (AFTER rollback, separate save)
             try
             {
+                var failedPlan = await _unitOfWork.MealPlans
+                    .GetByIdAsync(job.MealPlanId, cancellationToken: ct);
+                if (failedPlan != null)
+                {
+                    failedPlan.Status = MealPlanStatus.Failed;
+                    failedPlan.ErrorMessage = ex.Message.Length > 500
+                        ? ex.Message[..500] : ex.Message;
+                    failedPlan.CompletedWeeks = week;
+                }
+
+                // Also persist a Failed AiRequestLog
                 var failedLog = new AiRequestLog
                 {
                     Feature = AiFeature.NutritionMealPlan,
-                    PregnancyId = pregnancyId,
-                    UserId = userId,
+                    PregnancyId = job.PregnancyId,
+                    UserId = job.UserId,
                     TemplateId = template.Id,
                     Status = AiRequestStatus.Failed,
                     ResponsePayload = ex.Message
@@ -218,11 +269,26 @@ public class MealPlanService : IMealPlanService
             }
             catch (Exception logEx)
             {
-                _logger.LogWarning(logEx, "Could not persist failed AiRequestLog to DB.");
+                _logger.LogWarning(logEx, "Could not persist failed status to DB.");
             }
 
             throw;
         }
+    }
+
+    // ═══════════════════════════════════════════════════
+    // PUBLIC: Get Status (polling endpoint)
+    // ═══════════════════════════════════════════════════
+
+    public async Task<MealPlanStatusDto> GetStatusAsync(
+        Guid planId, Guid userId, CancellationToken ct = default)
+    {
+        var plan = await _unitOfWork.MealPlans.GetByIdAsync(planId, cancellationToken: ct)
+            ?? throw new NotFoundException("Meal plan not found.");
+
+        await VerifyPregnancyOwnership(plan.PregnancyId, userId, ct);
+
+        return MapToStatusDto(plan);
     }
 
     // ═══════════════════════════════════════════════════
@@ -240,7 +306,7 @@ public class MealPlanService : IMealPlanService
 
         var dtos = paged.Items.Select(m => new MealPlanSummaryDto(
             m.Id, m.PregnancyId, m.StartDate, m.EndDate,
-            m.Source.ToString(), m.Title,
+            m.Source.ToString(), m.Status.ToString(), m.Title,
             m.Days?.Count ?? 0, m.CreatedAt
         )).ToList();
 
@@ -655,6 +721,11 @@ public class MealPlanService : IMealPlanService
             throw new ForbiddenException("Access denied.");
         return pregnancy;
     }
+
+    private static MealPlanStatusDto MapToStatusDto(MealPlan plan) => new(
+        plan.Id, plan.PregnancyId, plan.Status.ToString(),
+        plan.CompletedWeeks, plan.TotalWeeks,
+        plan.Title, plan.ErrorMessage, plan.CreatedAt);
 
     private static MealPlanDetailDto MapToDetailDto(MealPlan plan) => new(
         plan.Id, plan.PregnancyId, plan.StartDate, plan.EndDate,

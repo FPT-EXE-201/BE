@@ -47,21 +47,25 @@
 							"listen": "test",
 							"script": {
 								"exec": [
+									"const status = pm.response.code;",
 									"const res = pm.response.json();",
 									"",
-									"pm.test('Register — 201 Created', () => {",
-									"    pm.response.to.have.status(201);",
-									"});",
-									"",
-									"pm.test('Response has accessToken', () => {",
-									"    pm.expect(res.data).to.have.property('accessToken');",
-									"    pm.expect(res.data.accessToken).to.be.a('string').and.not.empty;",
-									"});",
-									"",
-									"if (res.data && res.data.accessToken) {",
+									"if (status === 201) {",
+									"    pm.test('Register — 201 Created (new user)', () => {",
+									"        pm.expect(res.data).to.have.property('accessToken');",
+									"    });",
 									"    pm.collectionVariables.set('token', res.data.accessToken);",
 									"    pm.collectionVariables.set('userId', res.data.user.id);",
-									"    console.log('✅ Token saved, userId:', res.data.user.id);",
+									"    console.log('✅ New user registered, token saved');",
+									"} else if (status === 409 || status === 400) {",
+									"    pm.test('Register — User already exists (OK, will login in S02)', () => {",
+									"        pm.expect(true).to.be.true;",
+									"    });",
+									"    console.log('⚠️ User already exists — S02 Login will get token');",
+									"} else {",
+									"    pm.test('Register — Unexpected status ' + status, () => {",
+									"        pm.expect.fail('Expected 201 or 409, got ' + status);",
+									"    });",
 									"}"
 								]
 							}
@@ -132,19 +136,24 @@
 							"listen": "test",
 							"script": {
 								"exec": [
+									"const status = pm.response.code;",
 									"const res = pm.response.json();",
 									"",
-									"pm.test('Create Pregnancy — 201 Created', () => {",
-									"    pm.response.to.have.status(201);",
-									"});",
-									"",
-									"pm.test('Pregnancy has id', () => {",
-									"    pm.expect(res.data).to.have.property('id');",
-									"});",
-									"",
-									"if (res.data && res.data.id) {",
+									"if (status === 201) {",
+									"    pm.test('Create Pregnancy — 201 Created', () => {",
+									"        pm.expect(res.data).to.have.property('id');",
+									"    });",
 									"    pm.collectionVariables.set('pregnancyId', res.data.id);",
 									"    console.log('✅ pregnancyId saved:', res.data.id);",
+									"} else if (status === 409 || status === 400) {",
+									"    pm.test('Create Pregnancy — Already exists (OK, S04 will get id)', () => {",
+									"        pm.expect(true).to.be.true;",
+									"    });",
+									"    console.log('⚠️ Active pregnancy already exists — S04 will fetch id');",
+									"} else {",
+									"    pm.test('Create Pregnancy — Unexpected ' + status, () => {",
+									"        pm.expect.fail('Expected 201 or 409, got ' + status);",
+									"    });",
 									"}"
 								]
 							}
@@ -178,12 +187,13 @@
 									"",
 									"pm.test('Get Active Pregnancy — 200 OK', () => {",
 									"    pm.response.to.have.status(200);",
+									"    pm.expect(res.data).to.have.property('id');",
 									"});",
 									"",
-									"pm.test('Pregnancy is Active', () => {",
-									"    pm.expect(res.data).to.have.property('id');",
-									"    pm.expect(res.data.id).to.eql(pm.collectionVariables.get('pregnancyId'));",
-									"});"
+									"if (res.data && res.data.id) {",
+									"    pm.collectionVariables.set('pregnancyId', res.data.id);",
+									"    console.log('✅ pregnancyId saved from active pregnancy:', res.data.id);",
+									"}"
 								]
 							}
 						}
@@ -207,15 +217,24 @@
 							"listen": "test",
 							"script": {
 								"exec": [
+									"const status = pm.response.code;",
 									"const res = pm.response.json();",
 									"",
-									"pm.test('Create Weight Goal — 201 Created', () => {",
-									"    pm.response.to.have.status(201);",
-									"});",
-									"",
-									"if (res.data && res.data.id) {",
+									"if (status === 201) {",
+									"    pm.test('Create Weight Goal — 201 Created', () => {",
+									"        pm.expect(res.data).to.have.property('id');",
+									"    });",
 									"    pm.collectionVariables.set('weightGoalId', res.data.id);",
 									"    console.log('✅ weightGoalId saved:', res.data.id);",
+									"} else if (status === 409 || status === 400) {",
+									"    pm.test('Weight Goal — Already exists (OK)', () => {",
+									"        pm.expect(true).to.be.true;",
+									"    });",
+									"    console.log('⚠️ Weight goal already exists — skipping');",
+									"} else {",
+									"    pm.test('Weight Goal — Unexpected ' + status, () => {",
+									"        pm.expect.fail('Expected 201 or 409, got ' + status);",
+									"    });",
 									"}"
 								]
 							}
@@ -279,7 +298,8 @@
 									"pm.test('Has allergySeverity', () => { pm.expect(res.data).to.have.property('allergySeverity'); });",
 									"pm.test('Has mealType', () => { pm.expect(res.data).to.have.property('mealType'); });",
 									"pm.test('Has nutritionNoteType', () => { pm.expect(res.data).to.have.property('nutritionNoteType'); });",
-									"pm.test('Has aiFeature', () => { pm.expect(res.data).to.have.property('aiFeature'); });"
+									"pm.test('Has aiFeature', () => { pm.expect(res.data).to.have.property('aiFeature'); });",
+									"pm.test('Has mealPlanStatus', () => { pm.expect(res.data).to.have.property('mealPlanStatus'); });"
 								]
 							}
 						}
@@ -876,22 +896,18 @@
 		},
 		{
 			"name": "5 - MEAL PLAN GENERATE AI (TC-MP01 → MP09)",
-			"description": "⚠️ Cần Gemini API key.\n⚠️ Timeout ≥ 120s.\n⚠️ Rate limit: 15 calls/day.",
+			"description": "⚠️ Cần Gemini API key.\n⚠️ Background Job: Generate trả về 202 Accepted, FE poll GET /status mỗi 3-5s.\n⚠️ Rate limit: 15 AI calls/day.",
 			"item": [
 				{
-					"name": "TC-MP01 ✅ Generate 1 week",
+					"name": "TC-MP01 ✅ Generate 1 week (202 Accepted)",
 					"event": [{ "listen": "test", "script": { "exec": [
 						"const res = pm.response.json();",
-						"pm.test('TC-MP01 — 201 Created', () => { pm.response.to.have.status(201); });",
-						"pm.test('source = AI', () => { pm.expect(res.data.source).to.eql('AI'); });",
-						"pm.test('Has 7 days', () => { pm.expect(res.data.days.length).to.eql(7); });",
-						"pm.test('startDate correct', () => { pm.expect(res.data.startDate).to.include('2026-03-09'); });",
-						"pm.test('title not null', () => { pm.expect(res.data.title).to.not.be.null; });",
+						"pm.test('TC-MP01 — 202 Accepted', () => { pm.response.to.have.status(202); });",
+						"pm.test('status is Pending', () => { pm.expect(res.data.status).to.be.oneOf(['Pending','Generating']); });",
+						"pm.test('totalWeeks = 1', () => { pm.expect(res.data.totalWeeks).to.eql(1); });",
+						"pm.test('has id', () => { pm.expect(res.data.id).to.be.a('string'); });",
 						"if (res.data) {",
 						"    pm.collectionVariables.set('mealPlanId', res.data.id);",
-						"    if (res.data.days && res.data.days.length > 0) {",
-						"        pm.collectionVariables.set('planDate', res.data.days[0].planDate);",
-						"    }",
 						"    console.log('✅ mealPlanId saved:', res.data.id);",
 						"}"
 					] } }],
@@ -903,12 +919,36 @@
 					}
 				},
 				{
-					"name": "TC-MP02 ✅ Generate 2 weeks",
+					"name": "TC-MP01b ✅ Poll status until Succeeded",
 					"event": [{ "listen": "test", "script": { "exec": [
 						"const res = pm.response.json();",
-						"pm.test('TC-MP02 — 201 Created', () => { pm.response.to.have.status(201); });",
-						"pm.test('Has 14 days', () => { pm.expect(res.data.days.length).to.eql(14); });",
-						"pm.test('endDate correct', () => { pm.expect(res.data.endDate).to.include('2026-03-29'); });",
+						"pm.test('TC-MP01b — 200 OK', () => { pm.response.to.have.status(200); });",
+						"pm.test('has status field', () => { pm.expect(res.data.status).to.be.a('string'); });",
+						"const status = res.data.status;",
+						"if (status === 'Pending' || status === 'Generating') {",
+						"    console.log('⏳ Status:', status, '- completedWeeks:', res.data.completedWeeks, '/', res.data.totalWeeks);",
+						"    // In Collection Runner: sẽ cần gọi lại manual",
+						"} else if (status === 'Succeeded') {",
+						"    pm.test('Succeeded', () => { pm.expect(status).to.eql('Succeeded'); });",
+						"    pm.test('title not null', () => { pm.expect(res.data.title).to.not.be.null; });",
+						"    console.log('✅ Meal plan generation completed:', res.data.title);",
+						"} else if (status === 'Failed') {",
+						"    pm.test('Should not fail', () => { pm.expect.fail('Generation failed: ' + res.data.errorMessage); });",
+						"}"
+					] } }],
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/meal-plans/{{mealPlanId}}/status", "host": ["{{baseUrl}}"], "path": ["api", "meal-plans", "{{mealPlanId}}", "status"] }
+					}
+				},
+				{
+					"name": "TC-MP02 ✅ Generate 2 weeks (202 Accepted)",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"const res = pm.response.json();",
+						"pm.test('TC-MP02 — 202 Accepted', () => { pm.response.to.have.status(202); });",
+						"pm.test('totalWeeks = 2', () => { pm.expect(res.data.totalWeeks).to.eql(2); });",
+						"pm.test('status is Pending', () => { pm.expect(res.data.status).to.be.oneOf(['Pending','Generating']); });",
 						"if (res.data) { pm.collectionVariables.set('mealPlanId_2weeks', res.data.id); }"
 					] } }],
 					"request": {
@@ -919,10 +959,10 @@
 					}
 				},
 				{
-					"name": "TC-MP03 ✅ Generate overlap → auto-delete old",
+					"name": "TC-MP03 ✅ Generate overlap → auto-delete old (202)",
 					"event": [{ "listen": "test", "script": { "exec": [
 						"const res = pm.response.json();",
-						"pm.test('TC-MP03 — 201 Created', () => { pm.response.to.have.status(201); });",
+						"pm.test('TC-MP03 — 202 Accepted', () => { pm.response.to.have.status(202); });",
 						"pm.test('New plan created', () => { pm.expect(res.data.id).to.not.eql(pm.collectionVariables.get('mealPlanId')); });",
 						"if (res.data) {",
 						"    pm.collectionVariables.set('mealPlanId_new', res.data.id);",
@@ -934,6 +974,20 @@
 						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
 						"body": { "mode": "raw", "raw": "{\n  \"startDate\": \"2026-03-09\",\n  \"durationWeeks\": 1,\n  \"additionalNotes\": \"Thay thế plan cũ, muốn ăn đa dạng hơn\"\n}" },
 						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/meal-plans/generate", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "meal-plans", "generate"] }
+					}
+				},
+				{
+					"name": "TC-MP03b ✅ Poll status (overlap plan)",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"const res = pm.response.json();",
+						"pm.test('TC-MP03b — 200 OK', () => { pm.response.to.have.status(200); });",
+						"pm.test('has status', () => { pm.expect(res.data.status).to.be.a('string'); });",
+						"console.log('Status:', res.data.status, '| completedWeeks:', res.data.completedWeeks, '/', res.data.totalWeeks);"
+					] } }],
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/meal-plans/{{mealPlanId_new}}/status", "host": ["{{baseUrl}}"], "path": ["api", "meal-plans", "{{mealPlanId_new}}", "status"] }
 					}
 				},
 				{
@@ -982,6 +1036,33 @@
 						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
 						"body": { "mode": "raw", "raw": "{\n  \"startDate\": \"2026-03-09\",\n  \"durationWeeks\": 1,\n  \"additionalNotes\": \"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\"\n}" },
 						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/meal-plans/generate", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "meal-plans", "generate"] }
+					}
+				},
+				{
+					"name": "TC-MP08 ❌ Poll status not found → 404",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-MP08 — 404 Not Found', () => { pm.response.to.have.status(404); });"
+					] } }],
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/meal-plans/00000000-0000-0000-0000-000000000000/status", "host": ["{{baseUrl}}"], "path": ["api", "meal-plans", "00000000-0000-0000-0000-000000000000", "status"] }
+					}
+				},
+				{
+					"name": "TC-MP09 ✅ Enum mealPlanStatus",
+					"event": [{ "listen": "test", "script": { "exec": [
+						"pm.test('TC-MP09 — 200 OK', () => { pm.response.to.have.status(200); });",
+						"const res = pm.response.json();",
+						"pm.test('Has Pending', () => { pm.expect(res.data).to.have.property('Pending'); });",
+						"pm.test('Has Generating', () => { pm.expect(res.data).to.have.property('Generating'); });",
+						"pm.test('Has Succeeded', () => { pm.expect(res.data).to.have.property('Succeeded'); });",
+						"pm.test('Has Failed', () => { pm.expect(res.data).to.have.property('Failed'); });"
+					] } }],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": { "raw": "{{baseUrl}}/api/ref/enums/mealPlanStatus", "host": ["{{baseUrl}}"], "path": ["api", "ref", "enums", "mealPlanStatus"] }
 					}
 				}
 			]

@@ -6,6 +6,7 @@ public record MealPlanSummaryDto(
     DateOnly StartDate,
     DateOnly EndDate,
     string Source,
+    string Status,
     string? Title,
     int TotalDays,
     DateTime CreatedAt

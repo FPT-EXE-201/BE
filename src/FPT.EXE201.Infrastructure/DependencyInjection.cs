@@ -93,6 +93,10 @@ namespace FPT.EXE201.Infrastructure
             services.AddSingleton<IOcrJobQueue, OcrJobQueue>();
             services.AddHostedService<OcrBackgroundService>();
 
+            // Week 7 — Background Meal Plan Generation (Channel + BackgroundService)
+            services.AddSingleton<IMealPlanJobQueue, MealPlanJobQueue>();
+            services.AddHostedService<MealPlanBackgroundService>();
+
             // Week 6 — Weight OCR Service
             services.AddScoped<IWeightOcrService, WeightOcrService>();
             #endregion

@@ -14,6 +14,10 @@ public class MealPlan : BaseEntity
     public DateOnly StartDate { get; set; }
     public DateOnly EndDate { get; set; }
     public MealPlanSource Source { get; set; } = MealPlanSource.AI;
+    public MealPlanStatus Status { get; set; } = MealPlanStatus.Pending;
+    public int CompletedWeeks { get; set; }
+    public int TotalWeeks { get; set; }
+    public string? ErrorMessage { get; set; }
     public string? Title { get; set; }
     public string? Notes { get; set; }
 

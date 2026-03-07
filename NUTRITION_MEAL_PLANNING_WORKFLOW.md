@@ -1,7 +1,7 @@
 # Nutrition & Meal Planning Workflow — AI-Powered Meal Generation
 
 > **Mục đích**: Tài liệu workflow đầy đủ cho chức năng Nutrition & Meal Planning — giúp developer mới hoặc AI hiểu flow trước khi implement hoặc maintain code.  
-> **Cập nhật**: 2026-03-04  
+> **Cập nhật**: 2026-03-07  
 > **Trạng thái**: Week 7 ✅  
 > **Xem thêm**: `WEEK_7_PROMPTS_GUIDE.md` (chi tiết code), `FEATURES_WORKFLOW_GUIDE.md` (tổng quan tất cả features), `TESTING_CHECKLIST_WEEK_7.md` (test cases)
 
@@ -17,7 +17,10 @@ Chức năng Nutrition & Meal Planning cho phép mẹ bầu:
 5. **Đánh giá feedback** meal plan (1-5 sao) và từng meal item (like/dislike)
 
 > **⚠️ KEY PRINCIPLES**:
-> - AI generate thực đơn ĐỒNG BỘ (synchronous) — không dùng background job (khác với OCR ở Week 5)
+> - AI generate thực đơn **BẤT ĐỒNG BỘ** (async background job) — cùng pattern với OCR ở Week 5
+> - `POST .../generate` trả 202 Accepted + `MealPlanStatusDto` (Pending)
+> - FE poll `GET /api/meal-plans/{id}/status` mỗi 3-5s cho tới khi `Succeeded` hoặc `Failed`
+> - Nội bộ: `System.Threading.Channels` + `BackgroundService` xử lý queue
 > - Mỗi meal item bắt buộc có Recipe (REQUIRED — không optional)
 > - BMI + target calories tính tự động từ profile → AI tuân theo
 > - Rate limit: **15 AI calls/ngày/user** (mỗi tuần = 1 call)
@@ -172,128 +175,77 @@ Chức năng Nutrition & Meal Planning cho phép mẹ bầu:
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 3.2 Phase 2: AI GENERATE — Tạo thực đơn
+### 3.2 Phase 2: AI GENERATE — Tạo thực đơn (Background Job)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│            PHASE 2: AI MEAL PLAN GENERATION                             │
+│            PHASE 2: AI MEAL PLAN GENERATION (ASYNC)                     │
 │                                                                         │
 │  POST /api/pregnancies/{id}/meal-plans/generate                         │
 │  body: { startDate, durationWeeks (1-4), additionalNotes? }             │
 │                                                                         │
-│  ┌─ MealPlanService.GenerateAsync ─────────────────────────────────┐    │
+│  ┌─ MealPlanService.GenerateAsync (FAST — trả 202 ngay) ───────────┐   │
 │  │                                                                  │   │
 │  │  Step 1: VerifyPregnancyOwnership                                │   │
-│  │       └── pregnancy.UserId == currentUserId?                     │   │
-│  │                                                                  │   │
 │  │  Step 2: Validate durationWeeks (1–4)                            │   │
-│  │       └── Cũng validate ở FluentValidation (double check)        │   │
-│  │                                                                  │   │
-│  │  Step 3: Rate Limit Check                                        │   │
-│  │       │  AiRequestLogs.CountTodayByUserAsync(userId)             │   │
-│  │       │  remaining = 15 - todayCount                             │   │
-│  │       │  if (remaining < durationWeeks) → 400 Bad Request        │   │
-│  │       │  "Daily AI limit: need X calls, remaining Y/15"          │   │
-│  │       ▼                                                          │   │
+│  │  Step 3: Rate Limit Check (15/day)                               │   │
 │  │  Step 4: Calculate BMI + Target Calories                         │   │
-│  │       │  bmiWeight = PrePregnancyWeightKg ?? currentWeight       │   │
-│  │       │  (currentWeight = latest WeightLog)                      │   │
-│  │       │  heightM = HeightCm / 100                                │   │
-│  │       │  bmi = weight / (height²)                                │   │
-│  │       │                                                          │   │
-│  │       │  ┌─ IOM Base Calories ──────────────────────┐            │   │
-│  │       │  │  BMI < 18.5 (Underweight) → 2400 kcal   │            │   │
-│  │       │  │  BMI 18.5–24.9 (Normal)   → 2200 kcal   │            │   │
-│  │       │  │  BMI 25.0–29.9 (Overweight)→ 2000 kcal  │            │   │
-│  │       │  │  BMI ≥ 30.0 (Obese)       → 1800 kcal   │            │   │
-│  │       │  └─────────────────────────────────────────┘            │   │
-│  │       │                                                          │   │
-│  │       │  ┌─ Trimester Bonus ────────────────────────┐            │   │
-│  │       │  │  T1 (week 1–12)  → +0 kcal              │            │   │
-│  │       │  │  T2 (week 13–27) → +340 kcal             │            │   │
-│  │       │  │  T3 (week 28+)   → +450 kcal             │            │   │
-│  │       │  └─────────────────────────────────────────┘            │   │
-│  │       │                                                          │   │
-│  │       │  targetCalories = baseCalories + trimesterBonus          │   │
-│  │       ▼                                                          │   │
 │  │  Step 5: Handle Overlap — Auto Soft-Delete                       │   │
-│  │       │  endDate = startDate + (durationWeeks * 7 - 1)           │   │
-│  │       │  overlapping = MealPlans.GetOverlappingAsync(...)        │   │
-│  │       │  → Soft delete ALL overlapping plans                     │   │
-│  │       │  → Log: "Auto-deleted overlapping meal plan {PlanId}"    │   │
-│  │       ▼                                                          │   │
-│  │  Step 6: Collect Nutrition Context (cho AI prompt)               │   │
+│  │  Step 6: Create MealPlan entity (Status = Pending)               │   │
+│  │       └── SaveChangesAsync → commit to DB                        │   │
+│  │  Step 7: Enqueue MealPlanJobItem → Channel<T>                    │   │
+│  │  Step 8: Return MealPlanStatusDto (202 Accepted)                 │   │
+│  │                                                                  │   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+│                                                                         │
+│  ┌─ MealPlanBackgroundService (BackgroundService) ──────────────────┐   │
+│  │  Dequeue job from Channel → MealPlanService.ProcessGenerationAsync│  │
+│  └──────────────────────────────────────────────────────────────────┘   │
+│                                                                         │
+│  ┌─ ProcessGenerationAsync (SLOW — background) ────────────────────┐   │
+│  │                                                                  │   │
+│  │  Step A: Update Status → Generating                              │   │
+│  │  Step B: Collect Nutrition Context                               │   │
 │  │       │  ├── FoodPreferences (allergies + dislikes)              │   │
 │  │       │  ├── NutritionNotes (dietary notes)                      │   │
 │  │       │  └── PregnancyConditions (GDM, preeclampsia...)          │   │
 │  │       ▼                                                          │   │
-│  │  Step 7: Load AI Template + Nutrient Cache                       │   │
-│  │       │  ├── AiPromptTemplate key="nutrition.meal_plan"          │   │
-│  │       │  └── RefNutrients → Dictionary<Code, Guid>               │   │
+│  │  Step C: Load AI Template + Nutrient Cache                       │   │
+│  │  Step D: Transaction — Week-by-Week Generation                   │   │
+│  │       │                                                          │   │
+│  │       │  BeginTransactionAsync                                   │   │
+│  │       │  for (week = 0; week < durationWeeks; week++)            │   │
+│  │       │  {                                                       │   │
+│  │       │     ├── Create AiRequestLog (Processing)                 │   │
+│  │       │     ├── Build Prompt (PromptBuilder pipeline)            │   │
+│  │       │     ├── IAiProvider.GenerateAsync ← calls Gemini AI      │   │
+│  │       │     │   ⏱️ 15-60 giây mỗi week                          │   │
+│  │       │     ├── ParseMealPlanResponse → JSON → entities          │   │
+│  │       │     ├── CreateWeekEntities (7 days × 4 meals × recipe)   │   │
+│  │       │     ├── Update AiRequestLog → Succeeded                  │   │
+│  │       │     ├── CompletedWeeks++ → SaveChangesAsync              │   │
+│  │       │     └── BuildWeekSummary cho prompt tuần tiếp            │   │
+│  │       │  }                                                       │   │
+│  │       │  CommitTransactionAsync ← ALL-OR-NOTHING                │   │
 │  │       ▼                                                          │   │
-│  │  Step 8: Create MealPlan Entity                                  │   │
-│  │       │  { PregnancyId, StartDate, EndDate, Source = AI }        │   │
-│  │       ▼                                                          │   │
-│  │  ┌─ Step 9: Transaction — Week-by-Week Generation ───────────┐  │   │
-│  │  │                                                             │  │   │
-│  │  │  BeginTransactionAsync                                      │  │   │
-│  │  │  AddAsync(mealPlan)                                         │  │   │
-│  │  │                                                             │  │   │
-│  │  │  for (week = 0; week < durationWeeks; week++)               │  │   │
-│  │  │  {                                                          │  │   │
-│  │  │     ├── Create AiRequestLog (Status = Processing)           │  │   │
-│  │  │     │   └── Link first log to mealPlan.AiRequestLogId      │  │   │
-│  │  │     │                                                       │  │   │
-│  │  │     ├── Build Prompt (PromptBuilder pipeline)               │  │   │
-│  │  │     │   ├── FromTemplate(template)                          │  │   │
-│  │  │     │   ├── WithContext("NUTRITION PROFILE", contextText)   │  │   │
-│  │  │     │   ├── WithUserMessage(weekPrompt)                     │  │   │
-│  │  │     │   └── Build()                                         │  │   │
-│  │  │     │                                                       │  │   │
-│  │  │     ├── IAiProvider.GenerateAsync(prompt)  ← SYNCHRONOUS   │  │   │
-│  │  │     │   └── Google Gemini 2.5 Flash                         │  │   │
-│  │  │     │       (Temperature=0.7, MaxOutputTokens=8192)         │  │   │
-│  │  │     │       ⏱️ 15-60 giây mỗi week                         │  │   │
-│  │  │     │                                                       │  │   │
-│  │  │     ├── ParseMealPlanResponse(aiResponse.Content)           │  │   │
-│  │  │     │   ├── CleanAiJsonResponse (remove markdown fences)    │  │   │
-│  │  │     │   ├── RepairTruncatedJson (fix unbalanced braces)     │  │   │
-│  │  │     │   └── Deserialize → AiWeekResponse                   │  │   │
-│  │  │     │                                                       │  │   │
-│  │  │     ├── Set plan.Title from first week                      │  │   │
-│  │  │     │                                                       │  │   │
-│  │  │     ├── CreateWeekEntities (7 days × 4 meals each)          │  │   │
-│  │  │     │   ├── MealPlanDay (planDate)                          │  │   │
-│  │  │     │   ├── Recipe (title, instructions, servings...)       │  │   │
-│  │  │     │   ├── MealItem (mealType, itemName, calories...)      │  │   │
-│  │  │     │   └── MealItemNutrient (nutrientId, amount)           │  │   │
-│  │  │     │       └── Match by Code → Guid from nutrientMap      │  │   │
-│  │  │     │                                                       │  │   │
-│  │  │     ├── Update AiRequestLog → Succeeded                    │  │   │
-│  │  │     │   (model, tokensIn/Out, processingTime, response)     │  │   │
-│  │  │     │                                                       │  │   │
-│  │  │     └── BuildWeekSummary → previousWeekSummary              │  │   │
-│  │  │         (cho prompt tuần tiếp theo: "đa dạng, ko lặp lại") │  │   │
-│  │  │  }                                                          │  │   │
-│  │  │                                                             │  │   │
-│  │  │  CommitTransactionAsync ← ALL-OR-NOTHING                   │  │   │
-│  │  │                                                             │  │   │
-│  │  │  ┌─ catch (Exception) ──────────────────────────────────┐   │  │   │
-│  │  │  │  RollbackTransactionAsync                             │   │  │   │
-│  │  │  │  Log error + completedWeeks                           │   │  │   │
-│  │  │  │  Persist Failed AiRequestLog (AFTER rollback)        │   │  │   │
-│  │  │  │  → Đảm bảo analytics không bị mất                   │   │  │   │
-│  │  │  └──────────────────────────────────────────────────────┘   │  │   │
-│  │  └─────────────────────────────────────────────────────────────┘  │   │
+│  │  Step E: Update Status → Succeeded + Title                       │   │
 │  │                                                                  │   │
-│  │  Step 10: Return GetDetailAsync(mealPlan.Id)                     │   │
-│  │       → MealPlanDetailDto (plan + days summary)                  │   │
-│  │                                                                  │   │
+│  │  ┌─ catch (Exception) ──────────────────────────────────────┐    │   │
+│  │  │  RollbackTransactionAsync                                 │   │   │
+│  │  │  Persist Failed AiRequestLog (AFTER rollback)             │   │   │
+│  │  │  Update Status → Failed + ErrorMessage                    │   │   │
+│  │  └──────────────────────────────────────────────────────────┘    │   │
 │  └──────────────────────────────────────────────────────────────────┘   │
 │                                                                         │
-│  Response: 201 Created → MealPlanDetailDto                              │
-│  ⏱️ Total time: durationWeeks × 15-60s (1 week ≈ 30s average)          │
-│  ⚠️ Client timeout phải ≥ 120s                                          │
+│  ┌─ FE Polling (3-5s interval) ─────────────────────────────────────┐   │
+│  │  GET /api/meal-plans/{id}/status → MealPlanStatusDto             │   │
+│  │  { id, status, completedWeeks, totalWeeks, title, errorMessage } │   │
+│  │  Status: Pending → Generating → Succeeded ✅ / Failed ❌         │   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+│                                                                         │
+│  Response: 202 Accepted → MealPlanStatusDto (immediate)                 │
+│  ⏱️ Background: durationWeeks × 15-60s (1 week ≈ 30s average)          │
+│  ⚠️ FE chỉ cần timeout cho poll request (~5s), không cần 120s nữa      │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
