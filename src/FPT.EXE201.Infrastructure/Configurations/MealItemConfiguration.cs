@@ -39,8 +39,10 @@ public class MealItemConfiguration : IEntityTypeConfiguration<MealItem>
 
         builder.ToTable(t =>
         {
+            // Note: MySQL 8.0 does not allow FK columns in CHECK constraints,
+            // so we only validate item_name here. recipe_id is enforced at app level.
             t.HasCheckConstraint("chk_meal_item_name",
-                "recipe_id IS NOT NULL OR item_name IS NOT NULL");
+                "item_name IS NOT NULL");
         });
 
         // Relationships

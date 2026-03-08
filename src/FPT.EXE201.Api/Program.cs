@@ -38,11 +38,23 @@ try
     Log.Information("Starting FPT.EXE201 API application...");
 
     // Load .env file if exists (local dev) — environment variables override appsettings.json
+    // Search order: CWD → solution root (for IDE runs where CWD = src/Api/)
     var envPath = Path.Combine(Directory.GetCurrentDirectory(), ".env");
+    if (!File.Exists(envPath))
+    {
+        // When IDE sets CWD to project folder, walk up to find solution root .env
+        var dir = new DirectoryInfo(Directory.GetCurrentDirectory());
+        while (dir?.Parent != null)
+        {
+            var candidate = Path.Combine(dir.Parent.FullName, ".env");
+            if (File.Exists(candidate)) { envPath = candidate; break; }
+            dir = dir.Parent;
+        }
+    }
     if (File.Exists(envPath))
     {
         Env.Load(envPath);
-        Log.Information("Loaded environment variables from .env file");
+        Log.Information("Loaded environment variables from {EnvPath}", envPath);
     }
 
     var builder = WebApplication.CreateBuilder(args);

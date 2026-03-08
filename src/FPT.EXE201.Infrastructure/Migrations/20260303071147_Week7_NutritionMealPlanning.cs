@@ -366,7 +366,7 @@ namespace FPT.EXE201.Infrastructure.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_meal_items", x => x.id);
-                    table.CheckConstraint("chk_meal_item_name", "recipe_id IS NOT NULL OR item_name IS NOT NULL");
+                    table.CheckConstraint("chk_meal_item_name", "item_name IS NOT NULL");
                     table.ForeignKey(
                         name: "FK_meal_items_meal_plan_days_meal_day_id",
                         column: x => x.meal_day_id,

@@ -561,7 +561,7 @@ namespace FPT.EXE201.Infrastructure.Migrations
 
                     b.ToTable("meal_items", null, t =>
                         {
-                            t.HasCheckConstraint("chk_meal_item_name", "recipe_id IS NOT NULL OR item_name IS NOT NULL");
+                            t.HasCheckConstraint("chk_meal_item_name", "item_name IS NOT NULL");
                         });
                 });
 
