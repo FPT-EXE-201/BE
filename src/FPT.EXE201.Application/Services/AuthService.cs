@@ -302,7 +302,19 @@ namespace FPT.EXE201.Application.Services
             user.LastLoginAt = DateTime.UtcNow;
             _unitOfWork.Users.Update(user);
 
-            // 6. Query permissions + roles
+            // 6. Ensure user has at least USER role (for both new and existing accounts)
+            var userRoles = await _userRoleService.GetUserRoleCodesAsync(user.Id, ct);
+            if (!userRoles.Any())
+            {
+                var userRole = await _unitOfWork.Roles.GetByCodeAsync("USER", includeDeleted: false, ct);
+                if (userRole != null)
+                {
+                    await _userRoleService.AssignRolesToUserAsync(user.Id, new List<Guid> { userRole.Id }, ct);
+                    await _unitOfWork.SaveChangesAsync(ct);
+                }
+            }
+
+            // 7. Query permissions + roles
             var permissions = await _userRoleService.GetUserPermissionCodesAsync(user.Id, ct);
             var roles       = await _userRoleService.GetUserRoleCodesAsync(user.Id, ct);
 
