@@ -69,14 +69,28 @@ public class MealPlanService : IMealPlanService
             throw new BadRequestException(
                 "Pre-pregnancy weight (or current weight) and height are required for calorie calculation.");
 
-        // Step 5: Handle overlap — auto soft-delete
+        // Step 5: Handle overlap
+        // - Same start date → soft-delete old plan (regenerate)
+        // - Different start date → reject (no partial overlap allowed)
         var endDate = dto.StartDate.AddDays(dto.DurationWeeks * 7 - 1);
         var overlapping = await _unitOfWork.MealPlans
             .GetOverlappingAsync(pregnancyId, dto.StartDate, endDate, ct);
-        foreach (var plan in overlapping)
+        foreach (var existing in overlapping)
         {
-            await _unitOfWork.MealPlans.SoftDeleteAsync(plan, ct);
-            _logger.LogInformation("Auto-deleted overlapping meal plan {PlanId}", plan.Id);
+            if (existing.StartDate == dto.StartDate)
+            {
+                await _unitOfWork.MealPlans.SoftDeleteAsync(existing, ct);
+                _logger.LogInformation(
+                    "Replaced meal plan {PlanId} (same start date {Date})",
+                    existing.Id, dto.StartDate);
+            }
+            else
+            {
+                throw new BadRequestException(
+                    $"Đã có meal plan từ {existing.StartDate:yyyy-MM-dd} đến {existing.EndDate:yyyy-MM-dd}. " +
+                    $"Chỉ được tạo lại từ cùng ngày bắt đầu ({existing.StartDate:yyyy-MM-dd}) " +
+                    $"hoặc chọn ngày sau {existing.EndDate:yyyy-MM-dd}.");
+            }
         }
 
         // Step 6: Create MealPlan entity with Pending status
@@ -112,7 +126,7 @@ public class MealPlanService : IMealPlanService
 
     public async Task ProcessGenerationAsync(MealPlanJobItem job, CancellationToken ct = default)
     {
-        var mealPlan = await _unitOfWork.MealPlans.GetByIdAsync(job.MealPlanId, cancellationToken: ct)
+        var mealPlan = await _unitOfWork.MealPlans.GetByIdTrackedAsync(job.MealPlanId, cancellationToken: ct)
             ?? throw new NotFoundException($"MealPlan {job.MealPlanId} not found.");
 
         var pregnancy = await _unitOfWork.Pregnancies
@@ -202,7 +216,13 @@ public class MealPlanService : IMealPlanService
                     mealPlan.Title = weekPlan.Title;
 
                 // Create entities from parsed response
-                CreateWeekEntities(mealPlan, weekPlan, weekStart, nutrientMap);
+                var newDays = CreateWeekEntities(mealPlan, weekPlan, weekStart, nutrientMap);
+
+                // Explicitly register new entities with EF change tracker.
+                // Without .Include(), the nav collection is a plain List — EF won't auto-detect additions.
+                // DbSet.Add traverses the navigation graph, so child Items/Recipes/Nutrients are also tracked.
+                foreach (var day in newDays)
+                    await _unitOfWork.MealPlanDays.AddAsync(day, ct);
 
                 // Update AiRequestLog → Succeeded
                 aiLog.Status = AiRequestStatus.Succeeded;
@@ -245,7 +265,7 @@ public class MealPlanService : IMealPlanService
             try
             {
                 var failedPlan = await _unitOfWork.MealPlans
-                    .GetByIdAsync(job.MealPlanId, cancellationToken: ct);
+                    .GetByIdTrackedAsync(job.MealPlanId, cancellationToken: ct);
                 if (failedPlan != null)
                 {
                     failedPlan.Status = MealPlanStatus.Failed;
@@ -262,7 +282,8 @@ public class MealPlanService : IMealPlanService
                     UserId = job.UserId,
                     TemplateId = template.Id,
                     Status = AiRequestStatus.Failed,
-                    ResponsePayload = ex.Message
+                    ResponsePayload = System.Text.Json.JsonSerializer.Serialize(
+                        new { error = ex.Message })
                 };
                 await _unitOfWork.AiRequestLogs.AddAsync(failedLog, ct);
                 await _unitOfWork.SaveChangesAsync(ct);
@@ -481,6 +502,7 @@ public class MealPlanService : IMealPlanService
 
         sb.AppendLine();
         sb.AppendLine($"Mục tiêu: ~{targetCalories} kcal/ngày.");
+        sb.AppendLine("BẮT BUỘC: Trả về ĐÚng 7 ngày trong mảng 'days' (từ ngày bắt đầu đến ngày kết thúc). KHÔNG được bỏ ngày nào.");
         sb.AppendLine("Mỗi ngày cần 4 bữa: BREAKFAST, LUNCH, DINNER, SNACK.");
         sb.AppendLine("Mỗi món PHẢI có recipe đầy đủ (title, instructions, servings, prepMinutes, cookMinutes).");
 
@@ -517,29 +539,68 @@ public class MealPlanService : IMealPlanService
         var cleaned = CleanAiJsonResponse(content);
         cleaned = RepairTruncatedJson(cleaned);
 
-        try
+        // Retry loop: if parser finds extra bracket at a specific position,
+        // remove that character and retry. Pass 1 of RepairTruncatedJson only
+        // catches extra closers that make the counter go negative. Extra closers
+        // inside nested structures (where counter is still >0) slip through.
+        const int maxAttempts = 5;
+        for (int attempt = 0; attempt < maxAttempts; attempt++)
         {
-            var parsed = JsonSerializer.Deserialize<AiWeekResponse>(cleaned, JsonOptions);
-            if (parsed?.Days == null || !parsed.Days.Any())
-                throw new BadRequestException("AI returned empty meal plan.");
-            return parsed;
+            try
+            {
+                var parsed = JsonSerializer.Deserialize<AiWeekResponse>(cleaned, JsonOptions);
+                if (parsed?.Days == null || !parsed.Days.Any())
+                    throw new BadRequestException("AI returned empty meal plan.");
+                return parsed;
+            }
+            catch (JsonException ex) when (
+                attempt < maxAttempts - 1
+                && ex.Message.Contains("is invalid without a matching open")
+                && ex.LineNumber.HasValue
+                && ex.BytePositionInLine.HasValue)
+            {
+                // Remove the offending character at the exact position reported by the parser
+                var lines = cleaned.Split('\n');
+                var lineIdx = (int)ex.LineNumber.Value;
+                var colIdx = (int)ex.BytePositionInLine.Value;
+
+                if (lineIdx < lines.Length && colIdx < lines[lineIdx].Length)
+                {
+                    _logger.LogWarning(
+                        "Removing extra '{Char}' at line {Line} col {Col} (attempt {Attempt})",
+                        lines[lineIdx][colIdx], lineIdx, colIdx, attempt + 1);
+                    lines[lineIdx] = lines[lineIdx].Remove(colIdx, 1);
+                    cleaned = string.Join('\n', lines);
+                    continue;
+                }
+
+                _logger.LogError(ex,
+                    "Failed to parse AI meal plan response. First 300 chars: {Preview}",
+                    cleaned.Length > 300 ? cleaned[..300] : cleaned);
+                throw new BadRequestException(
+                    "AI returned invalid meal plan format. Please try again.");
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogError(ex,
+                    "Failed to parse AI meal plan response. First 300 chars: {Preview}",
+                    cleaned.Length > 300 ? cleaned[..300] : cleaned);
+                throw new BadRequestException(
+                    "AI returned invalid meal plan format. Please try again.");
+            }
         }
-        catch (JsonException ex)
-        {
-            _logger.LogError(ex,
-                "Failed to parse AI meal plan response. First 300 chars: {Preview}",
-                cleaned.Length > 300 ? cleaned[..300] : cleaned);
-            throw new BadRequestException(
-                "AI returned invalid meal plan format. Please try again.");
-        }
+
+        throw new BadRequestException("AI returned invalid meal plan format. Please try again.");
     }
 
-    private void CreateWeekEntities(
+    private List<MealPlanDay> CreateWeekEntities(
         MealPlan mealPlan,
         AiWeekResponse weekPlan,
         DateOnly weekStart,
         Dictionary<string, Guid> nutrientMap)
     {
+        var newDays = new List<MealPlanDay>();
+
         for (int dayIndex = 0; dayIndex < weekPlan.Days.Count; dayIndex++)
         {
             var dayResponse = weekPlan.Days[dayIndex];
@@ -557,6 +618,7 @@ public class MealPlanService : IMealPlanService
                 PlanDate = planDate
             };
             mealPlan.Days.Add(planDay);
+            newDays.Add(planDay);
 
             if (dayResponse.Meals == null) continue;
 
@@ -616,6 +678,25 @@ public class MealPlanService : IMealPlanService
                 }
             }
         }
+
+        // Fill in any missing days (AI sometimes returns fewer than 7)
+        var existingDates = newDays.Select(d => d.PlanDate).ToHashSet();
+        for (int d = 0; d < 7; d++)
+        {
+            var date = weekStart.AddDays(d);
+            if (!existingDates.Contains(date))
+            {
+                var emptyDay = new MealPlanDay
+                {
+                    MealPlanId = mealPlan.Id,
+                    PlanDate = date
+                };
+                mealPlan.Days.Add(emptyDay);
+                newDays.Add(emptyDay);
+            }
+        }
+
+        return newDays;
     }
 
     // ═══════════════════════════════════════════════════
@@ -656,13 +737,16 @@ public class MealPlanService : IMealPlanService
 
     /// <summary>
     /// Repair truncated JSON from AI response (max_output_tokens may cut off).
-    /// Counts unbalanced braces/brackets and appends missing closers.
+    /// Also removes extra closing brackets/braces mid-stream (common Gemini issue).
     /// Reuse pattern from MedicalRecordAiService.RepairTruncatedJson.
     /// </summary>
     private static string RepairTruncatedJson(string json)
     {
         if (string.IsNullOrWhiteSpace(json)) return json;
 
+        // Pass 1: Remove extra closing brackets/braces that have no matching opener.
+        // Walk char-by-char; when count goes negative, skip that character.
+        var sb = new System.Text.StringBuilder(json.Length);
         var openBraces = 0;
         var openBrackets = 0;
         var inString = false;
@@ -670,25 +754,36 @@ public class MealPlanService : IMealPlanService
 
         foreach (var c in json)
         {
-            if (escaped) { escaped = false; continue; }
-            if (c == '\\') { escaped = true; continue; }
-            if (c == '"') { inString = !inString; continue; }
-            if (inString) continue;
+            if (escaped) { escaped = false; sb.Append(c); continue; }
+            if (c == '\\' && inString) { escaped = true; sb.Append(c); continue; }
+            if (c == '"') { inString = !inString; sb.Append(c); continue; }
+            if (inString) { sb.Append(c); continue; }
 
             switch (c)
             {
-                case '{': openBraces++; break;
-                case '}': openBraces--; break;
-                case '[': openBrackets++; break;
-                case ']': openBrackets--; break;
+                case '{': openBraces++; sb.Append(c); break;
+                case '}':
+                    if (openBraces > 0) { openBraces--; sb.Append(c); }
+                    // else: extra closer — skip it
+                    break;
+                case '[': openBrackets++; sb.Append(c); break;
+                case ']':
+                    if (openBrackets > 0) { openBrackets--; sb.Append(c); }
+                    // else: extra closer — skip it
+                    break;
+                default: sb.Append(c); break;
             }
         }
 
-        if (openBraces == 0 && openBrackets == 0)
-            return json;
+        if (openBraces == 0 && openBrackets == 0 && !inString)
+            return sb.ToString();
 
-        // Strip trailing incomplete entry (partial key-value after last comma)
-        var repaired = json.TrimEnd();
+        // Pass 2: handle truncation — close unclosed string, strip trailing partial entry, append closers
+        var repaired = sb.ToString().TrimEnd();
+
+        // If truncated inside a string literal, close it
+        if (inString)
+            repaired += "\"";
         if (repaired.Length > 0)
         {
             var lastValid = repaired.LastIndexOfAny(['}', ']', '"']);
@@ -700,7 +795,6 @@ public class MealPlanService : IMealPlanService
             }
         }
 
-        // Append missing closers
         for (int i = 0; i < openBrackets; i++) repaired += "]";
         for (int i = 0; i < openBraces; i++) repaired += "}";
 

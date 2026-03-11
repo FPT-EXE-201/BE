@@ -4,6 +4,7 @@ using FPT.EXE201.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FPT.EXE201.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260310020736_FixAiLogResponsePayloadColumnType")]
+    partial class FixAiLogResponsePayloadColumnType
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -144,7 +147,7 @@ namespace FPT.EXE201.Infrastructure.Migrations
                             DomainRules = "Pregnancy nutrition guidelines (IOM):\r\n- Trimester 1 (week 1-12): Focus folic acid (600mcg/day), no extra calories.\r\n- Trimester 2 (week 13-26): +340 kcal/day, iron (27mg/day), calcium (1000mg/day).\r\n- Trimester 3 (week 27-40): +450 kcal/day, increase protein, DHA.\r\n- Daily water: 2.3L minimum.\r\n- Avoid: raw fish, high-mercury fish, unpasteurized dairy, alcohol.\r\n- Gestational diabetes: low GI foods, split meals, limit sugar.\r\n- Preeclampsia: reduce sodium, increase potassium.",
                             FeatureRules = "Generate a 7-day meal plan with exactly 4 meals per day: BREAKFAST, LUNCH, DINNER, SNACK.\r\n\r\nFor EVERY meal item, you MUST provide:\r\n- itemName: Vietnamese dish name (concise)\r\n- portionText: serving size in Vietnamese\r\n- caloriesKcal: integer\r\n- notes: brief nutrition note in Vietnamese (nullable)\r\n- recipe: REQUIRED object with:\r\n  - title: dish name\r\n  - instructions: step-by-step cooking instructions in Vietnamese\r\n  - servings: integer\r\n  - prepMinutes: integer\r\n  - cookMinutes: integer\r\n- nutrients: array of objects, ONLY use these codes:\r\n  PROTEIN, CARBOHYDRATES, FAT, FIBER, IRON, CALCIUM,\r\n  FOLIC_ACID, VITAMIN_D, VITAMIN_C, VITAMIN_A,\r\n  VITAMIN_B12, OMEGA_3, DHA, ZINC\r\n  Each: { \"code\": \"PROTEIN\", \"amount\": 12.5 }\r\n\r\nEnsure variety: do not repeat the same dish within 3 days.\r\nEach day's total calories should be close to {targetCalories} kcal.",
                             IsActive = true,
-                            MaxOutputTokens = 16384,
+                            MaxOutputTokens = 8192,
                             ModelName = "gemini-2.5-flash",
                             OutputSchema = "{\r\n  \"title\": \"string\",\r\n  \"totalDailyCalories\": \"number\",\r\n  \"notes\": \"string\",\r\n  \"days\": [\r\n    {\r\n      \"date\": \"YYYY-MM-DD\",\r\n      \"meals\": [\r\n        {\r\n          \"mealType\": \"BREAKFAST|LUNCH|DINNER|SNACK\",\r\n          \"itemName\": \"string\",\r\n          \"portionText\": \"string\",\r\n          \"caloriesKcal\": \"number\",\r\n          \"notes\": \"string|null\",\r\n          \"recipe\": {\r\n            \"title\": \"string\",\r\n            \"instructions\": \"string\",\r\n            \"servings\": \"number\",\r\n            \"prepMinutes\": \"number\",\r\n            \"cookMinutes\": \"number\"\r\n          },\r\n          \"nutrients\": [\r\n            { \"code\": \"string\", \"amount\": \"number\" }\r\n          ]\r\n        }\r\n      ]\r\n    }\r\n  ]\r\n}",
                             SystemRules = "You are a certified prenatal nutritionist AI assistant.\r\nRespond in Vietnamese.\r\nOutput ONLY valid JSON matching the provided schema.\r\nNo markdown, no explanation, no extra text outside JSON.",

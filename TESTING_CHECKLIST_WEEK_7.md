@@ -55,22 +55,22 @@ Authorization: Bearer {token}
 ```
 GET /api/ref/enums
 ```
-**Expected**: 200 OK — Response chứa 7 enums mới:
+**Expected**: 200 OK — Response chứa 7 enums mới. Mỗi enum là **object chứa array** `[{ value, name }]`:
 ```json
 {
   "data": {
-    "foodPreferenceType": { "Allergy": 0, "Dislike": 1 },
-    "allergySeverity": { "Low": 0, "Medium": 1, "High": 2 },
-    "mealType": { "Breakfast": 0, "Lunch": 1, "Dinner": 2, "Snack": 3 },
-    "mealPlanSource": { "AI": 0, "Manual": 1 },
-    "nutritionNoteType": { "Diet": 0, "Note": 1, "Other": 2 },
-    "aiFeature": { "MedicalRecord": 0, "NutritionMealPlan": 1 },
-    "aiRequestStatus": { "Processing": 0, "Succeeded": 1, "Failed": 2 }
+    "foodPreferenceType": [{ "value": 0, "name": "Allergy" }, { "value": 1, "name": "Dislike" }],
+    "allergySeverity": [{ "value": 0, "name": "Low" }, { "value": 1, "name": "Medium" }, { "value": 2, "name": "High" }],
+    "mealType": [{ "value": 0, "name": "Breakfast" }, { "value": 1, "name": "Lunch" }, { "value": 2, "name": "Dinner" }, { "value": 3, "name": "Snack" }],
+    "mealPlanSource": [{ "value": 0, "name": "AI" }, { "value": 1, "name": "Manual" }],
+    "nutritionNoteType": [{ "value": 0, "name": "Diet" }, { "value": 1, "name": "Note" }, { "value": 2, "name": "Other" }],
+    "aiFeature": [{ "value": 0, "name": "MedicalRecord" }, { "value": 1, "name": "NutritionMealPlan" }],
+    "aiRequestStatus": [{ "value": 0, "name": "Processing" }, { "value": 1, "name": "Succeeded" }, { "value": 2, "name": "Failed" }]
   }
 }
 ```
 **Verify**:
-- [ ] `foodPreferenceType` có `Allergy`, `Dislike`
+- [ ] `foodPreferenceType` có `Allergy`, `Dislike` (dạng `[{ value, name }]`)
 - [ ] `allergySeverity` có `Low`, `Medium`, `High`
 - [ ] `mealType` có `Breakfast`, `Lunch`, `Dinner`, `Snack`
 - [ ] `nutritionNoteType` có `Diet`, `Note`, `Other`
@@ -83,10 +83,13 @@ GET /api/ref/enums
 ```
 GET /api/ref/enums/foodPreferenceType
 ```
-**Expected**: 200 OK
+**Expected**: 200 OK — Trả về array `[{ value, name }]`:
 ```json
 {
-  "data": { "Allergy": 0, "Dislike": 1 }
+  "data": [
+    { "value": 0, "name": "Allergy" },
+    { "value": 1, "name": "Dislike" }
+  ]
 }
 ```
 
@@ -96,7 +99,11 @@ GET /api/ref/enums/allergySeverity
 **Expected**: 200 OK
 ```json
 {
-  "data": { "Low": 0, "Medium": 1, "High": 2 }
+  "data": [
+    { "value": 0, "name": "Low" },
+    { "value": 1, "name": "Medium" },
+    { "value": 2, "name": "High" }
+  ]
 }
 ```
 
@@ -347,10 +354,12 @@ Content-Type: application/json
 ```
 ```json
 {
-  "foodItemId": "00000000-0000-0000-0000-000000000000",
+  "foodItemId": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
   "preferenceType": "Allergy"
 }
 ```
+> **Lưu ý**: Dùng GUID không phải `00000000-...` (Guid.Empty bị FluentValidation reject → 400). Dùng GUID random không tồn tại trong DB → 404.
+
 **Expected**: 404 Not Found — `"Food item not found."`
 
 ---
@@ -821,18 +830,18 @@ GET /api/ref/query-specs/mealPlans
 ```json
 {
   "data": {
-    "entity": "mealPlans",
-    "searchKeys": ["title", "notes"],
+    "searchableFields": ["title", "notes"],
+    "defaultSearchFields": ["title"],
     "sortableFields": ["startdate", "enddate", "createdat"],
-    "defaultSort": "createdat_desc",
-    "example": "?search=Tuần 20&sort=startdate_asc&page=1&pageSize=10"
+    "defaultSortBy": "createdat",
+    "defaultSortDir": "desc"
   }
 }
 ```
 **Verify**:
-- [ ] `searchKeys` = `["title", "notes"]`
+- [ ] `searchableFields` = `["title", "notes"]`
 - [ ] `sortableFields` chứa `startdate`, `enddate`, `createdat`
-- [ ] `defaultSort` = `"createdat_desc"`
+- [ ] `defaultSortBy` = `"createdat"`, `defaultSortDir` = `"desc"`
 
 ---
 
@@ -841,6 +850,25 @@ GET /api/ref/query-specs/mealPlans
 > **⚠️ Section này yêu cầu Google Gemini API key đã cấu hình đúng.**
 > **⚠️ Pregnancy phải có `heightCm` + `prePregnancyWeightKg` (hoặc có weight log gần nhất).**
 > **⚠️ Rate limit: 15 AI calls/ngày/user. Mỗi lần generate tốn `durationWeeks` calls.**
+
+### ⚠️ QUAN TRỌNG: Flow Async cho Generate Meal Plan
+
+Generate meal plan là **background job** (AI mất 15-60s/tuần). Flow:
+
+```
+1. POST /meal-plans/generate   → 202 Accepted (trả về MealPlanStatusDto với status="Pending")
+2. Lưu lại {mealPlanId} từ response
+3. Poll: GET /meal-plans/{id}/status   mỗi 3-5s
+   - status = "Pending" hoặc "Generating" → đợi tiếp
+   - status = "Succeeded" → xong, gọi Detail để xem đầy đủ
+   - status = "Failed" → xem errorMessage
+4. GET /meal-plans/{id}   → 200 OK với full detail (days, meals, nutrients...)
+```
+
+> **Trong Postman**: Sau khi gọi Generate, bạn phải **đợi 30-60s** rồi gọi GET status hoặc GET detail.
+> **Postman Collection Runner** sẽ tự động chạy các bước: Generate → delay → Poll status → Get detail.
+
+---
 
 ### ✅ TC-MP01: Generate meal plan — 1 tuần
 ```
@@ -855,51 +883,68 @@ Content-Type: application/json
   "additionalNotes": "Ưu tiên món Việt Nam, dễ nấu cho người bận rộn"
 }
 ```
-**Expected**: 201 Created
+**Expected**: **202 Accepted** (không phải 201!)
 ```json
 {
   "success": true,
-  "statusCode": 201,
-  "message": "Meal plan generated successfully",
+  "statusCode": 202,
+  "message": "Meal plan generation queued. Poll /status for progress.",
   "data": {
     "id": "<guid>",
     "pregnancyId": "{pregnancyId}",
-    "startDate": "2026-03-09",
-    "endDate": "2026-03-15",
-    "source": "AI",
-    "title": "<AI generated title>",
-    "notes": "Ưu tiên món Việt Nam, dễ nấu cho người bận rộn",
-    "days": [
-      {
-        "id": "<guid>",
-        "planDate": "2026-03-09",
-        "totalCalories": 2200,
-        "mealCount": 4
-      },
-      {
-        "id": "<guid>",
-        "planDate": "2026-03-10",
-        "totalCalories": 2150,
-        "mealCount": 4
-      }
-    ],
-    "createdAt": "...",
-    "updatedAt": "..."
+    "status": "Pending",
+    "completedWeeks": 0,
+    "totalWeeks": 1,
+    "title": null,
+    "errorMessage": null,
+    "createdAt": "..."
   }
 }
 ```
 **Verify**:
+- [ ] Status code = **202** (không phải 201)
+- [ ] `data.status` = `"Pending"` (chưa bắt đầu generate)
+- [ ] `data.completedWeeks` = `0`, `data.totalWeeks` = `1`
+- [ ] `data.title` = `null` (chưa có, AI sẽ tạo sau)
+- [ ] Response trả về **ngay lập tức** (không đợi AI)
+
+**Lưu lại**: `{mealPlanId}` từ `data.id`
+
+**Tiếp theo**: Đợi 30-60s, rồi poll status:
+```
+GET /api/meal-plans/{mealPlanId}/status
+Authorization: Bearer {token}
+```
+**Expected**: 200 OK
+```json
+{
+  "data": {
+    "id": "{mealPlanId}",
+    "status": "Succeeded",
+    "completedWeeks": 1,
+    "totalWeeks": 1,
+    "title": "<AI generated title>",
+    "errorMessage": null
+  }
+}
+```
+- [ ] `status` = `"Succeeded"` (nếu AI xong)
+- [ ] `completedWeeks` = `totalWeeks`
+- [ ] `title` có giá trị (AI đã generate)
+
+**Sau khi Succeeded**, xem chi tiết:
+```
+GET /api/pregnancies/{pregnancyId}/meal-plans/{mealPlanId}
+Authorization: Bearer {token}
+```
+**Expected**: 200 OK — MealPlanDetailDto với `days` (7 ngày).
+**Verify**:
 - [ ] `source` = `"AI"`
-- [ ] `startDate` = `"2026-03-09"`, `endDate` = `"2026-03-15"` (7 ngày)
-- [ ] `days` có đúng 7 items (7 ngày)
-- [ ] Mỗi day có `totalCalories` > 0 và `mealCount` = 4 (BREAKFAST, LUNCH, DINNER, SNACK)
-- [ ] `title` do AI generate (không null)
-- [ ] `notes` = input `additionalNotes`
+- [ ] `days` có đúng 7 items
+- [ ] Mỗi day có `totalCalories` > 0 và `mealCount` = 4
 - [ ] Không chứa food items mà user đã đánh dấu Allergy (PEANUT, SHRIMP)
 
-**Lưu lại**: `{mealPlanId}`, `{planDate}` (ngày đầu tiên, ví dụ `2026-03-09`)
-
-> **⏱️ Lưu ý**: Endpoint này có thể mất 15-60 giây để AI generate. Timeout Postman nên set ≥ 120s.
+**Lưu lại**: `{planDate}` (ngày đầu tiên, ví dụ `2026-03-09`)
 
 ---
 
@@ -915,8 +960,18 @@ Content-Type: application/json
   "durationWeeks": 2
 }
 ```
-**Expected**: 201 Created
-**Verify**:
+**Expected**: **202 Accepted**
+```json
+{
+  "data": {
+    "id": "<guid>",
+    "status": "Pending",
+    "completedWeeks": 0,
+    "totalWeeks": 2
+  }
+}
+```
+**Verify (sau khi poll status = Succeeded và GET detail)**:
 - [ ] `endDate` = `startDate + 14 ngày - 1` = `"2026-03-29"`
 - [ ] `days` có 14 items
 - [ ] Tuần 2 đa dạng món ăn, không lặp lại tuần 1 (AI được instruct "đảm bảo đa dạng")
@@ -940,8 +995,8 @@ Content-Type: application/json
   "additionalNotes": "Thay thế plan cũ, muốn ăn đa dạng hơn"
 }
 ```
-**Expected**: 201 Created
-**Verify**:
+**Expected**: **202 Accepted**
+**Verify (sau khi poll Succeeded)**:
 - [ ] Plan cũ `{mealPlanId}` bị **soft-deleted** tự động (auto-delete overlapping)
 - [ ] GET plan cũ → 404 Not Found
 - [ ] Plan mới được tạo thành công
@@ -1079,6 +1134,7 @@ Authorization: Bearer {token}
         "startDate": "2026-03-16",
         "endDate": "2026-03-29",
         "source": "AI",
+        "status": "Succeeded",
         "title": "...",
         "totalDays": 14,
         "createdAt": "..."
@@ -1093,6 +1149,7 @@ Authorization: Bearer {token}
 **Verify**:
 - [ ] Paging hoạt động đúng
 - [ ] `totalDays` = số ngày trong plan
+- [ ] `status` = `"Succeeded"` cho plans đã generate xong
 - [ ] Default sort `createdat_desc` (mới nhất trước)
 - [ ] Plan đã bị soft-delete KHÔNG xuất hiện
 

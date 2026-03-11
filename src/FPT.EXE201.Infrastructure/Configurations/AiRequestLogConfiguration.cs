@@ -32,7 +32,7 @@ public class AiRequestLogConfiguration : IEntityTypeConfiguration<AiRequestLog>
         builder.Property(a => a.RequestPayload)
             .HasColumnName("request_payload").HasColumnType("JSON");
         builder.Property(a => a.ResponsePayload)
-            .HasColumnName("response_payload").HasColumnType("JSON");
+            .HasColumnName("response_payload").HasColumnType("LONGTEXT");
         builder.Property(a => a.TokensInput)
             .HasColumnName("tokens_input");
         builder.Property(a => a.TokensOutput)

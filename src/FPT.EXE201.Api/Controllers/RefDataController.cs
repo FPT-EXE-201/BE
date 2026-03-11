@@ -13,10 +13,12 @@ namespace FPT.EXE201.Api.Controllers;
 public class RefDataController : BaseApiController
 {
     private readonly IRefDataService _refDataService;
+    private readonly IRoleService _roleService;
 
-    public RefDataController(IRefDataService refDataService)
+    public RefDataController(IRefDataService refDataService, IRoleService roleService)
     {
         _refDataService = refDataService;
+        _roleService = roleService;
     }
 
     /// <summary>
@@ -74,6 +76,16 @@ public class RefDataController : BaseApiController
     }
 
     /// <summary>
+    /// Lấy danh sách roles (id, code, name) — public cho FE assign role.
+    /// </summary>
+    [HttpGet("roles")]
+    public async Task<IActionResult> GetRoles(CancellationToken ct = default)
+    {
+        var roles = await _roleService.GetAllAsync(includePermissions: false, ct);
+        return Success(roles);
+    }
+
+    /// <summary>
     /// Trả về tất cả enum values để FE biết các giá trị hợp lệ.
     /// Mỗi enum trả về danh sách { value (int), name (string) }.
     /// </summary>
@@ -115,6 +127,17 @@ public class RefDataController : BaseApiController
     public IActionResult GetQuerySpecs()
     {
         return Success(QuerySpecRegistry.All);
+    }
+
+    /// <summary>
+    /// Trả về query spec cho 1 resource cụ thể theo tên (vd: mealPlans).
+    /// </summary>
+    [HttpGet("query-specs/{name}")]
+    public IActionResult GetQuerySpecByName(string name)
+    {
+        if (!QuerySpecRegistry.All.TryGetValue(name, out var spec))
+            return NotFound();
+        return Success(spec);
     }
 
     /// <summary>

@@ -321,7 +321,7 @@ Each day's total calories should be close to {targetCalories} kcal.",
 
                 ModelName = "gemini-2.5-flash",
                 Temperature = 0.7,
-                MaxOutputTokens = 8192,
+                MaxOutputTokens = 16384,
                 IsActive = true,
                 CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc),
                 UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc)

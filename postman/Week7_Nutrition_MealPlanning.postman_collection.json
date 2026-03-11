@@ -2,7 +2,7 @@
 	"info": {
 		"_postman_id": "week7-nutrition-meal-planning",
 		"name": "Week 7 — Nutrition & Meal Planning (Full Setup)",
-		"description": "Complete test collection for Week 7: Nutrition & Meal Planning.\n\n**DB mới hoàn toàn** — Collection bao gồm:\n- 0️⃣ SETUP: Register, Login, Create Pregnancy, Create Weight Goal\n- 1️⃣ Reference Data (food items, nutrients)\n- 2️⃣ Food Preferences CRUD\n- 3️⃣ Nutrition Notes CRUD\n- 4️⃣ Query Specs\n- 5️⃣ Meal Plan Generate (AI)\n- 6️⃣ Meal Plan List/Detail/Delete\n- 7️⃣ Meal Day Detail\n- 8️⃣ Recipe Detail\n- 9️⃣ Feedback\n- 🔟 Authorization\n- 1️⃣1️⃣ Edge Cases\n\n**Cách dùng:**\n1. Set variable `baseUrl` = https://localhost:PORT (hoặc http://)\n2. Chạy folder \"0 - SETUP\" trước\n3. Chạy các folder theo thứ tự 1 → 11\n4. Các biến (token, pregnancyId, ...) tự động lưu từ response",
+		"description": "Complete test collection for Week 7: Nutrition & Meal Planning.\n\n**DB mới hoàn toàn** — Collection bao gồm:\n- 0️⃣ SETUP: Register, Login, Assign USER Role, Re-login, Create Pregnancy, Create Weight Goal\n- 0️⃣ PRE-TEST: Verify enums\n- 1️⃣ Reference Data (food items, nutrients)\n- 2️⃣ Food Preferences CRUD\n- 3️⃣ Nutrition Notes CRUD\n- 4️⃣ Query Specs\n- 5️⃣ Meal Plan Generate (AI) — ⚠️ Background Job\n- 6️⃣ Meal Plan List/Detail/Delete\n- 7️⃣ Meal Day Detail\n- 8️⃣ Recipe Detail\n- 9️⃣ Feedback\n- 🔟 Authorization\n- 1️⃣1️⃣ Edge Cases\n\n**Cách dùng:**\n1. Set variable `baseUrl` = https://localhost:PORT\n2. Chạy folder 0-SETUP trước\n3. Folder 0-4: chạy tự động Collection Runner OK\n4. Folder 5 (Meal Plan Generate): TC-MP01 → 202, rồi TC-MP01b poll tay đến Succeeded (~30-60s)\n5. Folder 6-9: chạy SAU KHI plan Succeeded\n6. Folder 10-11: chạy tự động\n\n**⚠️ Background Job flow:**\n- TC-MP01/02/03 trả về 202 Accepted (async)\n- TC-MP01b/03b: Poll GET /status mỗi 3-5s cho đến Succeeded\n- Phải đợi Succeeded TRƯỚC KHI chạy folder 6-9",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"variable": [
@@ -33,12 +33,13 @@
 		{ "key": "foodItemId_durian", "value": "c7010004-0000-0000-0000-000000000001", "type": "string" },
 		{ "key": "foodItemId_chicken", "value": "c7010001-0000-0000-0000-000000000001", "type": "string" },
 		{ "key": "foodItemId_shellfish", "value": "c7010002-0000-0000-0000-000000000007", "type": "string" },
-		{ "key": "foodItemId_bitter_melon", "value": "c7010003-0000-0000-0000-000000000002", "type": "string" }
+		{ "key": "foodItemId_bitter_melon", "value": "c7010003-0000-0000-0000-000000000002", "type": "string" },
+		{ "key": "roleId_user", "value": "", "type": "string" }
 	],
 	"item": [
 		{
 			"name": "0 - SETUP (Chạy trước tiên)",
-			"description": "Tạo user, login, tạo pregnancy, tạo weight goal.\nChạy folder này TRƯỚC khi test Week 7.",
+			"description": "Tạo user, login, phân quyền USER role, re-login, tạo pregnancy, tạo weight goal.\nChạy folder này TRƯỚC khi test Week 7.",
 			"item": [
 				{
 					"name": "S01 — Register User",
@@ -78,7 +79,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"email\": \"testweek7@example.com\",\n  \"password\": \"Test@123456\",\n  \"fullName\": \"Test User Week 7\",\n  \"phone\": \"0901234567\",\n  \"preferredLanguage\": \"vi\"\n}"
+							"raw": "{\n  \"email\": \"testweek7@example.com\",\n  \"password\": \"Test@123456\",\n  \"fullName\": \"Test User Nutrition\",\n  \"phone\": \"0901234567\",\n  \"preferredLanguage\": \"vi\"\n}"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/auth/register",
@@ -108,6 +109,120 @@
 									"    pm.collectionVariables.set('token', res.data.accessToken);",
 									"    pm.collectionVariables.set('userId', res.data.user.id);",
 									"    console.log('✅ Token refreshed');",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"emailOrPhone\": \"testweek7@example.com\",\n  \"password\": \"Test@123456\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "login"]
+						}
+					}
+				},
+				{
+					"name": "S02b — Get USER role (lấy roleId)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const res = pm.response.json();",
+									"",
+									"pm.test('Get roles — 200 OK', () => {",
+									"    pm.response.to.have.status(200);",
+									"    pm.expect(res.data).to.be.an('array');",
+									"});",
+									"",
+									"const userRole = res.data.find(r => r.code === 'USER');",
+									"pm.test('USER role exists', () => {",
+									"    pm.expect(userRole).to.not.be.undefined;",
+									"});",
+									"",
+									"if (userRole) {",
+									"    pm.collectionVariables.set('roleId_user', userRole.id);",
+									"    console.log('✅ roleId_user saved:', userRole.id);",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/ref/roles",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "ref", "roles"]
+						}
+					}
+				},
+				{
+					"name": "S02c — Assign USER role",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const status = pm.response.code;",
+									"",
+									"if (status === 200 || status === 204) {",
+									"    pm.test('Assign USER role — OK', () => {",
+									"        pm.expect(status).to.be.oneOf([200, 204]);",
+									"    });",
+									"    console.log('✅ USER role assigned to user');",
+									"} else {",
+									"    pm.test('Assign role — Unexpected ' + status, () => {",
+									"        pm.expect.fail('Expected 200/204, got ' + status);",
+									"    });",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "[\"{{roleId_user}}\"]"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/user-roles/users/{{userId}}/assign",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "user-roles", "users", "{{userId}}", "assign"]
+						}
+					}
+				},
+				{
+					"name": "S02d — Re-login (refresh token with permissions)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const res = pm.response.json();",
+									"",
+									"pm.test('Re-login — 200 OK', () => {",
+									"    pm.response.to.have.status(200);",
+									"    pm.expect(res.data).to.have.property('accessToken');",
+									"});",
+									"",
+									"if (res.data && res.data.accessToken) {",
+									"    pm.collectionVariables.set('token', res.data.accessToken);",
+									"    console.log('✅ Token refreshed with USER permissions');",
 									"}"
 								]
 							}
@@ -319,9 +434,11 @@
 								"exec": [
 									"pm.test('TC-N03a — 200 OK', () => { pm.response.to.have.status(200); });",
 									"const res = pm.response.json();",
+									"pm.test('Is array of enum values', () => { pm.expect(res.data).to.be.an('array'); });",
 									"pm.test('Has Allergy & Dislike', () => {",
-									"    pm.expect(res.data).to.have.property('Allergy');",
-									"    pm.expect(res.data).to.have.property('Dislike');",
+									"    const names = res.data.map(e => e.name);",
+									"    pm.expect(names).to.include('Allergy');",
+									"    pm.expect(names).to.include('Dislike');",
 									"});"
 								]
 							}
@@ -342,10 +459,12 @@
 								"exec": [
 									"pm.test('TC-N03b — 200 OK', () => { pm.response.to.have.status(200); });",
 									"const res = pm.response.json();",
+									"pm.test('Is array of enum values', () => { pm.expect(res.data).to.be.an('array'); });",
 									"pm.test('Has Low, Medium, High', () => {",
-									"    pm.expect(res.data).to.have.property('Low');",
-									"    pm.expect(res.data).to.have.property('Medium');",
-									"    pm.expect(res.data).to.have.property('High');",
+									"    const names = res.data.map(e => e.name);",
+									"    pm.expect(names).to.include('Low');",
+									"    pm.expect(names).to.include('Medium');",
+									"    pm.expect(names).to.include('High');",
 									"});"
 								]
 							}
@@ -532,7 +651,7 @@
 					"request": {
 						"method": "POST",
 						"header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
-						"body": { "mode": "raw", "raw": "{\n  \"foodItemId\": \"00000000-0000-0000-0000-000000000000\",\n  \"preferenceType\": \"Allergy\"\n}" },
+						"body": { "mode": "raw", "raw": "{\n  \"foodItemId\": \"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee\",\n  \"preferenceType\": \"Allergy\"\n}" },
 						"url": { "raw": "{{baseUrl}}/api/pregnancies/{{pregnancyId}}/food-preferences?lang=vi", "host": ["{{baseUrl}}"], "path": ["api", "pregnancies", "{{pregnancyId}}", "food-preferences"], "query": [{ "key": "lang", "value": "vi" }] }
 					}
 				},
@@ -882,9 +1001,9 @@
 					"event": [{ "listen": "test", "script": { "exec": [
 						"const res = pm.response.json();",
 						"pm.test('TC-QS01 — 200 OK', () => { pm.response.to.have.status(200); });",
-						"pm.test('Has searchKeys', () => { pm.expect(res.data.searchKeys).to.be.an('array'); });",
+						"pm.test('Has searchableFields', () => { pm.expect(res.data.searchableFields).to.be.an('array'); });",
 						"pm.test('Has sortableFields', () => { pm.expect(res.data.sortableFields).to.be.an('array'); });",
-						"pm.test('defaultSort is createdat_desc', () => { pm.expect(res.data.defaultSort).to.eql('createdat_desc'); });"
+						"pm.test('defaultSortBy is createdat', () => { pm.expect(res.data.defaultSortBy).to.eql('createdat'); });"
 					] } }],
 					"request": {
 						"method": "GET",
@@ -1054,10 +1173,14 @@
 					"event": [{ "listen": "test", "script": { "exec": [
 						"pm.test('TC-MP09 — 200 OK', () => { pm.response.to.have.status(200); });",
 						"const res = pm.response.json();",
-						"pm.test('Has Pending', () => { pm.expect(res.data).to.have.property('Pending'); });",
-						"pm.test('Has Generating', () => { pm.expect(res.data).to.have.property('Generating'); });",
-						"pm.test('Has Succeeded', () => { pm.expect(res.data).to.have.property('Succeeded'); });",
-						"pm.test('Has Failed', () => { pm.expect(res.data).to.have.property('Failed'); });"
+						"pm.test('Is array of enum values', () => { pm.expect(res.data).to.be.an('array'); });",
+						"pm.test('Has Pending, Generating, Succeeded, Failed', () => {",
+						"    const names = res.data.map(e => e.name);",
+						"    pm.expect(names).to.include('Pending');",
+						"    pm.expect(names).to.include('Generating');",
+						"    pm.expect(names).to.include('Succeeded');",
+						"    pm.expect(names).to.include('Failed');",
+						"});"
 					] } }],
 					"request": {
 						"method": "GET",
