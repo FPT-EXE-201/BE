@@ -29,6 +29,7 @@ WORKDIR /app
 
 # Install Vietnamese locale support (for UTF-8)
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
     locales \
     && sed -i '/vi_VN.UTF-8/s/^# //g' /etc/locale.gen \
     && locale-gen \

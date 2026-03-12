@@ -252,6 +252,12 @@ app.UseCors("AllowAll");  // Development mode - allow all origins
 app.UseAuthentication(); // Must come before UseAuthorization
 app.UseAuthorization();
 
+app.MapGet("/health", () => Results.Ok(new
+{
+    status = "healthy",
+    timestamp = DateTimeOffset.UtcNow
+}));
+
 app.MapControllers();
 
 // Apply pending migrations and seed database
