@@ -134,6 +134,76 @@ public class ChatService : IChatService
         return dtos;
     }
 
+    public async Task<ChatMessageDto> EditMessageAsync(Guid messageId, Guid editorUserId, EditMessageRequestDto request, CancellationToken ct = default)
+    {
+        var message = await _unitOfWork.ChatMessages.GetByIdTrackedAsync(messageId, null, false, ct)
+            ?? throw new NotFoundException("Message not found");
+
+        if (message.SenderUserId != editorUserId)
+            throw new ForbiddenException("You are not allowed to edit this message");
+
+        message.Content = request.Content;
+
+        await _unitOfWork.SaveChangesAsync(ct);
+
+        // Map to DTO
+        var dto = _mapper.Map<ChatMessageDto>(message);
+
+        var sender = await _unitOfWork.Users.GetByIdWithProfileAsync(message.SenderUserId, false, ct);
+        dto.SenderName = sender?.Profile?.FullName ?? sender?.Email ?? "Unknown";
+
+        if (message.ReceiverUserId.HasValue)
+        {
+            var receiver = await _unitOfWork.Users.GetByIdWithProfileAsync(message.ReceiverUserId.Value, false, ct);
+            dto.ReceiverName = receiver?.Profile?.FullName ?? receiver?.Email;
+        }
+
+        if (message.AttachmentFileId.HasValue)
+        {
+            var file = await _unitOfWork.StorageFiles.GetByIdAsync(message.AttachmentFileId.Value, null, false, ct);
+            if (file != null)
+            {
+                dto.AttachmentFile = new FileDto
+                {
+                    Id = file.Id,
+                    OriginalFileName = file.OriginalFileName,
+                    MimeType = file.MimeType,
+                    FileSizeBytes = file.FileSizeBytes,
+                    FileUrl = file.PublicUrl
+                };
+            }
+        }
+
+        return dto;
+    }
+
+    public async Task<ChatMessageDto> DeleteMessageAsync(Guid messageId, Guid editorUserId, CancellationToken ct = default)
+    {
+        var message = await _unitOfWork.ChatMessages.GetByIdTrackedAsync(messageId, null, false, ct)
+            ?? throw new NotFoundException("Message not found");
+
+        if (message.SenderUserId != editorUserId)
+            throw new ForbiddenException("You are not allowed to delete this message");
+
+        message.DeletedAt = DateTime.UtcNow;
+
+        await _unitOfWork.SaveChangesAsync(ct);
+
+        // Map to DTO (keep sender/receiver info for broadcasting)
+        var dto = _mapper.Map<ChatMessageDto>(message);
+
+        var sender = await _unitOfWork.Users.GetByIdWithProfileAsync(message.SenderUserId, false, ct);
+        dto.SenderName = sender?.Profile?.FullName ?? sender?.Email ?? "Unknown";
+
+        if (message.ReceiverUserId.HasValue)
+        {
+            var receiver = await _unitOfWork.Users.GetByIdWithProfileAsync(message.ReceiverUserId.Value, false, ct);
+            dto.ReceiverName = receiver?.Profile?.FullName ?? receiver?.Email;
+        }
+
+        return dto;
+    }
+
     public async Task<FileDownloadResult?> GetFileAsync(Guid fileId, CancellationToken ct = default)
     {
         var file = await _unitOfWork.StorageFiles.GetByIdAsync(fileId, null, false, ct);

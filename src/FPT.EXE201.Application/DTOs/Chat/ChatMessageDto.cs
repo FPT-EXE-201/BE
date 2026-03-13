@@ -12,6 +12,8 @@ public class ChatMessageDto
     public Guid? AttachmentFileId { get; set; }
     public FileDto? AttachmentFile { get; set; }
     public DateTime SentAt { get; set; }
+
+    public DateTime? DeletedAt { get; set; }
 }
 public class FileDto
 {

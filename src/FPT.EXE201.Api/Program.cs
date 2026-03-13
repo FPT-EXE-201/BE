@@ -1,4 +1,5 @@
-﻿using FPT.EXE201.Infrastructure;
+﻿using FPT.EXE201.Api.Hubs;
+using FPT.EXE201.Infrastructure;
 using FPT.EXE201.Application;
 using FPT.EXE201.Api.Filters;
 using FPT.EXE201.Infrastructure.Persistence;
@@ -66,6 +67,9 @@ try
     builder.Services.AddInfrastructure(builder.Configuration);
 
     builder.Services.AddApplication();
+
+    // SignalR (real-time chat)
+    builder.Services.AddSignalR();
 
     // Add Authorization
     builder.Services.AddAuthorization();
@@ -270,6 +274,9 @@ app.MapGet("/health", () => Results.Ok(new
     status = "healthy",
     timestamp = DateTimeOffset.UtcNow
 }));
+
+// SignalR hubs
+app.MapHub<ChatHub>("/hubs/chat");
 
 app.MapControllers();
 
