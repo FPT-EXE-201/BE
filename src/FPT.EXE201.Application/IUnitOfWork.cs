@@ -58,6 +58,9 @@ namespace FPT.EXE201.Application
         IMealItemFeedbackRepository MealItemFeedbacks { get; }
         IAiRequestLogRepository AiRequestLogs { get; }
 
+        // Chat
+        IChatMessageRepository ChatMessages { get; }
+
         // Transaction methods
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
         Task BeginTransactionAsync(CancellationToken cancellationToken = default);

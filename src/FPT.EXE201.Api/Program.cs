@@ -255,6 +255,9 @@ app.UseSerilogRequestLogging(options =>
 
 app.UseHttpsRedirection();
 
+// Enable static files serving
+app.UseStaticFiles();
+
 // Enable CORS (must be before Authentication/Authorization)
 app.UseCors("AllowAll");  // Development mode - allow all origins
 // app.UseCors("Production");  // Uncomment for production with specific domains

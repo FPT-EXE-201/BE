@@ -66,27 +66,20 @@ namespace FPT.EXE201.Infrastructure.Persistence
         public DbSet<MealItemFeedback> MealItemFeedbacks { get; set; }
         public DbSet<AiRequestLog> AiRequestLogs { get; set; }
 
+        // Chat
+        public DbSet<ChatMessage> ChatMessages { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
-            // Configure charset for Vietnamese support (utf8mb4 for full Unicode support)
             modelBuilder.HasCharSet("utf8mb4");
-
-            // Apply all entity configurations from current assembly
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
-
-            // Week 3 Seeders
             PregnancyConditionSeeder.Seed(modelBuilder);
             TestTypeSeeder.Seed(modelBuilder);
-
-            // Week 4 Seeders
             DocumentTypeSeeder.Seed(modelBuilder);
 
-            // Week 6 Seeders
             MotivationalTemplateSeeder.Seed(modelBuilder);
-
-            // Week 7 — Nutrition Seeders
             NutritionFoodItemSeeder.Seed(modelBuilder);
             NutrientSeeder.Seed(modelBuilder);
 
@@ -144,22 +137,21 @@ namespace FPT.EXE201.Infrastructure.Persistence
                     }
                     refreshToken.UpdatedAt = DateTime.UtcNow;
                 }
-                // Handle AuditEvent (only CreatedAt)
+                // Handle AuditEvent
                 else if (entry.Entity is AuditEvent auditEvent && entry.State == EntityState.Added)
                 {
                     auditEvent.CreatedAt = DateTime.UtcNow;
                 }
-                // Handle RolePermission (only CreatedAt)
+                // Handle RolePermission 
                 else if (entry.Entity is RolePermission rolePermission && entry.State == EntityState.Added)
                 {
                     rolePermission.CreatedAt = DateTime.UtcNow;
                 }
-                // Handle UserRole (only CreatedAt)
+                // Handle UserRole 
                 else if (entry.Entity is UserRole userRole && entry.State == EntityState.Added)
                 {
                     userRole.CreatedAt = DateTime.UtcNow;
                 }
-                // Week 7 — RefNutrient (custom entity, not BaseEntity)
                 else if (entry.Entity is RefNutrient nutrient)
                 {
                     if (entry.State == EntityState.Added)
