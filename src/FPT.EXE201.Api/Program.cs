@@ -119,6 +119,7 @@ try
     builder.Services.AddControllers(options =>
     {
         options.Filters.Add<GlobalExceptionFilter>();
+        options.Filters.Add<ValidationActionFilter>();
     })
     .AddJsonOptions(options =>
     {
@@ -132,6 +133,12 @@ try
     // Add FluentValidation
     builder.Services.AddFluentValidationAutoValidation()
         .AddFluentValidationClientsideAdapters();
+
+    // Suppress [ApiController] auto 400 ProblemDetails — let GlobalExceptionFilter handle validation errors
+    builder.Services.Configure<Microsoft.AspNetCore.Mvc.ApiBehaviorOptions>(options =>
+    {
+        options.SuppressModelStateInvalidFilter = true;
+    });
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();

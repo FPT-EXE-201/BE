@@ -56,6 +56,13 @@ namespace FPT.EXE201.Application.Services
                 throw new ConflictException("Email already exists");
             }
 
+            // 2b. Check if phone already exists
+            if (!string.IsNullOrEmpty(request.Phone) 
+                && await _unitOfWork.Users.ExistsByPhoneAsync(request.Phone, includeDeleted: false, ct))
+            {
+                throw new ConflictException("Phone number already exists");
+            }
+
             // 3. Validate preferred language (optional - fallback to "vi" if invalid)
             var language = await _unitOfWork.Languages.GetByCodeAsync(request.PreferredLanguage ?? "vi", ct);
             if (language == null || !language.IsActive)
@@ -82,6 +89,14 @@ namespace FPT.EXE201.Application.Services
 
             // 7. Save changes
             await _unitOfWork.SaveChangesAsync(ct);
+
+            // 7b. Assign default USER role
+            var userRole = await _unitOfWork.Roles.GetByCodeAsync("USER", includeDeleted: false, ct);
+            if (userRole != null)
+            {
+                await _userRoleService.AssignRolesToUserAsync(user.Id, new List<Guid> { userRole.Id }, ct);
+                await _unitOfWork.SaveChangesAsync(ct);
+            }
 
             // 8. Attach profile to user for response mapping
             user.Profile = profile;
