@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -22,5 +22,6 @@ namespace FPT.EXE201.Application.IRepositories
         Task<User?> GetByPhoneAsync(string phone, bool includeProfile = false, bool includeDeleted = false, CancellationToken ct = default);
         Task<User?> GetByGoogleIdAsync(string googleId, bool includeProfile = false, CancellationToken ct = default);
         Task<PagedResult<User>> GetPagedUsersAsync(QueryOptions options, CancellationToken ct = default);
+        Task<IEnumerable<User>> GetByRoleAsync(string roleCode, CancellationToken ct = default);
     }
 }

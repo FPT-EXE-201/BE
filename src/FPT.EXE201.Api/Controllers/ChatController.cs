@@ -5,7 +5,9 @@ using FPT.EXE201.Application.DTOs.MedicalDocuments;
 using FPT.EXE201.Application.IServices;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
+using System.Collections.Generic;
 using System.Linq;
+
 
 namespace FPT.EXE201.Api.Controllers;
 
@@ -96,7 +98,7 @@ public class ChatController : BaseApiController
 
     [HttpGet("doctors")]
     [RequirePermission("chat.send")]
-    [ProducesResponseType(typeof(IEnumerable<ChatPartnerDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(IEnumerable<FPT.EXE201.Application.DTOs.Chat.ChatPartnerDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetDoctors(CancellationToken ct = default)
     {
         var currentUserId = GetCurrentUserId();
@@ -106,7 +108,7 @@ public class ChatController : BaseApiController
 
     [HttpGet("conversations")]
     [RequirePermission("chat.send")]
-    [ProducesResponseType(typeof(IEnumerable<ChatPartnerDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(IEnumerable<FPT.EXE201.Application.DTOs.Chat.ChatPartnerDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetConversations(CancellationToken ct = default)
     {
         var currentUserId = GetCurrentUserId();

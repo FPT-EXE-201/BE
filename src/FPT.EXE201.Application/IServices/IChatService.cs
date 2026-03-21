@@ -9,6 +9,8 @@ public interface IChatService
     Task<ChatMessageDto> EditMessageAsync(Guid messageId, Guid editorUserId, EditMessageRequestDto request, CancellationToken ct = default);
     Task<ChatMessageDto> DeleteMessageAsync(Guid messageId, Guid editorUserId, CancellationToken ct = default);
     Task<IEnumerable<ChatMessageDto>> GetMessagesAsync(Guid userId1, Guid userId2, CancellationToken ct = default);
+    Task<IEnumerable<ChatPartnerDto>> GetDoctorUsersAsync(Guid currentUserId, CancellationToken ct = default);
+    Task<IEnumerable<ChatPartnerDto>> GetActiveConversationsAsync(Guid currentUserId, CancellationToken ct = default);
     Task<FileDownloadResult?> GetFileAsync(Guid fileId, CancellationToken ct = default);
 }
 public record FileDownloadResult(Stream Stream, string FileName, string MimeType);
