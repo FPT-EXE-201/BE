@@ -65,11 +65,18 @@ public abstract class BaseApiController : ControllerBase
     /// <exception cref="UnauthorizedAccessException">Thrown when user is not authenticated or claim is invalid</exception>
     protected Guid GetCurrentUserId()
     {
-        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        // Check for 'sub' (Standard JWT claim when claim mapping is disabled)
+        // or 'userId' (custom fallback)
+        // or 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier' (Standard claim mapping enabled)
+        var userIdClaim = User.FindFirst("sub")?.Value 
+            ?? User.FindFirst("userId")?.Value
+            ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
         if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
         {
             throw new UnauthorizedAccessException("User not authenticated");
         }
+        
         return userId;
     }
 

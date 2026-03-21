@@ -1,4 +1,5 @@
-﻿using FPT.EXE201.Infrastructure;
+using FPT.EXE201.Api.Hubs;
+using FPT.EXE201.Infrastructure;
 using FPT.EXE201.Application;
 using FPT.EXE201.Api.Filters;
 using FPT.EXE201.Infrastructure.Persistence;
@@ -66,6 +67,10 @@ try
     builder.Services.AddInfrastructure(builder.Configuration);
 
     builder.Services.AddApplication();
+
+    // SignalR (real-time chat)
+    builder.Services.AddSignalR();
+    builder.Services.AddSingleton<Microsoft.AspNetCore.SignalR.IUserIdProvider, FPT.EXE201.Api.Hubs.UserIdProvider>();
 
     // Add Authorization
     builder.Services.AddAuthorization();
@@ -255,6 +260,9 @@ app.UseSerilogRequestLogging(options =>
 
 app.UseHttpsRedirection();
 
+// Enable static files serving
+app.UseStaticFiles();
+
 // Enable CORS (must be before Authentication/Authorization)
 app.UseCors("AllowAll");  // Development mode - allow all origins
 // app.UseCors("Production");  // Uncomment for production with specific domains
@@ -267,6 +275,9 @@ app.MapGet("/health", () => Results.Ok(new
     status = "healthy",
     timestamp = DateTimeOffset.UtcNow
 }));
+
+// SignalR hubs
+app.MapHub<ChatHub>("/hubs/chat");
 
 app.MapControllers();
 

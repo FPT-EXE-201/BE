@@ -51,6 +51,9 @@ public static class DependencyInjection
         services.AddScoped<IMealPlanService, MealPlanService>();
         services.AddScoped<IRecipeService, RecipeService>();
         services.AddScoped<INutritionFeedbackService, NutritionFeedbackService>();
+
+        // Chat
+        services.AddScoped<IChatService, ChatService>();
         #endregion
 
         return services;

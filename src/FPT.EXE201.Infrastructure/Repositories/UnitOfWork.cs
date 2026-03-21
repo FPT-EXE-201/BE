@@ -64,6 +64,9 @@ namespace FPT.EXE201.Infrastructure.Repositories
         private IMealItemFeedbackRepository? _mealItemFeedbacks;
         private IAiRequestLogRepository? _aiRequestLogs;
 
+        // Chat
+        private IChatMessageRepository? _chatMessages;
+
         public UnitOfWork(AppDbContext context)
         {
             _context = context;
@@ -115,6 +118,9 @@ namespace FPT.EXE201.Infrastructure.Repositories
         public IMealPlanFeedbackRepository MealPlanFeedbacks => _mealPlanFeedbacks ??= new MealPlanFeedbackRepository(_context);
         public IMealItemFeedbackRepository MealItemFeedbacks => _mealItemFeedbacks ??= new MealItemFeedbackRepository(_context);
         public IAiRequestLogRepository AiRequestLogs => _aiRequestLogs ??= new AiRequestLogRepository(_context);
+
+        // Chat
+        public IChatMessageRepository ChatMessages => _chatMessages ??= new ChatMessageRepository(_context);
 
         public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
