@@ -115,5 +115,13 @@ namespace FPT.EXE201.Infrastructure.Repositories
                 .Where(u => u.UserRoles.Any(ur => ur.Role.Name == roleName) && (!u.IsDeleted))
                 .ToListAsync(ct);
         }
+    
+        public async Task<IEnumerable<User>> GetByRoleAsync(string roleCode, CancellationToken ct = default)
+        {
+            return await ((AppDbContext)_context).Users
+                .Include(u => u.Profile)
+                .Where(u => u.UserRoles.Any(ur => ur.Role.Code == roleCode))
+                .ToListAsync(ct);
+        }
     }
 }

@@ -21,6 +21,6 @@ namespace FPT.EXE201.Application.IRepositories
         Task<User?> GetByEmailNormalizedAsync(string emailNormalized, bool includeProfile = false, bool includeDeleted = false, CancellationToken ct = default);
         Task<User?> GetByPhoneAsync(string phone, bool includeProfile = false, bool includeDeleted = false, CancellationToken ct = default);
         Task<PagedResult<User>> GetPagedUsersAsync(QueryOptions options, CancellationToken ct = default);
-        Task<IEnumerable<User>> GetByRoleAsync(string roleName, CancellationToken ct = default);
+        Task<IEnumerable<User>> GetByRoleAsync(string roleCode, CancellationToken ct = default);
     }
 }
