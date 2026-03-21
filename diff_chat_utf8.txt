@@ -1,0 +1,699 @@
+﻿diff --git a/src/FPT.EXE201.Api/Controllers/ChatController.cs b/src/FPT.EXE201.Api/Controllers/ChatController.cs
+index e427054..6c9ba02 100644
+--- a/src/FPT.EXE201.Api/Controllers/ChatController.cs
++++ b/src/FPT.EXE201.Api/Controllers/ChatController.cs
+@@ -5,9 +5,6 @@ using FPT.EXE201.Application.DTOs.MedicalDocuments;
+ using FPT.EXE201.Application.IServices;
+ using Microsoft.AspNetCore.Mvc;
+ using Microsoft.AspNetCore.SignalR;
+-using System.Collections.Generic;
+-using System.Linq;
+-
+ 
+ namespace FPT.EXE201.Api.Controllers;
+ 
+@@ -74,15 +71,16 @@ public class ChatController : BaseApiController
+ 
+     private Task BroadcastMessageToParticipantsAsync(string method, ChatMessageDto message)
+     {
+-        var participantIds = new HashSet<Guid> { message.SenderUserId };
++        var tasks = new List<Task>
++        {
++            _hubContext.Clients.Group(ChatHub.GetUserGroupName(message.SenderUserId)).SendAsync(method, message)
++        };
++
+         if (message.ReceiverUserId.HasValue)
+         {
+-            participantIds.Add(message.ReceiverUserId.Value);
++            tasks.Add(_hubContext.Clients.Group(ChatHub.GetUserGroupName(message.ReceiverUserId.Value)).SendAsync(method, message));
+         }
+ 
+-        var tasks = participantIds.Select(userId => 
+-            _hubContext.Clients.Group(ChatHub.GetUserGroupName(userId)).SendAsync(method, message));
+-
+         return Task.WhenAll(tasks);
+     }
+ 
+@@ -96,30 +94,12 @@ public class ChatController : BaseApiController
+         return Success(messages);
+     }
+ 
+-    [HttpGet("doctors")]
+-    [RequirePermission("chat.send")]
+-    [ProducesResponseType(typeof(IEnumerable<FPT.EXE201.Application.DTOs.Chat.ChatPartnerDto>), StatusCodes.Status200OK)]
+-    public async Task<IActionResult> GetDoctors(CancellationToken ct = default)
+-    {
+-        var currentUserId = GetCurrentUserId();
+-        var result = await _chatService.GetDoctorUsersAsync(currentUserId, ct);
+-        return Success(result);
+-    }
+-
+-    [HttpGet("conversations")]
++    [HttpGet("download/{fileId}")]
+     [RequirePermission("chat.send")]
+-    [ProducesResponseType(typeof(IEnumerable<FPT.EXE201.Application.DTOs.Chat.ChatPartnerDto>), StatusCodes.Status200OK)]
+-    public async Task<IActionResult> GetConversations(CancellationToken ct = default)
++    public async Task<IActionResult> DownloadFile(Guid fileId, CancellationToken ct = default)
+     {
+         var currentUserId = GetCurrentUserId();
+-        var result = await _chatService.GetActiveConversationsAsync(currentUserId, ct);
+-        return Success(result);
+-    }
+ 
+-    [HttpGet("download/{fileId}")]
+-    [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+-    public async Task<IActionResult> DownloadFile(Guid fileId, CancellationToken ct = default)
+-    {
+         var file = await _chatService.GetFileAsync(fileId, ct);
+         if (file == null)
+             return NotFound("File not found");
+diff --git a/src/FPT.EXE201.Api/Hubs/UserIdProvider.cs b/src/FPT.EXE201.Api/Hubs/UserIdProvider.cs
+deleted file mode 100644
+index 0179838..0000000
+--- a/src/FPT.EXE201.Api/Hubs/UserIdProvider.cs
++++ /dev/null
+@@ -1,28 +0,0 @@
+-using Microsoft.AspNetCore.SignalR;
+-using System.Security.Claims;
+-using System.IdentityModel.Tokens.Jwt;
+-
+-namespace FPT.EXE201.Api.Hubs;
+-
+-public class UserIdProvider : IUserIdProvider
+-{
+-    public string? GetUserId(HubConnectionContext connection)
+-    {
+-        // Try getting ID from the "sub" claim
+-        var sub = connection.User?.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+-        if (!string.IsNullOrEmpty(sub)) 
+-        {
+-            return sub;
+-        }
+-
+-        // Fallback to custom "userId" claim
+-        var userId = connection.User?.FindFirst("userId")?.Value;
+-        if (!string.IsNullOrEmpty(userId)) 
+-        {
+-            return userId;
+-        }
+-
+-        // Last fallback to default NameIdentifier
+-        return connection.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+-    }
+-}
+diff --git a/src/FPT.EXE201.Api/Program.cs b/src/FPT.EXE201.Api/Program.cs
+index bc0924c..2270870 100644
+--- a/src/FPT.EXE201.Api/Program.cs
++++ b/src/FPT.EXE201.Api/Program.cs
+@@ -1,4 +1,4 @@
+-using FPT.EXE201.Api.Hubs;
++∩╗┐using FPT.EXE201.Api.Hubs;
+ using FPT.EXE201.Infrastructure;
+ using FPT.EXE201.Application;
+ using FPT.EXE201.Api.Filters;
+@@ -70,7 +70,6 @@ try
+ 
+     // SignalR (real-time chat)
+     builder.Services.AddSignalR();
+-    builder.Services.AddSingleton<Microsoft.AspNetCore.SignalR.IUserIdProvider, FPT.EXE201.Api.Hubs.UserIdProvider>();
+ 
+     // Add Authorization
+     builder.Services.AddAuthorization();
+diff --git a/src/FPT.EXE201.Application/DTOs/Chat/ChatPartnerDto.cs b/src/FPT.EXE201.Application/DTOs/Chat/ChatPartnerDto.cs
+deleted file mode 100644
+index ebc70a5..0000000
+--- a/src/FPT.EXE201.Application/DTOs/Chat/ChatPartnerDto.cs
++++ /dev/null
+@@ -1,10 +0,0 @@
+-using System;
+-
+-namespace FPT.EXE201.Application.DTOs.Chat;
+-
+-public class ChatPartnerDto
+-{
+-    public Guid Id { get; set; }
+-    public string FullName { get; set; } = string.Empty;
+-    public string? AvatarUrl { get; set; }
+-}
+diff --git a/src/FPT.EXE201.Application/IRepositories/IChatMessageRepository.cs b/src/FPT.EXE201.Application/IRepositories/IChatMessageRepository.cs
+index 413c8e3..f317986 100644
+--- a/src/FPT.EXE201.Application/IRepositories/IChatMessageRepository.cs
++++ b/src/FPT.EXE201.Application/IRepositories/IChatMessageRepository.cs
+@@ -9,5 +9,4 @@ namespace FPT.EXE201.Application.IRepositories;
+ public interface IChatMessageRepository : IGenericRepository<ChatMessage>
+ {
+     Task<IEnumerable<ChatMessage>> GetMessagesBetweenUsersAsync(Guid userId1, Guid userId2, CancellationToken ct = default);
+-    Task<IEnumerable<Guid>> GetConversationParticipantsAsync(Guid userId, CancellationToken ct = default);
+ }
+\ No newline at end of file
+diff --git a/src/FPT.EXE201.Application/IServices/IChatService.cs b/src/FPT.EXE201.Application/IServices/IChatService.cs
+index a845702..92b2867 100644
+--- a/src/FPT.EXE201.Application/IServices/IChatService.cs
++++ b/src/FPT.EXE201.Application/IServices/IChatService.cs
+@@ -9,8 +9,6 @@ public interface IChatService
+     Task<ChatMessageDto> EditMessageAsync(Guid messageId, Guid editorUserId, EditMessageRequestDto request, CancellationToken ct = default);
+     Task<ChatMessageDto> DeleteMessageAsync(Guid messageId, Guid editorUserId, CancellationToken ct = default);
+     Task<IEnumerable<ChatMessageDto>> GetMessagesAsync(Guid userId1, Guid userId2, CancellationToken ct = default);
+-    Task<IEnumerable<ChatPartnerDto>> GetDoctorUsersAsync(Guid currentUserId, CancellationToken ct = default);
+-    Task<IEnumerable<ChatPartnerDto>> GetActiveConversationsAsync(Guid currentUserId, CancellationToken ct = default);
+     Task<FileDownloadResult?> GetFileAsync(Guid fileId, CancellationToken ct = default);
+ }
+ public record FileDownloadResult(Stream Stream, string FileName, string MimeType);
+\ No newline at end of file
+diff --git a/src/FPT.EXE201.Application/Services/ChatService.cs b/src/FPT.EXE201.Application/Services/ChatService.cs
+index 8ea2226..cf867af 100644
+--- a/src/FPT.EXE201.Application/Services/ChatService.cs
++++ b/src/FPT.EXE201.Application/Services/ChatService.cs
+@@ -1,250 +1,216 @@
+-using AutoMapper;
+-using FPT.EXE201.Application.DTOs.Chat;
+-using FPT.EXE201.Application.DTOs.MedicalDocuments;
+-using FPT.EXE201.Application.Exceptions;
+-using FPT.EXE201.Application.IServices;
+-using FPT.EXE201.Domain.Entities;
+-
+-namespace FPT.EXE201.Application.Services;
+-
+-public class ChatService : IChatService
+-{
+-    private readonly IUnitOfWork _unitOfWork;
+-    private readonly IFileStorageService _fileStorageService;
+-    private readonly IMapper _mapper;
+-
+-    public ChatService(IUnitOfWork unitOfWork, IFileStorageService fileStorageService, IMapper mapper)
+-    {
+-        _unitOfWork = unitOfWork;
+-        _fileStorageService = fileStorageService;
+-        _mapper = mapper;
+-    }
+-
+-    public async Task<ChatMessageDto> SendMessageAsync(Guid senderUserId, SendMessageRequestDto request, FileUploadInfo? attachment, CancellationToken ct = default)
+-    {
+-        // Validate users exist
+-        var sender = await _unitOfWork.Users.GetByIdAsync(senderUserId, null, false, ct)
+-            ?? throw new NotFoundException("Sender not found");
+-
+-        var receiver = await _unitOfWork.Users.GetByIdAsync(request.ReceiverUserId, null, false, ct)
+-            ?? throw new NotFoundException("Receiver not found");
+-
+-        Guid? attachmentFileId = null;
+-        if (attachment != null)
+-        {
+-            // Upload file
+-            var uploadResult = await _fileStorageService.UploadAsync(
+-                attachment.Stream,
+-                attachment.FileName,
+-                attachment.ContentType,
+-                attachment.FileSize,
+-                senderUserId,
+-                ct);
+-
+-            // Save StorageFile
+-            var storageFile = new StorageFile
+-            {
+-                OwnerUserId = senderUserId,
+-                StorageProvider = "local", 
+-                ObjectKey = uploadResult.ObjectKey,
+-                PublicUrl = uploadResult.PublicUrl,
+-                OriginalFileName = uploadResult.OriginalFileName,
+-                MimeType = uploadResult.MimeType,
+-                FileSizeBytes = uploadResult.FileSizeBytes
+-            };
+-
+-            await _unitOfWork.StorageFiles.AddAsync(storageFile, ct);
+-            attachmentFileId = storageFile.Id;
+-        }
+-
+-        // Create message
+-        var message = new ChatMessage
+-        {
+-            SenderUserId = senderUserId,
+-            ReceiverUserId = request.ReceiverUserId,
+-            Content = request.Content,
+-            AttachmentFileId = attachmentFileId,
+-            SentAt = DateTime.UtcNow
+-        };
+-
+-        await _unitOfWork.ChatMessages.AddAsync(message, ct);
+-        await _unitOfWork.SaveChangesAsync(ct);
+-
+-        // Map to DTO
+-        var dto = _mapper.Map<ChatMessageDto>(message);
+-        dto.SenderName = sender.Profile?.FullName ?? sender.Email ?? "Unknown";
+-        dto.ReceiverName = receiver.Profile?.FullName ?? receiver.Email;
+-
+-        if (attachmentFileId.HasValue)
+-        {
+-            var file = await _unitOfWork.StorageFiles.GetByIdAsync(attachmentFileId.Value, null, false, ct);
+-            if (file != null)
+-            {
+-                dto.AttachmentFile = new FileDto
+-                {
+-                    Id = file.Id,
+-                    OriginalFileName = file.OriginalFileName,
+-                    MimeType = file.MimeType,
+-                    FileSizeBytes = file.FileSizeBytes,
+-                    FileUrl = file.PublicUrl
+-                };
+-            }
+-        }
+-
+-        return dto;
+-    }
+-
+-    public async Task<IEnumerable<ChatMessageDto>> GetMessagesAsync(Guid userId1, Guid userId2, CancellationToken ct = default)
+-    {
+-        var messages = await _unitOfWork.ChatMessages.GetMessagesBetweenUsersAsync(userId1, userId2, ct);
+-
+-        var dtos = new List<ChatMessageDto>();
+-        foreach (var message in messages)
+-        {
+-            var dto = _mapper.Map<ChatMessageDto>(message);
+-
+-            var sender = await _unitOfWork.Users.GetByIdWithProfileAsync(message.SenderUserId, false, ct);
+-            dto.SenderName = sender?.Profile?.FullName ?? sender?.Email ?? "Unknown";
+-
+-            if (message.ReceiverUserId.HasValue)
+-            {
+-                var receiver = await _unitOfWork.Users.GetByIdWithProfileAsync(message.ReceiverUserId.Value, false, ct);
+-                dto.ReceiverName = receiver?.Profile?.FullName ?? receiver?.Email;
+-            }
+-
+-            if (message.AttachmentFileId.HasValue)
+-            {
+-                var file = await _unitOfWork.StorageFiles.GetByIdAsync(message.AttachmentFileId.Value, null, false, ct);
+-                if (file != null)
+-                {
+-                    dto.AttachmentFile = new FileDto
+-                    {
+-                        Id = file.Id,
+-                        OriginalFileName = file.OriginalFileName,
+-                        MimeType = file.MimeType,
+-                        FileSizeBytes = file.FileSizeBytes,
+-                        FileUrl = file.PublicUrl
+-                    };
+-                }
+-            }
+-
+-            dtos.Add(dto);
+-        }
+-
+-        return dtos;
+-    }
+-
+-    public async Task<ChatMessageDto> EditMessageAsync(Guid messageId, Guid editorUserId, EditMessageRequestDto request, CancellationToken ct = default)
+-    {
+-        var message = await _unitOfWork.ChatMessages.GetByIdTrackedAsync(messageId, null, false, ct)
+-            ?? throw new NotFoundException("Message not found");
+-
+-        if (message.SenderUserId != editorUserId)
+-            throw new ForbiddenException("You are not allowed to edit this message");
+-
+-        message.Content = request.Content;
+-
+-        await _unitOfWork.SaveChangesAsync(ct);
+-
+-        // Map to DTO
+-        var dto = _mapper.Map<ChatMessageDto>(message);
+-
+-        var sender = await _unitOfWork.Users.GetByIdWithProfileAsync(message.SenderUserId, false, ct);
+-        dto.SenderName = sender?.Profile?.FullName ?? sender?.Email ?? "Unknown";
+-
+-        if (message.ReceiverUserId.HasValue)
+-        {
+-            var receiver = await _unitOfWork.Users.GetByIdWithProfileAsync(message.ReceiverUserId.Value, false, ct);
+-            dto.ReceiverName = receiver?.Profile?.FullName ?? receiver?.Email;
+-        }
+-
+-        if (message.AttachmentFileId.HasValue)
+-        {
+-            var file = await _unitOfWork.StorageFiles.GetByIdAsync(message.AttachmentFileId.Value, null, false, ct);
+-            if (file != null)
+-            {
+-                dto.AttachmentFile = new FileDto
+-                {
+-                    Id = file.Id,
+-                    OriginalFileName = file.OriginalFileName,
+-                    MimeType = file.MimeType,
+-                    FileSizeBytes = file.FileSizeBytes,
+-                    FileUrl = file.PublicUrl
+-                };
+-            }
+-        }
+-
+-        return dto;
+-    }
+-
+-    public async Task<ChatMessageDto> DeleteMessageAsync(Guid messageId, Guid editorUserId, CancellationToken ct = default)
+-    {
+-        var message = await _unitOfWork.ChatMessages.GetByIdTrackedAsync(messageId, null, false, ct)
+-            ?? throw new NotFoundException("Message not found");
+-
+-        if (message.SenderUserId != editorUserId)
+-            throw new ForbiddenException("You are not allowed to delete this message");
+-
+-        message.DeletedAt = DateTime.UtcNow;
+-
+-        await _unitOfWork.SaveChangesAsync(ct);
+-
+-        // Map to DTO (keep sender/receiver info for broadcasting)
+-        var dto = _mapper.Map<ChatMessageDto>(message);
+-
+-        var sender = await _unitOfWork.Users.GetByIdWithProfileAsync(message.SenderUserId, false, ct);
+-        dto.SenderName = sender?.Profile?.FullName ?? sender?.Email ?? "Unknown";
+-
+-        if (message.ReceiverUserId.HasValue)
+-        {
+-            var receiver = await _unitOfWork.Users.GetByIdWithProfileAsync(message.ReceiverUserId.Value, false, ct);
+-            dto.ReceiverName = receiver?.Profile?.FullName ?? receiver?.Email;
+-        }
+-
+-        return dto;
+-    }
+-
+-    public async Task<FileDownloadResult?> GetFileAsync(Guid fileId, CancellationToken ct = default)
+-    {
+-        var file = await _unitOfWork.StorageFiles.GetByIdAsync(fileId, null, false, ct);
+-        if (file == null)
+-            return null;
+-
+-        var stream = await _fileStorageService.DownloadAsync(file.ObjectKey, ct);
+-        return new FileDownloadResult(stream, file.OriginalFileName ?? "file", file.MimeType);
+-    }
+-
+-    public async Task<IEnumerable<ChatPartnerDto>> GetDoctorUsersAsync(Guid currentUserId, CancellationToken ct = default)
+-    {
+-        var doctors = await _unitOfWork.Users.GetByRoleAsync("DOCTOR", ct);
+-        return doctors
+-            .Where(u => u.Id != currentUserId) // Exclude self
+-            .Select(u => new ChatPartnerDto
+-            {
+-                Id = u.Id,
+-                FullName = u.Profile?.FullName ?? u.Email ?? "Unknown Doctor",
+-                AvatarUrl = u.Profile?.AvatarUrl
+-            }).ToList();
+-    }
+-
+-    public async Task<IEnumerable<ChatPartnerDto>> GetActiveConversationsAsync(Guid currentUserId, CancellationToken ct = default)
+-    {
+-        var participantIds = await _unitOfWork.ChatMessages.GetConversationParticipantsAsync(currentUserId, ct);
+-        var result = new List<ChatPartnerDto>();
+-
+-        foreach (var otherUserId in participantIds)
+-        {
+-            var user = await _unitOfWork.Users.GetByIdWithProfileAsync(otherUserId, false, ct);
+-            if (user == null) continue;
+-
+-            result.Add(new ChatPartnerDto
+-            {
+-                Id = user.Id,
+-                FullName = user.Profile?.FullName ?? user.Email ?? "Unknown",
+-                AvatarUrl = user.Profile?.AvatarUrl
+-            });
+-        }
+-
+-        return result;
+-    }
++using AutoMapper;
++using FPT.EXE201.Application.DTOs.Chat;
++using FPT.EXE201.Application.DTOs.MedicalDocuments;
++using FPT.EXE201.Application.Exceptions;
++using FPT.EXE201.Application.IServices;
++using FPT.EXE201.Domain.Entities;
++
++namespace FPT.EXE201.Application.Services;
++
++public class ChatService : IChatService
++{
++    private readonly IUnitOfWork _unitOfWork;
++    private readonly IFileStorageService _fileStorageService;
++    private readonly IMapper _mapper;
++
++    public ChatService(IUnitOfWork unitOfWork, IFileStorageService fileStorageService, IMapper mapper)
++    {
++        _unitOfWork = unitOfWork;
++        _fileStorageService = fileStorageService;
++        _mapper = mapper;
++    }
++
++    public async Task<ChatMessageDto> SendMessageAsync(Guid senderUserId, SendMessageRequestDto request, FileUploadInfo? attachment, CancellationToken ct = default)
++    {
++        // Validate users exist
++        var sender = await _unitOfWork.Users.GetByIdAsync(senderUserId, null, false, ct)
++            ?? throw new NotFoundException("Sender not found");
++
++        var receiver = await _unitOfWork.Users.GetByIdAsync(request.ReceiverUserId, null, false, ct)
++            ?? throw new NotFoundException("Receiver not found");
++
++        Guid? attachmentFileId = null;
++        if (attachment != null)
++        {
++            // Upload file
++            var uploadResult = await _fileStorageService.UploadAsync(
++                attachment.Stream,
++                attachment.FileName,
++                attachment.ContentType,
++                attachment.FileSize,
++                senderUserId,
++                ct);
++
++            // Save StorageFile
++            var storageFile = new StorageFile
++            {
++                OwnerUserId = senderUserId,
++                StorageProvider = "local", 
++                ObjectKey = uploadResult.ObjectKey,
++                PublicUrl = uploadResult.PublicUrl,
++                OriginalFileName = uploadResult.OriginalFileName,
++                MimeType = uploadResult.MimeType,
++                FileSizeBytes = uploadResult.FileSizeBytes
++            };
++
++            await _unitOfWork.StorageFiles.AddAsync(storageFile, ct);
++            attachmentFileId = storageFile.Id;
++        }
++
++        // Create message
++        var message = new ChatMessage
++        {
++            SenderUserId = senderUserId,
++            ReceiverUserId = request.ReceiverUserId,
++            Content = request.Content,
++            AttachmentFileId = attachmentFileId,
++            SentAt = DateTime.UtcNow
++        };
++
++        await _unitOfWork.ChatMessages.AddAsync(message, ct);
++        await _unitOfWork.SaveChangesAsync(ct);
++
++        // Map to DTO
++        var dto = _mapper.Map<ChatMessageDto>(message);
++        dto.SenderName = sender.Profile?.FullName ?? sender.Email ?? "Unknown";
++        dto.ReceiverName = receiver.Profile?.FullName ?? receiver.Email;
++
++        if (attachmentFileId.HasValue)
++        {
++            var file = await _unitOfWork.StorageFiles.GetByIdAsync(attachmentFileId.Value, null, false, ct);
++            if (file != null)
++            {
++                dto.AttachmentFile = new FileDto
++                {
++                    Id = file.Id,
++                    OriginalFileName = file.OriginalFileName,
++                    MimeType = file.MimeType,
++                    FileSizeBytes = file.FileSizeBytes,
++                    FileUrl = file.PublicUrl
++                };
++            }
++        }
++
++        return dto;
++    }
++
++    public async Task<IEnumerable<ChatMessageDto>> GetMessagesAsync(Guid userId1, Guid userId2, CancellationToken ct = default)
++    {
++        var messages = await _unitOfWork.ChatMessages.GetMessagesBetweenUsersAsync(userId1, userId2, ct);
++
++        var dtos = new List<ChatMessageDto>();
++        foreach (var message in messages)
++        {
++            var dto = _mapper.Map<ChatMessageDto>(message);
++
++            var sender = await _unitOfWork.Users.GetByIdWithProfileAsync(message.SenderUserId, false, ct);
++            dto.SenderName = sender?.Profile?.FullName ?? sender?.Email ?? "Unknown";
++
++            if (message.ReceiverUserId.HasValue)
++            {
++                var receiver = await _unitOfWork.Users.GetByIdWithProfileAsync(message.ReceiverUserId.Value, false, ct);
++                dto.ReceiverName = receiver?.Profile?.FullName ?? receiver?.Email;
++            }
++
++            if (message.AttachmentFileId.HasValue)
++            {
++                var file = await _unitOfWork.StorageFiles.GetByIdAsync(message.AttachmentFileId.Value, null, false, ct);
++                if (file != null)
++                {
++                    dto.AttachmentFile = new FileDto
++                    {
++                        Id = file.Id,
++                        OriginalFileName = file.OriginalFileName,
++                        MimeType = file.MimeType,
++                        FileSizeBytes = file.FileSizeBytes,
++                        FileUrl = file.PublicUrl
++                    };
++                }
++            }
++
++            dtos.Add(dto);
++        }
++
++        return dtos;
++    }
++
++    public async Task<ChatMessageDto> EditMessageAsync(Guid messageId, Guid editorUserId, EditMessageRequestDto request, CancellationToken ct = default)
++    {
++        var message = await _unitOfWork.ChatMessages.GetByIdTrackedAsync(messageId, null, false, ct)
++            ?? throw new NotFoundException("Message not found");
++
++        if (message.SenderUserId != editorUserId)
++            throw new ForbiddenException("You are not allowed to edit this message");
++
++        message.Content = request.Content;
++
++        await _unitOfWork.SaveChangesAsync(ct);
++
++        // Map to DTO
++        var dto = _mapper.Map<ChatMessageDto>(message);
++
++        var sender = await _unitOfWork.Users.GetByIdWithProfileAsync(message.SenderUserId, false, ct);
++        dto.SenderName = sender?.Profile?.FullName ?? sender?.Email ?? "Unknown";
++
++        if (message.ReceiverUserId.HasValue)
++        {
++            var receiver = await _unitOfWork.Users.GetByIdWithProfileAsync(message.ReceiverUserId.Value, false, ct);
++            dto.ReceiverName = receiver?.Profile?.FullName ?? receiver?.Email;
++        }
++
++        if (message.AttachmentFileId.HasValue)
++        {
++            var file = await _unitOfWork.StorageFiles.GetByIdAsync(message.AttachmentFileId.Value, null, false, ct);
++            if (file != null)
++            {
++                dto.AttachmentFile = new FileDto
++                {
++                    Id = file.Id,
++                    OriginalFileName = file.OriginalFileName,
++                    MimeType = file.MimeType,
++                    FileSizeBytes = file.FileSizeBytes,
++                    FileUrl = file.PublicUrl
++                };
++            }
++        }
++
++        return dto;
++    }
++
++    public async Task<ChatMessageDto> DeleteMessageAsync(Guid messageId, Guid editorUserId, CancellationToken ct = default)
++    {
++        var message = await _unitOfWork.ChatMessages.GetByIdTrackedAsync(messageId, null, false, ct)
++            ?? throw new NotFoundException("Message not found");
++
++        if (message.SenderUserId != editorUserId)
++            throw new ForbiddenException("You are not allowed to delete this message");
++
++        message.DeletedAt = DateTime.UtcNow;
++
++        await _unitOfWork.SaveChangesAsync(ct);
++
++        // Map to DTO (keep sender/receiver info for broadcasting)
++        var dto = _mapper.Map<ChatMessageDto>(message);
++
++        var sender = await _unitOfWork.Users.GetByIdWithProfileAsync(message.SenderUserId, false, ct);
++        dto.SenderName = sender?.Profile?.FullName ?? sender?.Email ?? "Unknown";
++
++        if (message.ReceiverUserId.HasValue)
++        {
++            var receiver = await _unitOfWork.Users.GetByIdWithProfileAsync(message.ReceiverUserId.Value, false, ct);
++            dto.ReceiverName = receiver?.Profile?.FullName ?? receiver?.Email;
++        }
++
++        return dto;
++    }
++
++    public async Task<FileDownloadResult?> GetFileAsync(Guid fileId, CancellationToken ct = default)
++    {
++        var file = await _unitOfWork.StorageFiles.GetByIdAsync(fileId, null, false, ct);
++        if (file == null)
++            return null;
++
++        var stream = await _fileStorageService.DownloadAsync(file.ObjectKey, ct);
++        return new FileDownloadResult(stream, file.OriginalFileName ?? "file", file.MimeType);
++    }
+ }
+\ No newline at end of file
+diff --git a/src/FPT.EXE201.Infrastructure/Repositories/ChatMessageRepository.cs b/src/FPT.EXE201.Infrastructure/Repositories/ChatMessageRepository.cs
+index 1f53b1e..a2dfe44 100644
+--- a/src/FPT.EXE201.Infrastructure/Repositories/ChatMessageRepository.cs
++++ b/src/FPT.EXE201.Infrastructure/Repositories/ChatMessageRepository.cs
+@@ -1,39 +1,22 @@
+-using FPT.EXE201.Application.IRepositories;
+-using FPT.EXE201.Domain.Entities;
+-using FPT.EXE201.Infrastructure.Persistence;
+-using Microsoft.EntityFrameworkCore;
+-
+-namespace FPT.EXE201.Infrastructure.Repositories;
+-
+-public class ChatMessageRepository : GenericRepository<ChatMessage>, IChatMessageRepository
+-{
+-    public ChatMessageRepository(AppDbContext context) : base(context)
+-    {
+-    }
+-
+-    public async Task<IEnumerable<ChatMessage>> GetMessagesBetweenUsersAsync(Guid userId1, Guid userId2, CancellationToken ct = default)
+-    {
+-        return await ((AppDbContext)_context).ChatMessages
+-            .Where(m => (m.SenderUserId == userId1 && m.ReceiverUserId == userId2) ||
+-                        (m.SenderUserId == userId2 && m.ReceiverUserId == userId1))
+-            .OrderBy(m => m.SentAt)
+-            .ToListAsync(ct);
+-    }
+-
+-    public async Task<IEnumerable<Guid>> GetConversationParticipantsAsync(Guid userId, CancellationToken ct = default)
+-    {
+-        var senders = await ((AppDbContext)_context).ChatMessages
+-            .Where(m => m.ReceiverUserId == userId && m.SenderUserId != userId)
+-            .Select(m => m.SenderUserId)
+-            .Distinct()
+-            .ToListAsync(ct);
+-
+-        var receivers = await ((AppDbContext)_context).ChatMessages
+-            .Where(m => m.SenderUserId == userId && m.ReceiverUserId.HasValue && m.ReceiverUserId != userId)
+-            .Select(m => m.ReceiverUserId!.Value)
+-            .Distinct()
+-            .ToListAsync(ct);
+-
+-        return senders.Union(receivers).Distinct();
+-    }
++using FPT.EXE201.Application.IRepositories;
++using FPT.EXE201.Domain.Entities;
++using FPT.EXE201.Infrastructure.Persistence;
++using Microsoft.EntityFrameworkCore;
++
++namespace FPT.EXE201.Infrastructure.Repositories;
++
++public class ChatMessageRepository : GenericRepository<ChatMessage>, IChatMessageRepository
++{
++    public ChatMessageRepository(AppDbContext context) : base(context)
++    {
++    }
++
++    public async Task<IEnumerable<ChatMessage>> GetMessagesBetweenUsersAsync(Guid userId1, Guid userId2, CancellationToken ct = default)
++    {
++        return await ((AppDbContext)_context).ChatMessages
++            .Where(m => (m.SenderUserId == userId1 && m.ReceiverUserId == userId2) ||
++                        (m.SenderUserId == userId2 && m.ReceiverUserId == userId1))
++            .OrderBy(m => m.SentAt)
++            .ToListAsync(ct);
++    }
+ }
+\ No newline at end of file

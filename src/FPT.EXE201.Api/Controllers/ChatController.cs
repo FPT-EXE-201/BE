@@ -5,6 +5,9 @@ using FPT.EXE201.Application.DTOs.MedicalDocuments;
 using FPT.EXE201.Application.IServices;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
+using System.Collections.Generic;
+using System.Linq;
+
 
 namespace FPT.EXE201.Api.Controllers;
 
@@ -71,15 +74,14 @@ public class ChatController : BaseApiController
 
     private Task BroadcastMessageToParticipantsAsync(string method, ChatMessageDto message)
     {
-        var tasks = new List<Task>
-        {
-            _hubContext.Clients.Group(ChatHub.GetUserGroupName(message.SenderUserId)).SendAsync(method, message)
-        };
-
+        var participantIds = new HashSet<Guid> { message.SenderUserId };
         if (message.ReceiverUserId.HasValue)
         {
-            tasks.Add(_hubContext.Clients.Group(ChatHub.GetUserGroupName(message.ReceiverUserId.Value)).SendAsync(method, message));
+            participantIds.Add(message.ReceiverUserId.Value);
         }
+
+        var tasks = participantIds.Select(userId => 
+            _hubContext.Clients.Group(ChatHub.GetUserGroupName(userId)).SendAsync(method, message));
 
         return Task.WhenAll(tasks);
     }
@@ -94,12 +96,30 @@ public class ChatController : BaseApiController
         return Success(messages);
     }
 
-    [HttpGet("download/{fileId}")]
+    [HttpGet("doctors")]
     [RequirePermission("chat.send")]
-    public async Task<IActionResult> DownloadFile(Guid fileId, CancellationToken ct = default)
+    [ProducesResponseType(typeof(IEnumerable<FPT.EXE201.Application.DTOs.Chat.ChatPartnerDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetDoctors(CancellationToken ct = default)
     {
         var currentUserId = GetCurrentUserId();
+        var result = await _chatService.GetDoctorUsersAsync(currentUserId, ct);
+        return Success(result);
+    }
 
+    [HttpGet("conversations")]
+    [RequirePermission("chat.send")]
+    [ProducesResponseType(typeof(IEnumerable<FPT.EXE201.Application.DTOs.Chat.ChatPartnerDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetConversations(CancellationToken ct = default)
+    {
+        var currentUserId = GetCurrentUserId();
+        var result = await _chatService.GetActiveConversationsAsync(currentUserId, ct);
+        return Success(result);
+    }
+
+    [HttpGet("download/{fileId}")]
+    [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+    public async Task<IActionResult> DownloadFile(Guid fileId, CancellationToken ct = default)
+    {
         var file = await _chatService.GetFileAsync(fileId, ct);
         if (file == null)
             return NotFound("File not found");

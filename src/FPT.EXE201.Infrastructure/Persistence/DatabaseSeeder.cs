@@ -179,6 +179,10 @@ namespace FPT.EXE201.Infrastructure.Persistence
             await SeedPermissionIfNotExists(context, "data.export", "Export Personal Data", "Premium users can export their data");
             await SeedPermissionIfNotExists(context, "notifications.push", "Push Notifications", "Premium users receive push notifications");
 
+            // Subscription permissions
+            await SeedPermissionIfNotExists(context, "subscription.purchase", "Purchase Subscription", "User can purchase a premium subscription");
+            await SeedPermissionIfNotExists(context, "subscription.read", "Read Subscription", "User can view their subscription status and history");
+
             // Week 3 - Pregnancy Core Permissions (used by controllers)
             await SeedPermissionIfNotExists(context, "pregnancy.read", "Read Pregnancy", "User can read their own pregnancy data");
             await SeedPermissionIfNotExists(context, "pregnancy.write", "Write Pregnancy", "User can create/update their own pregnancy");
@@ -238,6 +242,7 @@ namespace FPT.EXE201.Infrastructure.Persistence
                 "weight_alert.read", "weight_alert.resolve",
                 "reminders.write.own",
                 "consults.request", "chat.send", "calls.join",
+                "subscription.purchase", "subscription.read",
                 // Week 7 — Nutrition
                 "food_preference.read", "food_preference.write", "food_preference.delete",
                 "nutrition_note.read", "nutrition_note.write", "nutrition_note.delete",
@@ -272,6 +277,7 @@ namespace FPT.EXE201.Infrastructure.Persistence
                 "chat.send", "chat.participants.manage", "calls.join", "calls.recordings.access",
                 "reminders.manage.any",
                 "premium.access", "ai_features.access", "reports.advanced",
+                "subscription.purchase", "subscription.read",
                 // Week 7 — Nutrition (same as USER except meal_plan.generate)
                 "food_preference.read", "food_preference.write", "food_preference.delete",
                 "nutrition_note.read", "nutrition_note.write", "nutrition_note.delete",

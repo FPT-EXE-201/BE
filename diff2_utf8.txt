@@ -1,0 +1,52 @@
+﻿diff --git a/src/FPT.EXE201.Application/DependencyInjection.cs b/src/FPT.EXE201.Application/DependencyInjection.cs
+index ed940ea..4c4aabe 100644
+--- a/src/FPT.EXE201.Application/DependencyInjection.cs
++++ b/src/FPT.EXE201.Application/DependencyInjection.cs
+@@ -46,6 +46,9 @@ public static class DependencyInjection
+         services.AddScoped<IWeightLogService, WeightLogService>();
+         services.AddScoped<IMotivationalService, MotivationalService>();
+ 
++        // Week 7 ΓÇö Premium Subscription
++        services.AddScoped<ISubscriptionService, SubscriptionService>();
++
+         // Week 7 ΓÇö Nutrition + Meal Planning
+         services.AddScoped<IFoodPreferenceService, FoodPreferenceService>();
+         services.AddScoped<IMealPlanService, MealPlanService>();
+diff --git a/src/FPT.EXE201.Application/IUnitOfWork.cs b/src/FPT.EXE201.Application/IUnitOfWork.cs
+index 11390ac..2c0245a 100644
+--- a/src/FPT.EXE201.Application/IUnitOfWork.cs
++++ b/src/FPT.EXE201.Application/IUnitOfWork.cs
+@@ -45,6 +45,9 @@ namespace FPT.EXE201.Application
+         IWeightAlertRepository WeightAlerts { get; }
+         IMotivationalTemplateRepository MotivationalTemplates { get; }
+ 
++        // Week 7 ΓÇö Premium Subscription
++        ISubscriptionRepository Subscriptions { get; }
++
+         // Week 7 ΓÇö Nutrition + Meal Planning
+         IRefFoodItemRepository RefFoodItems { get; }
+         IRefNutrientRepository RefNutrients { get; }
+diff --git a/src/FPT.EXE201.Infrastructure/Repositories/UnitOfWork.cs b/src/FPT.EXE201.Infrastructure/Repositories/UnitOfWork.cs
+index 212a83b..aeff0ec 100644
+--- a/src/FPT.EXE201.Infrastructure/Repositories/UnitOfWork.cs
++++ b/src/FPT.EXE201.Infrastructure/Repositories/UnitOfWork.cs
+@@ -51,6 +51,9 @@ namespace FPT.EXE201.Infrastructure.Repositories
+         private IWeightAlertRepository? _weightAlerts;
+         private IMotivationalTemplateRepository? _motivationalTemplates;
+ 
++        // Week 7 ΓÇö Premium Subscription
++        private ISubscriptionRepository? _subscriptions;
++
+         // Week 7 ΓÇö Nutrition + Meal Planning
+         private IRefFoodItemRepository? _refFoodItems;
+         private IRefNutrientRepository? _refNutrients;
+@@ -106,6 +109,9 @@ namespace FPT.EXE201.Infrastructure.Repositories
+         public IWeightAlertRepository WeightAlerts => _weightAlerts ??= new WeightAlertRepository(_context);
+         public IMotivationalTemplateRepository MotivationalTemplates => _motivationalTemplates ??= new MotivationalTemplateRepository(_context);
+ 
++        // Week 7 ΓÇö Premium Subscription
++        public ISubscriptionRepository Subscriptions => _subscriptions ??= new SubscriptionRepository(_context);
++
+         // Week 7 ΓÇö Nutrition + Meal Planning
+         public IRefFoodItemRepository RefFoodItems => _refFoodItems ??= new RefFoodItemRepository(_context);
+         public IRefNutrientRepository RefNutrients => _refNutrients ??= new RefNutrientRepository(_context);

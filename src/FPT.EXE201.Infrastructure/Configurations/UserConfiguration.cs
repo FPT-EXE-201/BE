@@ -1,4 +1,4 @@
-﻿using FPT.EXE201.Domain.Entities;
+using FPT.EXE201.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -68,18 +68,7 @@ namespace FPT.EXE201.Infrastructure.Configurations
             // Ignore computed property
             builder.Ignore(e => e.IsDeleted);
 
-            // Google OAuth
-            builder.Property(e => e.GoogleId)
-                .HasColumnName("google_id")
-                .HasMaxLength(255)
-                .IsRequired(false);
-
-            builder.Property(e => e.AuthProvider)
-                .HasColumnName("auth_provider")
-                .IsRequired()
-                .HasMaxLength(20)
-                .HasDefaultValue("local");
-
+        
             // Indexes
             builder.HasIndex(e => e.Email)
                 .IsUnique();
@@ -87,10 +76,7 @@ namespace FPT.EXE201.Infrastructure.Configurations
             builder.HasIndex(e => e.Phone)
                 .IsUnique();
 
-            builder.HasIndex(e => e.GoogleId)
-                .IsUnique()
-                .HasDatabaseName("uk_users_google_id");
-
+        
             builder.HasIndex(e => e.DeletedAt);
 
             // Relationships

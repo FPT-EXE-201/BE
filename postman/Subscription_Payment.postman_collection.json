@@ -1,0 +1,287 @@
+{
+	"info": {
+		"_postman_id": "subscription-payment-test",
+		"name": "Subscription & PayOS Payment Test",
+		"description": "Bộ test luồng thanh toán Premium qua PayOS.\n\n1. Chạy **TC01 - Register** và **TC02 - Login** trước để lấy token.\n2. Chạy **TC03 - Get Plans** để xem các gói.\n3. Chạy **TC04 - Purchase** để lấy link thanh toán.\n4. Thanh toán thật (hoặc test) qua link checkoutUrl.\n5. Chạy **TC05 - Verify** hoặc đợi Webhook để kích hoạt gói.\n6. Chạy **TC06 - Get Status** để kiểm tra.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:5236",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "orderCode",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "testEmail",
+			"value": "tester_payos@example.com",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "1. Authentication",
+			"item": [
+				{
+					"name": "TC01 - Register",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const res = pm.response.json();",
+									"if (pm.response.code === 201) {",
+									"    pm.collectionVariables.set('token', res.data.accessToken);",
+									"    console.log('✅ Registered & Token saved');",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"Email\": \"{{testEmail}}\",\n  \"Password\": \"Password123!\",\n  \"FullName\": \"PayOS Tester\",\n  \"Phone\": \"0912345678\",\n  \"PreferredLanguage\": \"vi\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/Auth/register",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"Auth",
+								"register"
+							]
+						}
+					}
+				},
+				{
+					"name": "TC02 - Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const res = pm.response.json();",
+									"if (pm.response.code === 200) {",
+									"    pm.collectionVariables.set('token', res.data.accessToken);",
+									"    console.log('✅ Login successful, Token saved');",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"EmailOrPhone\": \"{{testEmail}}\",\n  \"Password\": \"Password123!\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/Auth/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"Auth",
+								"login"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "2. Subscription",
+			"item": [
+				{
+					"name": "TC03 - Get Plans",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/subscriptions/plans",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"subscriptions",
+								"plans"
+							]
+						}
+					}
+				},
+				{
+					"name": "TC04 - Purchase (Monthly)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const res = pm.response.json();",
+									"if (pm.response.code === 201) {",
+									"    pm.collectionVariables.set('orderCode', res.data.orderCode);",
+									"    console.log('✅ Purchase created. OrderCode:', res.data.orderCode);",
+									"    console.log('👉 Checkout URL:', res.data.checkoutUrl);",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"Plan\": \"Monthly\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/subscriptions/purchase",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"subscriptions",
+								"purchase"
+							]
+						}
+					}
+				},
+				{
+					"name": "TC05 - Verify Payment",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/subscriptions/verify?orderCode={{orderCode}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"subscriptions",
+								"verify"
+							],
+							"query": [
+								{
+									"key": "orderCode",
+									"value": "{{orderCode}}"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "TC06 - Get Status",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/subscriptions/status",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"subscriptions",
+								"status"
+							]
+						}
+					}
+				},
+				{
+					"name": "TC07 - Get History",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/subscriptions/history",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"subscriptions",
+								"history"
+							]
+						}
+					}
+				},
+				{
+					"name": "TC08 - Cancel Subscription",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/subscriptions/cancel",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"subscriptions",
+								"cancel"
+							]
+						}
+					}
+				}
+			]
+		}
+	]
+}
+

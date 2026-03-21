@@ -45,6 +45,9 @@ namespace FPT.EXE201.Application
         IWeightAlertRepository WeightAlerts { get; }
         IMotivationalTemplateRepository MotivationalTemplates { get; }
 
+        // Week 7 — Premium Subscription
+        ISubscriptionRepository Subscriptions { get; }
+
         // Week 7 — Nutrition + Meal Planning
         IRefFoodItemRepository RefFoodItems { get; }
         IRefNutrientRepository RefNutrients { get; }

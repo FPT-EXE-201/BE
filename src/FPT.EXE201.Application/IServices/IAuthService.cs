@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -47,19 +47,7 @@ namespace FPT.EXE201.Application.IServices
         /// <param name="ct">Cancellation token</param>
         Task LogoutAsync(Guid userId, Guid refreshTokenId, CancellationToken ct = default);
 
-        /// <summary>
-        /// Get current user info by userId
-        /// </summary>
         Task<UserResponseDto> GetMeAsync(Guid userId, CancellationToken ct = default);
-
-        /// <summary>
-        /// Sign in or auto-register via Google ID Token (mobile)
-        /// </summary>
-        Task<AuthResponseDto> GoogleSignInAsync(
-            GoogleSignInRequestDto request,
-            string? ipAddress = null,
-            string? userAgent = null,
-            CancellationToken ct = default);
     }
 }
 

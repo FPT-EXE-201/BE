@@ -1,4 +1,4 @@
-﻿using FPT.EXE201.Application;
+using FPT.EXE201.Application;
 using FPT.EXE201.Application.AI.Interfaces;
 using FPT.EXE201.Application.Authorization;
 using FPT.EXE201.Application.IRepositories;
@@ -64,9 +64,6 @@ namespace FPT.EXE201.Infrastructure
                     new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", serviceKey);
             });
 
-            // Google Sign-In — uses Google.Apis.Auth library (manages its own HTTP)
-            services.AddScoped<IGoogleTokenVerifier, GoogleTokenVerifier>();
-
             // Week 4 — Infrastructure Services
             services.AddScoped<IOcrService, OcrService>();
 
@@ -99,6 +96,11 @@ namespace FPT.EXE201.Infrastructure
 
             // Week 6 — Weight OCR Service
             services.AddScoped<IWeightOcrService, WeightOcrService>();
+
+            // Subscription + PayOS
+            services.AddScoped<IPaymentService, PayOsService>();
+            services.AddScoped<PayOsService>();
+            services.AddHostedService<SubscriptionExpiryBackgroundService>();
             #endregion
 
             // Add JWT Authentication

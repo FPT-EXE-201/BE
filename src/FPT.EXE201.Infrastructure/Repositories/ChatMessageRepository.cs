@@ -19,4 +19,21 @@ public class ChatMessageRepository : GenericRepository<ChatMessage>, IChatMessag
             .OrderBy(m => m.SentAt)
             .ToListAsync(ct);
     }
+
+    public async Task<IEnumerable<Guid>> GetConversationParticipantsAsync(Guid userId, CancellationToken ct = default)
+    {
+        var senders = await ((AppDbContext)_context).ChatMessages
+            .Where(m => m.ReceiverUserId == userId && m.SenderUserId != userId)
+            .Select(m => m.SenderUserId)
+            .Distinct()
+            .ToListAsync(ct);
+
+        var receivers = await ((AppDbContext)_context).ChatMessages
+            .Where(m => m.SenderUserId == userId && m.ReceiverUserId.HasValue && m.ReceiverUserId != userId)
+            .Select(m => m.ReceiverUserId!.Value)
+            .Distinct()
+            .ToListAsync(ct);
+
+        return senders.Union(receivers).Distinct();
+    }
 }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -22,7 +22,6 @@ namespace FPT.EXE201.Application.Services
         private readonly IPasswordHasher _passwordHasher;
         private readonly IJwtTokenService _jwtTokenService;
         private readonly IUserRoleService _userRoleService;
-        private readonly IGoogleTokenVerifier _googleTokenVerifier;
         private readonly IMapper _mapper;
 
         public AuthService(
@@ -30,14 +29,12 @@ namespace FPT.EXE201.Application.Services
             IPasswordHasher passwordHasher,
             IJwtTokenService jwtTokenService,
             IUserRoleService userRoleService,
-            IGoogleTokenVerifier googleTokenVerifier,
             IMapper mapper)
         {
             _unitOfWork = unitOfWork;
             _passwordHasher = passwordHasher;
             _jwtTokenService = jwtTokenService;
             _userRoleService = userRoleService;
-            _googleTokenVerifier = googleTokenVerifier;
             _mapper = mapper;
         }
 
@@ -250,107 +247,6 @@ namespace FPT.EXE201.Application.Services
             await _jwtTokenService.RevokeByIdAsync(refreshTokenId, ct);
         }
 
-        public async Task<AuthResponseDto> GoogleSignInAsync(
-            GoogleSignInRequestDto request,
-            string? ipAddress = null,
-            string? userAgent = null,
-            CancellationToken ct = default)
-        {
-            // 1. Verify idToken với Google
-            if (string.IsNullOrWhiteSpace(request.IdToken))
-                throw new BadRequestException("Google ID Token is required");
-
-            var googleUser = await _googleTokenVerifier.VerifyIdTokenAsync(request.IdToken, ct)
-                ?? throw new UnauthorizedException("Invalid or expired Google token");
-
-            // 2. Tìm user theo GoogleId
-            var user = await _unitOfWork.Users.GetByGoogleIdAsync(googleUser.GoogleId, includeProfile: true, ct);
-
-            if (user == null)
-            {
-                // 3a. Tìm theo email (tài khoản local cũ) → link
-                user = await _unitOfWork.Users.GetByEmailAsync(googleUser.Email, includeProfile: true, includeDeleted: false, ct);
-
-                if (user != null)
-                {
-                    // Link Google vào account local cũ
-                    user.GoogleId   = googleUser.GoogleId;
-                    user.AuthProvider = "google";
-                    _unitOfWork.Users.Update(user);
-                }
-                else
-                {
-                    // 3b. Auto-Register user mới
-                    user = new User
-                    {
-                        Email             = googleUser.Email,
-                        EmailNormalized   = NormalizeEmail(googleUser.Email),
-                        GoogleId          = googleUser.GoogleId,
-                        AuthProvider      = "google",
-                        Status            = UserStatus.Active,     // Google đã verify
-                        IsEmailVerified   = googleUser.EmailVerified,
-                        PasswordHash      = Array.Empty<byte>()    // Không có password
-                    };
-                    await _unitOfWork.Users.AddAsync(user, ct);
-
-                    // Tạo UserProfile
-                    var language = await _unitOfWork.Languages.GetDefaultAsync(ct);
-                    var profile = new UserProfile
-                    {
-                        UserId        = user.Id,
-                        FullName      = googleUser.Name,
-                        AvatarUrl     = googleUser.PictureUrl,
-                        PreferredLang = language?.Code ?? "vi"
-                    };
-                    await _unitOfWork.UserProfiles.AddAsync(profile, ct);
-                    user.Profile = profile;
-                }
-
-                await _unitOfWork.SaveChangesAsync(ct);
-            }
-
-            // 4. Check trạng thái account
-            if (user.Status != UserStatus.Active)
-                throw new UnauthorizedException($"Account is {user.Status}");
-
-            // 5. Update LastLoginAt
-            user.LastLoginAt = DateTime.UtcNow;
-            _unitOfWork.Users.Update(user);
-
-            // 6. Ensure user has at least USER role (for both new and existing accounts)
-            var userRoles = await _userRoleService.GetUserRoleCodesAsync(user.Id, ct);
-            if (!userRoles.Any())
-            {
-                var userRole = await _unitOfWork.Roles.GetByCodeAsync("USER", includeDeleted: false, ct);
-                if (userRole != null)
-                {
-                    await _userRoleService.AssignRolesToUserAsync(user.Id, new List<Guid> { userRole.Id }, ct);
-                    await _unitOfWork.SaveChangesAsync(ct);
-                }
-            }
-
-            // 7. Query permissions + roles
-            var permissions = await _userRoleService.GetUserPermissionCodesAsync(user.Id, ct);
-            var roles       = await _userRoleService.GetUserRoleCodesAsync(user.Id, ct);
-
-            // 7. Issue RefreshToken
-            var (refreshToken, tokenId, _) = await _jwtTokenService.IssueRefreshTokenAsync(
-                user.Id, ipAddress, userAgent, ct: ct);
-            await _unitOfWork.SaveChangesAsync(ct);
-
-            // 8. Generate AccessToken
-            var accessToken = _jwtTokenService.GenerateAccessTokenWithPermissions(user, permissions, roles, tokenId);
-
-            return new AuthResponseDto
-            {
-                AccessToken  = accessToken,
-                RefreshToken = refreshToken,
-                TokenType    = "Bearer",
-                ExpiresIn    = _jwtTokenService.GetTokenExpirationSeconds(),
-                User         = _mapper.Map<UserResponseDto>(user)
-            };
-        }
-
         #region Helper Methods
 
         private string NormalizeEmail(string email)
@@ -361,3 +257,4 @@ namespace FPT.EXE201.Application.Services
         #endregion
     }
 }
+
