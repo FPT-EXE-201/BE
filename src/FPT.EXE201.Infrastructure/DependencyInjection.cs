@@ -1,4 +1,4 @@
-﻿using FPT.EXE201.Application;
+using FPT.EXE201.Application;
 using FPT.EXE201.Application.AI.Interfaces;
 using FPT.EXE201.Application.Authorization;
 using FPT.EXE201.Application.IRepositories;
@@ -15,6 +15,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 using System.Text;
+using System.IdentityModel.Tokens.Jwt;
 
 namespace FPT.EXE201.Infrastructure
 {
@@ -24,6 +25,9 @@ namespace FPT.EXE201.Infrastructure
             this IServiceCollection services,
             IConfiguration configuration)
         {
+            // CRITICAL: Disable default claim mapping to keep JWT claim names (like 'sub', 'role') original
+            JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
+
             // Add DbContext with MySQL
             services.AddDbContext<AppDbContext>(options =>
             {
@@ -38,7 +42,6 @@ namespace FPT.EXE201.Infrastructure
             });
 
             // Add repositories here
-            // services.AddScoped<IUserRepository, UserRepository>();
             #region Repositories
             services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<ILanguageRepository, LanguageRepository>();
@@ -50,7 +53,7 @@ namespace FPT.EXE201.Infrastructure
             services.AddScoped<IJwtTokenService, JwtTokenService>();
             services.AddScoped<IPasswordHasher, PasswordHasher>();
 
-            // Week 5 — Supabase Storage (replaces Week 4 StubFileStorageService)
+            // Week 5 — Supabase Storage
             services.AddHttpClient<IFileStorageService, SupabaseStorageService>(client =>
             {
                 var supabaseUrl = configuration["Supabase:Url"]
@@ -64,20 +67,14 @@ namespace FPT.EXE201.Infrastructure
                     new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", serviceKey);
             });
 
-            // Google Sign-In — uses Google.Apis.Auth library (manages its own HTTP)
             services.AddScoped<IGoogleTokenVerifier, GoogleTokenVerifier>();
-
-            // Week 4 — Infrastructure Services
             services.AddScoped<IOcrService, OcrService>();
 
-            // Week 5 — AI Provider HTTP Clients
             services.AddHttpClient<IAiProvider, GeminiAiProvider>(client =>
             {
-                var baseUrl = configuration["AI:Gemini:BaseUrl"]
-                    ?? "https://generativelanguage.googleapis.com/v1beta/";
+                var baseUrl = configuration["AI:Gemini:BaseUrl"] ?? "https://generativelanguage.googleapis.com/v1beta/";
                 client.BaseAddress = new Uri(baseUrl);
-                client.Timeout = TimeSpan.FromSeconds(
-                    int.Parse(configuration["AI:Gemini:TimeoutSeconds"] ?? "60"));
+                client.Timeout = TimeSpan.FromSeconds(int.Parse(configuration["AI:Gemini:TimeoutSeconds"] ?? "60"));
             });
 
             services.AddHttpClient<IOcrProvider, AzureOcrProvider>(client =>
@@ -85,19 +82,13 @@ namespace FPT.EXE201.Infrastructure
                 var endpoint = configuration["AI:AzureDocumentIntelligence:Endpoint"]
                     ?? throw new InvalidOperationException("AI:AzureDocumentIntelligence:Endpoint is required.");
                 client.BaseAddress = new Uri(endpoint.TrimEnd('/') + "/");
-                client.Timeout = TimeSpan.FromSeconds(
-                    int.Parse(configuration["AI:AzureDocumentIntelligence:TimeoutSeconds"] ?? "120"));
+                client.Timeout = TimeSpan.FromSeconds(int.Parse(configuration["AI:AzureDocumentIntelligence:TimeoutSeconds"] ?? "120"));
             });
 
-            // Week 5 — Background OCR Processing (Channel + BackgroundService)
             services.AddSingleton<IOcrJobQueue, OcrJobQueue>();
             services.AddHostedService<OcrBackgroundService>();
-
-            // Week 7 — Background Meal Plan Generation (Channel + BackgroundService)
             services.AddSingleton<IMealPlanJobQueue, MealPlanJobQueue>();
             services.AddHostedService<MealPlanBackgroundService>();
-
-            // Week 6 — Weight OCR Service
             services.AddScoped<IWeightOcrService, WeightOcrService>();
             #endregion
 
@@ -122,11 +113,26 @@ namespace FPT.EXE201.Infrastructure
                     ValidateAudience = true,
                     ValidAudience = jwtAudience,
                     ValidateLifetime = true,
-                    ClockSkew = TimeSpan.Zero
+                    ClockSkew = TimeSpan.Zero,
+                    NameClaimType = JwtRegisteredClaimNames.Sub, // Use 'sub' as NameIdentifier
+                    RoleClaimType = "role"
+                };
+
+                options.Events = new JwtBearerEvents
+                {
+                    OnMessageReceived = context =>
+                    {
+                        var accessToken = context.Request.Query["access_token"];
+                        var path = context.HttpContext.Request.Path;
+                        if (!string.IsNullOrEmpty(accessToken) && (path.StartsWithSegments("/hubs/chat")))
+                        {
+                            context.Token = accessToken;
+                        }
+                        return Task.CompletedTask;
+                    }
                 };
             });
 
-            // Add Authorization with Permission-based Policies
             services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
             services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
 

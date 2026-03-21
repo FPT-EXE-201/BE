@@ -9,4 +9,5 @@ namespace FPT.EXE201.Application.IRepositories;
 public interface IChatMessageRepository : IGenericRepository<ChatMessage>
 {
     Task<IEnumerable<ChatMessage>> GetMessagesBetweenUsersAsync(Guid userId1, Guid userId2, CancellationToken ct = default);
+    Task<IEnumerable<Guid>> GetConversationParticipantsAsync(Guid userId, CancellationToken ct = default);
 }

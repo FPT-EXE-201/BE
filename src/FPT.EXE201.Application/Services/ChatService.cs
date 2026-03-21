@@ -213,4 +213,38 @@ public class ChatService : IChatService
         var stream = await _fileStorageService.DownloadAsync(file.ObjectKey, ct);
         return new FileDownloadResult(stream, file.OriginalFileName ?? "file", file.MimeType);
     }
+
+    public async Task<IEnumerable<ChatPartnerDto>> GetDoctorUsersAsync(Guid currentUserId, CancellationToken ct = default)
+    {
+        var doctors = await _unitOfWork.Users.GetByRoleAsync("DOCTOR", ct);
+        return doctors
+            .Where(u => u.Id != currentUserId) // Exclude self
+            .Select(u => new ChatPartnerDto
+            {
+                Id = u.Id,
+                FullName = u.Profile?.FullName ?? u.Email ?? "Unknown Doctor",
+                AvatarUrl = u.Profile?.AvatarUrl
+            }).ToList();
+    }
+
+    public async Task<IEnumerable<ChatPartnerDto>> GetActiveConversationsAsync(Guid currentUserId, CancellationToken ct = default)
+    {
+        var participantIds = await _unitOfWork.ChatMessages.GetConversationParticipantsAsync(currentUserId, ct);
+        var result = new List<ChatPartnerDto>();
+
+        foreach (var otherUserId in participantIds)
+        {
+            var user = await _unitOfWork.Users.GetByIdWithProfileAsync(otherUserId, false, ct);
+            if (user == null) continue;
+
+            result.Add(new ChatPartnerDto
+            {
+                Id = user.Id,
+                FullName = user.Profile?.FullName ?? user.Email ?? "Unknown",
+                AvatarUrl = user.Profile?.AvatarUrl
+            });
+        }
+
+        return result;
+    }
 }
