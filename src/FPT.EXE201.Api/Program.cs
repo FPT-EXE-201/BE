@@ -1,4 +1,4 @@
-﻿using FPT.EXE201.Api.Hubs;
+using FPT.EXE201.Api.Hubs;
 using FPT.EXE201.Infrastructure;
 using FPT.EXE201.Application;
 using FPT.EXE201.Api.Filters;
@@ -70,6 +70,7 @@ try
 
     // SignalR (real-time chat)
     builder.Services.AddSignalR();
+    builder.Services.AddSingleton<Microsoft.AspNetCore.SignalR.IUserIdProvider, FPT.EXE201.Api.Hubs.UserIdProvider>();
 
     // Add Authorization
     builder.Services.AddAuthorization();
