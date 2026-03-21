@@ -46,6 +46,9 @@ public static class DependencyInjection
         services.AddScoped<IWeightLogService, WeightLogService>();
         services.AddScoped<IMotivationalService, MotivationalService>();
 
+        // Week 7 — Premium Subscription
+        services.AddScoped<ISubscriptionService, SubscriptionService>();
+
         // Week 7 — Nutrition + Meal Planning
         services.AddScoped<IFoodPreferenceService, FoodPreferenceService>();
         services.AddScoped<IMealPlanService, MealPlanService>();

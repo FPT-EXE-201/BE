@@ -123,13 +123,13 @@ namespace FPT.EXE201.Infrastructure.Migrations
                             CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Description = "Extract structured data from prenatal checkup records (Phiếu Khám Thai MS:51/BV2). Output matches VitalsJsonDto schema for direct storage.",
                             DisplayName = "Medical Record Data Extraction",
-                            DomainRules = "VIETNAMESE PRENATAL CARE DOMAIN KNOWLEDGE (Phiếu Khám Thai MS: 51/BV2):\n\nDocument sections (map to vitalsData fields):\nA. Thông tin chung → generalInfo (facility, patient demographics, insurance)\nB.I. Lần khám trước → previousVisit (diagnosis, treatment)\nB.II. Hỏi bệnh → interview (reason, pregnancy number, gestational age, LMP, expected delivery)\nB.III. Tiền sử bệnh → medicalHistory (personal, obstetric, gynecology, family)\nB.IV. Khám bệnh → examination (vitalSigns, general, obstetric)\nB.VI. Chẩn đoán → diagnosis (text + ICD code)\nB.VII. Kế hoạch điều trị → treatmentPlan (medication, health education)\nB.VIII. Tiên lượng → prognosis\nB.IX. Lần khám kế tiếp → nextAppointment\n\nCommon metrics and units:\n- Mạch (Pulse): lần/phút → pulseBpm (integer)\n- Nhiệt độ (Temperature): °C → temperatureCelsius (number)\n- Huyết áp / HA: mmHg → bloodPressureSystolic + bloodPressureDiastolic (separate integers)\n- Nhịp thở (Respiratory rate): lần/phút → respiratoryRateBpm (integer)\n- Cân nặng (Weight): kg → weightKg (number)\n- Chiều cao (Height): cm → heightCm (number)\n- CCTC / Bề cao tử cung (Fundal height): cm → fundusHeightCm (number)\n- Vòng bụng (Abdominal circumference): cm → abdominalCircumferenceCm (number)\n- Tim thai / TT / TSM (Fetal heart rate): lần/phút → fetalHeartRateBpm (integer)\n- Tuổi thai / Tuần thai: weeks → gestationalWeek (integer, ignore days)\n- Protein niệu: g/L or qualitative (+/++/+++) → urineProtein (boolean) + urineProteinValue (number)\n\nCommon abbreviations:\n- TSM: tim sản mạch (fetal heart)\n- TC: tử cung (uterus)\n- NK: ngôi kiểu (fetal presentation)\n- NT: nước tiểu (urine)\n- CTG: cardiotocography\n- BCTC: bề cao tử cung (fundal height)\n- KCC: kinh cuối cùng (last menstrual period)\n- PARA: tiền sử sản khoa (obstetric history)\n- CTC: cổ tử cung (cervix)\n- ÔVN: ối vỡ non (premature rupture of membranes)",
-                            FeatureRules = "EXTRACTION TASK:\nExtract structured medical data from the OCR text of a Vietnamese prenatal checkup form.\nFill the 'vitalsData' object following the VitalsJsonDto schema sections:\n\n1. generalInfo: Patient demographics, facility name, insurance info\n2. previousVisit: Previous visit date, diagnosis, treatment (if mentioned)\n3. interview: Visit reason, pregnancy number, gestational week, LMP date, expected delivery date\n4. medicalHistory: Personal diseases, obstetric history (PARA), gynecology, family history\n5. examination.vitalSigns: Pulse, temperature, BP systolic/diastolic (SEPARATE integers), respiratory rate, weight, height\n6. examination.general: Mental status, edema, urine protein\n7. examination.obstetric: Fundal height, abdominal circumference, fetal presentation, fetal heart rate, cervix, amniotic fluid/sac\n8. diagnosis: Diagnosis text + ICD code (if present)\n9. treatmentPlan: Medications (as single text), next treatment steps, health education\n10. prognosis: normal/risky/cesarean_indicated\n11. nextAppointment: Date + notes + examiner type\n\nCRITICAL:\n- 'bloodPressureSystolic' and 'bloodPressureDiastolic' must be SEPARATE integers. E.g., HA 120/80 → systolic=120, diastolic=80.\n- 'gestationalWeek' is an integer (weeks only). E.g., 28T2N → 28.\n- Boolean fields: true if mentioned/positive, false if explicitly negative, null if not mentioned.\n- Dates: yyyy-MM-dd format.\n- If text is partially illegible, extract readable parts and set overallConfidence lower.",
+                            DomainRules = "VIETNAMESE PRENATAL CARE DOMAIN KNOWLEDGE (Phiếu Khám Thai MS: 51/BV2):\r\n\r\nDocument sections (map to vitalsData fields):\r\nA. Thông tin chung → generalInfo (facility, patient demographics, insurance)\r\nB.I. Lần khám trước → previousVisit (diagnosis, treatment)\r\nB.II. Hỏi bệnh → interview (reason, pregnancy number, gestational age, LMP, expected delivery)\r\nB.III. Tiền sử bệnh → medicalHistory (personal, obstetric, gynecology, family)\r\nB.IV. Khám bệnh → examination (vitalSigns, general, obstetric)\r\nB.VI. Chẩn đoán → diagnosis (text + ICD code)\r\nB.VII. Kế hoạch điều trị → treatmentPlan (medication, health education)\r\nB.VIII. Tiên lượng → prognosis\r\nB.IX. Lần khám kế tiếp → nextAppointment\r\n\r\nCommon metrics and units:\r\n- Mạch (Pulse): lần/phút → pulseBpm (integer)\r\n- Nhiệt độ (Temperature): °C → temperatureCelsius (number)\r\n- Huyết áp / HA: mmHg → bloodPressureSystolic + bloodPressureDiastolic (separate integers)\r\n- Nhịp thở (Respiratory rate): lần/phút → respiratoryRateBpm (integer)\r\n- Cân nặng (Weight): kg → weightKg (number)\r\n- Chiều cao (Height): cm → heightCm (number)\r\n- CCTC / Bề cao tử cung (Fundal height): cm → fundusHeightCm (number)\r\n- Vòng bụng (Abdominal circumference): cm → abdominalCircumferenceCm (number)\r\n- Tim thai / TT / TSM (Fetal heart rate): lần/phút → fetalHeartRateBpm (integer)\r\n- Tuổi thai / Tuần thai: weeks → gestationalWeek (integer, ignore days)\r\n- Protein niệu: g/L or qualitative (+/++/+++) → urineProtein (boolean) + urineProteinValue (number)\r\n\r\nCommon abbreviations:\r\n- TSM: tim sản mạch (fetal heart)\r\n- TC: tử cung (uterus)\r\n- NK: ngôi kiểu (fetal presentation)\r\n- NT: nước tiểu (urine)\r\n- CTG: cardiotocography\r\n- BCTC: bề cao tử cung (fundal height)\r\n- KCC: kinh cuối cùng (last menstrual period)\r\n- PARA: tiền sử sản khoa (obstetric history)\r\n- CTC: cổ tử cung (cervix)\r\n- ÔVN: ối vỡ non (premature rupture of membranes)",
+                            FeatureRules = "EXTRACTION TASK:\r\nExtract structured medical data from the OCR text of a Vietnamese prenatal checkup form.\r\nFill the 'vitalsData' object following the VitalsJsonDto schema sections:\r\n\r\n1. generalInfo: Patient demographics, facility name, insurance info\r\n2. previousVisit: Previous visit date, diagnosis, treatment (if mentioned)\r\n3. interview: Visit reason, pregnancy number, gestational week, LMP date, expected delivery date\r\n4. medicalHistory: Personal diseases, obstetric history (PARA), gynecology, family history\r\n5. examination.vitalSigns: Pulse, temperature, BP systolic/diastolic (SEPARATE integers), respiratory rate, weight, height\r\n6. examination.general: Mental status, edema, urine protein\r\n7. examination.obstetric: Fundal height, abdominal circumference, fetal presentation, fetal heart rate, cervix, amniotic fluid/sac\r\n8. diagnosis: Diagnosis text + ICD code (if present)\r\n9. treatmentPlan: Medications (as single text), next treatment steps, health education\r\n10. prognosis: normal/risky/cesarean_indicated\r\n11. nextAppointment: Date + notes + examiner type\r\n\r\nCRITICAL:\r\n- 'bloodPressureSystolic' and 'bloodPressureDiastolic' must be SEPARATE integers. E.g., HA 120/80 → systolic=120, diastolic=80.\r\n- 'gestationalWeek' is an integer (weeks only). E.g., 28T2N → 28.\r\n- Boolean fields: true if mentioned/positive, false if explicitly negative, null if not mentioned.\r\n- Dates: yyyy-MM-dd format.\r\n- If text is partially illegible, extract readable parts and set overallConfidence lower.",
                             IsActive = true,
                             MaxOutputTokens = 16384,
                             ModelName = "gemini-2.5-flash",
-                            OutputSchema = "{\n  \"vitalsData\": {\n    \"generalInfo\": {\n      \"facility\": \"string|null\",\n      \"managingAuthority\": \"string|null\",\n      \"admissionNumber\": \"string|null\",\n      \"patientCode\": \"string|null\",\n      \"fullName\": \"string|null\",\n      \"dateOfBirth\": \"string|null (yyyy-MM-dd)\",\n      \"age\": \"integer|null\",\n      \"phone\": \"string|null\",\n      \"occupation\": \"string|null\",\n      \"ethnicity\": \"string|null\",\n      \"nationality\": \"string|null\",\n      \"address\": \"string|null\",\n      \"ward\": \"string|null\",\n      \"district\": \"string|null\",\n      \"province\": \"string|null\",\n      \"insuranceType\": \"string|null (BHYT|thu_phi|mien|khac)\",\n      \"insuranceNumber\": \"string|null\",\n      \"insuranceExpiry\": \"string|null (yyyy-MM-dd)\",\n      \"idNumber\": \"string|null\"\n    },\n    \"previousVisit\": {\n      \"visitDate\": \"string|null (yyyy-MM-dd)\",\n      \"diagnosis\": \"string|null\",\n      \"treatment\": \"string|null\"\n    },\n    \"interview\": {\n      \"reasonForVisit\": \"string|null\",\n      \"pregnancyNumber\": \"integer|null\",\n      \"totalVisitCount\": \"integer|null\",\n      \"lastMenstrualPeriodDate\": \"string|null (yyyy-MM-dd)\",\n      \"gestationalWeek\": \"integer|null\",\n      \"expectedDeliveryDate\": \"string|null (yyyy-MM-dd)\",\n      \"clinicalProgress\": \"string|null\",\n      \"generalCondition\": \"string|null (normal|abnormal)\",\n      \"generalConditionNote\": \"string|null\",\n      \"tetanusVaccineHistory\": \"integer|null\"\n    },\n    \"medicalHistory\": {\n      \"personal\": {\n        \"allergy\": \"boolean|null\",\n        \"allergyNote\": \"string|null\",\n        \"medicalHistory\": \"boolean|null\",\n        \"medicalHistoryNote\": \"string|null\",\n        \"hypertension\": \"boolean|null\",\n        \"heartDisease\": \"boolean|null\",\n        \"respiratoryDisease\": \"boolean|null\",\n        \"thyroidDisease\": \"boolean|null\",\n        \"kidneyDisease\": \"boolean|null\",\n        \"diabetes\": \"boolean|null\",\n        \"otherDiseases\": \"string|null\",\n        \"currentMedications\": \"boolean|null\",\n        \"medicationNote\": \"string|null\",\n        \"surgeryHistory\": \"boolean|null\",\n        \"surgeryNote\": \"string|null\"\n      },\n      \"obstetric\": {\n        \"para\": \"integer|null\",\n        \"previousPregnancies\": [{\"endDate\":\"string|null\",\"gestationalAge\":\"string|null\",\"complicationsDuringPregnancy\":\"string|null\",\"deliveryMethod\":\"string|null\",\"newbornInfo\":\"string|null\",\"postpartum\":\"string|null\"}]\n      },\n      \"gynecology\": {\n        \"menstrualCycle\": \"string|null (regular|irregular)\",\n        \"menstrualCycleDays\": \"integer|null\",\n        \"gynecologySurgery\": \"boolean|null\",\n        \"gynecologySurgeryNote\": \"string|null\",\n        \"ovarianTumor\": \"boolean|null\",\n        \"uterineFibroid\": \"boolean|null\",\n        \"genitalMalformation\": \"boolean|null\",\n        \"vaginalInfection\": \"boolean|null\"\n      },\n      \"pelvicOrganProlapse\": \"boolean|null\",\n      \"gynecologicalDiseaseNote\": \"string|null\",\n      \"family\": {\n        \"hasHistory\": \"boolean|null\",\n        \"familyHistoryNote\": \"string|null\",\n        \"twins\": \"boolean|null\",\n        \"malformation\": \"boolean|null\",\n        \"geneticDisease\": \"boolean|null\",\n        \"diabetes\": \"boolean|null\",\n        \"hypertension\": \"boolean|null\",\n        \"otherNote\": \"string|null\"\n      }\n    },\n    \"examination\": {\n      \"vitalSigns\": {\n        \"pulseBpm\": \"integer|null\",\n        \"temperatureCelsius\": \"number|null\",\n        \"bloodPressureSystolic\": \"integer|null (mmHg)\",\n        \"bloodPressureDiastolic\": \"integer|null (mmHg)\",\n        \"respiratoryRateBpm\": \"integer|null\",\n        \"weightKg\": \"number|null\",\n        \"heightCm\": \"number|null\"\n      },\n      \"general\": {\n        \"mentalStatus\": \"string|null (alert|coma|other)\",\n        \"mentalStatusNote\": \"string|null\",\n        \"edema\": \"boolean|null\",\n        \"urineProtein\": \"boolean|null\",\n        \"urineProteinValue\": \"number|null (g/L)\"\n      },\n      \"obstetric\": {\n        \"oldScar\": \"boolean|null\",\n        \"scarPainful\": \"boolean|null\",\n        \"pelvis\": \"string|null (normal|abnormal)\",\n        \"fundusHeightCm\": \"number|null\",\n        \"abdominalCircumferenceCm\": \"number|null\",\n        \"fetalPresentation\": \"string|null (normal|abnormal)\",\n        \"fetalPresentationNote\": \"string|null\",\n        \"uterineContraction\": \"boolean|null\",\n        \"uterineContractionFrequency\": \"integer|null (per 10 min)\",\n        \"fetalHeartbeat\": \"boolean|null\",\n        \"fetalHeartRateBpm\": \"integer|null\",\n        \"cervix\": \"string|null (closed|effaced|dilated)\",\n        \"cervixDilationCm\": \"number|null\",\n        \"amnioticSac\": \"string|null (bulging|flat|pear)\",\n        \"membraneStatus\": \"string|null (intact|leaking|ruptured)\",\n        \"membraneRuptureTime\": \"string|null (HH:mm)\",\n        \"amnioticFluid\": \"string|null (clear|green|bloody)\"\n      }\n    },\n    \"diagnosis\": {\n      \"text\": \"string|null\",\n      \"icdCode\": \"string|null\"\n    },\n    \"treatmentPlan\": {\n      \"medication\": \"string|null\",\n      \"nextSteps\": \"string|null\",\n      \"healthEducation\": \"boolean|null\",\n      \"healthEducationNote\": \"string|null\"\n    },\n    \"prognosis\": \"string|null (normal|risky|cesarean_indicated)\",\n    \"nextAppointment\": {\n      \"date\": \"string|null (yyyy-MM-dd)\",\n      \"notes\": \"string|null\",\n      \"examinerType\": \"string|null (obstetrician|midwife|pediatric_nurse|other)\"\n    }\n  },\n  \"overallConfidence\": \"number (0.0-1.0)\"\n}",
-                            SystemRules = "You are a medical data extraction assistant specializing in Vietnamese prenatal care records (Phiếu Khám Thai, mẫu MS: 51/BV2 — Bộ Y tế Việt Nam).\n\nRULES:\n1. Always respond with valid JSON matching the provided schema EXACTLY. No extra keys, no missing sections.\n2. Extract ONLY information explicitly present in the text. Do NOT infer or assume data.\n3. If a field is not found in the text, use null (for scalars) or omit from arrays.\n4. Do NOT provide medical advice, diagnosis, or interpretations beyond what is written.\n5. Preserve original Vietnamese text for names, facilities, addresses, and notes.\n6. Convert dates to ISO 8601 format (yyyy-MM-dd) when possible.\n7. Convert numeric values to standard units (kg, cm, mmHg, °C, bpm, g/L, mmol/L).\n8. Boolean fields: use true/false/null only. Set true if the document explicitly mentions the condition.\n9. Flag lab results as abnormal ONLY if the document explicitly states so or provides reference ranges showing out-of-range values.\n10. bloodPressureSystolic and bloodPressureDiastolic MUST be SEPARATE integers (e.g., 120 and 80), NOT a combined string.",
+                            OutputSchema = "{\r\n  \"vitalsData\": {\r\n    \"generalInfo\": {\r\n      \"facility\": \"string|null\",\r\n      \"managingAuthority\": \"string|null\",\r\n      \"admissionNumber\": \"string|null\",\r\n      \"patientCode\": \"string|null\",\r\n      \"fullName\": \"string|null\",\r\n      \"dateOfBirth\": \"string|null (yyyy-MM-dd)\",\r\n      \"age\": \"integer|null\",\r\n      \"phone\": \"string|null\",\r\n      \"occupation\": \"string|null\",\r\n      \"ethnicity\": \"string|null\",\r\n      \"nationality\": \"string|null\",\r\n      \"address\": \"string|null\",\r\n      \"ward\": \"string|null\",\r\n      \"district\": \"string|null\",\r\n      \"province\": \"string|null\",\r\n      \"insuranceType\": \"string|null (BHYT|thu_phi|mien|khac)\",\r\n      \"insuranceNumber\": \"string|null\",\r\n      \"insuranceExpiry\": \"string|null (yyyy-MM-dd)\",\r\n      \"idNumber\": \"string|null\"\r\n    },\r\n    \"previousVisit\": {\r\n      \"visitDate\": \"string|null (yyyy-MM-dd)\",\r\n      \"diagnosis\": \"string|null\",\r\n      \"treatment\": \"string|null\"\r\n    },\r\n    \"interview\": {\r\n      \"reasonForVisit\": \"string|null\",\r\n      \"pregnancyNumber\": \"integer|null\",\r\n      \"totalVisitCount\": \"integer|null\",\r\n      \"lastMenstrualPeriodDate\": \"string|null (yyyy-MM-dd)\",\r\n      \"gestationalWeek\": \"integer|null\",\r\n      \"expectedDeliveryDate\": \"string|null (yyyy-MM-dd)\",\r\n      \"clinicalProgress\": \"string|null\",\r\n      \"generalCondition\": \"string|null (normal|abnormal)\",\r\n      \"generalConditionNote\": \"string|null\",\r\n      \"tetanusVaccineHistory\": \"integer|null\"\r\n    },\r\n    \"medicalHistory\": {\r\n      \"personal\": {\r\n        \"allergy\": \"boolean|null\",\r\n        \"allergyNote\": \"string|null\",\r\n        \"medicalHistory\": \"boolean|null\",\r\n        \"medicalHistoryNote\": \"string|null\",\r\n        \"hypertension\": \"boolean|null\",\r\n        \"heartDisease\": \"boolean|null\",\r\n        \"respiratoryDisease\": \"boolean|null\",\r\n        \"thyroidDisease\": \"boolean|null\",\r\n        \"kidneyDisease\": \"boolean|null\",\r\n        \"diabetes\": \"boolean|null\",\r\n        \"otherDiseases\": \"string|null\",\r\n        \"currentMedications\": \"boolean|null\",\r\n        \"medicationNote\": \"string|null\",\r\n        \"surgeryHistory\": \"boolean|null\",\r\n        \"surgeryNote\": \"string|null\"\r\n      },\r\n      \"obstetric\": {\r\n        \"para\": \"integer|null\",\r\n        \"previousPregnancies\": [{\"endDate\":\"string|null\",\"gestationalAge\":\"string|null\",\"complicationsDuringPregnancy\":\"string|null\",\"deliveryMethod\":\"string|null\",\"newbornInfo\":\"string|null\",\"postpartum\":\"string|null\"}]\r\n      },\r\n      \"gynecology\": {\r\n        \"menstrualCycle\": \"string|null (regular|irregular)\",\r\n        \"menstrualCycleDays\": \"integer|null\",\r\n        \"gynecologySurgery\": \"boolean|null\",\r\n        \"gynecologySurgeryNote\": \"string|null\",\r\n        \"ovarianTumor\": \"boolean|null\",\r\n        \"uterineFibroid\": \"boolean|null\",\r\n        \"genitalMalformation\": \"boolean|null\",\r\n        \"vaginalInfection\": \"boolean|null\"\r\n      },\r\n      \"pelvicOrganProlapse\": \"boolean|null\",\r\n      \"gynecologicalDiseaseNote\": \"string|null\",\r\n      \"family\": {\r\n        \"hasHistory\": \"boolean|null\",\r\n        \"familyHistoryNote\": \"string|null\",\r\n        \"twins\": \"boolean|null\",\r\n        \"malformation\": \"boolean|null\",\r\n        \"geneticDisease\": \"boolean|null\",\r\n        \"diabetes\": \"boolean|null\",\r\n        \"hypertension\": \"boolean|null\",\r\n        \"otherNote\": \"string|null\"\r\n      }\r\n    },\r\n    \"examination\": {\r\n      \"vitalSigns\": {\r\n        \"pulseBpm\": \"integer|null\",\r\n        \"temperatureCelsius\": \"number|null\",\r\n        \"bloodPressureSystolic\": \"integer|null (mmHg)\",\r\n        \"bloodPressureDiastolic\": \"integer|null (mmHg)\",\r\n        \"respiratoryRateBpm\": \"integer|null\",\r\n        \"weightKg\": \"number|null\",\r\n        \"heightCm\": \"number|null\"\r\n      },\r\n      \"general\": {\r\n        \"mentalStatus\": \"string|null (alert|coma|other)\",\r\n        \"mentalStatusNote\": \"string|null\",\r\n        \"edema\": \"boolean|null\",\r\n        \"urineProtein\": \"boolean|null\",\r\n        \"urineProteinValue\": \"number|null (g/L)\"\r\n      },\r\n      \"obstetric\": {\r\n        \"oldScar\": \"boolean|null\",\r\n        \"scarPainful\": \"boolean|null\",\r\n        \"pelvis\": \"string|null (normal|abnormal)\",\r\n        \"fundusHeightCm\": \"number|null\",\r\n        \"abdominalCircumferenceCm\": \"number|null\",\r\n        \"fetalPresentation\": \"string|null (normal|abnormal)\",\r\n        \"fetalPresentationNote\": \"string|null\",\r\n        \"uterineContraction\": \"boolean|null\",\r\n        \"uterineContractionFrequency\": \"integer|null (per 10 min)\",\r\n        \"fetalHeartbeat\": \"boolean|null\",\r\n        \"fetalHeartRateBpm\": \"integer|null\",\r\n        \"cervix\": \"string|null (closed|effaced|dilated)\",\r\n        \"cervixDilationCm\": \"number|null\",\r\n        \"amnioticSac\": \"string|null (bulging|flat|pear)\",\r\n        \"membraneStatus\": \"string|null (intact|leaking|ruptured)\",\r\n        \"membraneRuptureTime\": \"string|null (HH:mm)\",\r\n        \"amnioticFluid\": \"string|null (clear|green|bloody)\"\r\n      }\r\n    },\r\n    \"diagnosis\": {\r\n      \"text\": \"string|null\",\r\n      \"icdCode\": \"string|null\"\r\n    },\r\n    \"treatmentPlan\": {\r\n      \"medication\": \"string|null\",\r\n      \"nextSteps\": \"string|null\",\r\n      \"healthEducation\": \"boolean|null\",\r\n      \"healthEducationNote\": \"string|null\"\r\n    },\r\n    \"prognosis\": \"string|null (normal|risky|cesarean_indicated)\",\r\n    \"nextAppointment\": {\r\n      \"date\": \"string|null (yyyy-MM-dd)\",\r\n      \"notes\": \"string|null\",\r\n      \"examinerType\": \"string|null (obstetrician|midwife|pediatric_nurse|other)\"\r\n    }\r\n  },\r\n  \"overallConfidence\": \"number (0.0-1.0)\"\r\n}",
+                            SystemRules = "You are a medical data extraction assistant specializing in Vietnamese prenatal care records (Phiếu Khám Thai, mẫu MS: 51/BV2 — Bộ Y tế Việt Nam).\r\n\r\nRULES:\r\n1. Always respond with valid JSON matching the provided schema EXACTLY. No extra keys, no missing sections.\r\n2. Extract ONLY information explicitly present in the text. Do NOT infer or assume data.\r\n3. If a field is not found in the text, use null (for scalars) or omit from arrays.\r\n4. Do NOT provide medical advice, diagnosis, or interpretations beyond what is written.\r\n5. Preserve original Vietnamese text for names, facilities, addresses, and notes.\r\n6. Convert dates to ISO 8601 format (yyyy-MM-dd) when possible.\r\n7. Convert numeric values to standard units (kg, cm, mmHg, °C, bpm, g/L, mmol/L).\r\n8. Boolean fields: use true/false/null only. Set true if the document explicitly mentions the condition.\r\n9. Flag lab results as abnormal ONLY if the document explicitly states so or provides reference ranges showing out-of-range values.\r\n10. bloodPressureSystolic and bloodPressureDiastolic MUST be SEPARATE integers (e.g., 120 and 80), NOT a combined string.",
                             Temperature = 0.1m,
                             TemplateKey = "medical_record.extraction",
                             UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
@@ -141,13 +141,13 @@ namespace FPT.EXE201.Infrastructure.Migrations
                             CreatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Description = "Generate 7-day AI meal plans with Vietnamese dishes, recipes, and nutrients for pregnant women.",
                             DisplayName = "Nutrition Meal Plan Generator",
-                            DomainRules = "Pregnancy nutrition guidelines (IOM):\n- Trimester 1 (week 1-12): Focus folic acid (600mcg/day), no extra calories.\n- Trimester 2 (week 13-26): +340 kcal/day, iron (27mg/day), calcium (1000mg/day).\n- Trimester 3 (week 27-40): +450 kcal/day, increase protein, DHA.\n- Daily water: 2.3L minimum.\n- Avoid: raw fish, high-mercury fish, unpasteurized dairy, alcohol.\n- Gestational diabetes: low GI foods, split meals, limit sugar.\n- Preeclampsia: reduce sodium, increase potassium.",
-                            FeatureRules = "Generate a 7-day meal plan with exactly 4 meals per day: BREAKFAST, LUNCH, DINNER, SNACK.\n\nFor EVERY meal item, you MUST provide:\n- itemName: Vietnamese dish name (concise)\n- portionText: serving size in Vietnamese\n- caloriesKcal: integer\n- notes: brief nutrition note in Vietnamese (nullable)\n- recipe: REQUIRED object with:\n  - title: dish name\n  - instructions: step-by-step cooking instructions in Vietnamese\n  - servings: integer\n  - prepMinutes: integer\n  - cookMinutes: integer\n- nutrients: array of objects, ONLY use these codes:\n  PROTEIN, CARBOHYDRATES, FAT, FIBER, IRON, CALCIUM,\n  FOLIC_ACID, VITAMIN_D, VITAMIN_C, VITAMIN_A,\n  VITAMIN_B12, OMEGA_3, DHA, ZINC\n  Each: { \"code\": \"PROTEIN\", \"amount\": 12.5 }\n\nEnsure variety: do not repeat the same dish within 3 days.\nEach day's total calories should be close to {targetCalories} kcal.",
+                            DomainRules = "Pregnancy nutrition guidelines (IOM):\r\n- Trimester 1 (week 1-12): Focus folic acid (600mcg/day), no extra calories.\r\n- Trimester 2 (week 13-26): +340 kcal/day, iron (27mg/day), calcium (1000mg/day).\r\n- Trimester 3 (week 27-40): +450 kcal/day, increase protein, DHA.\r\n- Daily water: 2.3L minimum.\r\n- Avoid: raw fish, high-mercury fish, unpasteurized dairy, alcohol.\r\n- Gestational diabetes: low GI foods, split meals, limit sugar.\r\n- Preeclampsia: reduce sodium, increase potassium.",
+                            FeatureRules = "Generate a 7-day meal plan with exactly 4 meals per day: BREAKFAST, LUNCH, DINNER, SNACK.\r\n\r\nFor EVERY meal item, you MUST provide:\r\n- itemName: Vietnamese dish name (concise)\r\n- portionText: serving size in Vietnamese\r\n- caloriesKcal: integer\r\n- notes: brief nutrition note in Vietnamese (nullable)\r\n- recipe: REQUIRED object with:\r\n  - title: dish name\r\n  - instructions: step-by-step cooking instructions in Vietnamese\r\n  - servings: integer\r\n  - prepMinutes: integer\r\n  - cookMinutes: integer\r\n- nutrients: array of objects, ONLY use these codes:\r\n  PROTEIN, CARBOHYDRATES, FAT, FIBER, IRON, CALCIUM,\r\n  FOLIC_ACID, VITAMIN_D, VITAMIN_C, VITAMIN_A,\r\n  VITAMIN_B12, OMEGA_3, DHA, ZINC\r\n  Each: { \"code\": \"PROTEIN\", \"amount\": 12.5 }\r\n\r\nEnsure variety: do not repeat the same dish within 3 days.\r\nEach day's total calories should be close to {targetCalories} kcal.",
                             IsActive = true,
                             MaxOutputTokens = 16384,
                             ModelName = "gemini-2.5-flash",
-                            OutputSchema = "{\n  \"title\": \"string\",\n  \"totalDailyCalories\": \"number\",\n  \"notes\": \"string\",\n  \"days\": [\n    {\n      \"date\": \"YYYY-MM-DD\",\n      \"meals\": [\n        {\n          \"mealType\": \"BREAKFAST|LUNCH|DINNER|SNACK\",\n          \"itemName\": \"string\",\n          \"portionText\": \"string\",\n          \"caloriesKcal\": \"number\",\n          \"notes\": \"string|null\",\n          \"recipe\": {\n            \"title\": \"string\",\n            \"instructions\": \"string\",\n            \"servings\": \"number\",\n            \"prepMinutes\": \"number\",\n            \"cookMinutes\": \"number\"\n          },\n          \"nutrients\": [\n            { \"code\": \"string\", \"amount\": \"number\" }\n          ]\n        }\n      ]\n    }\n  ]\n}",
-                            SystemRules = "You are a certified prenatal nutritionist AI assistant.\nRespond in Vietnamese.\nOutput ONLY valid JSON matching the provided schema.\nNo markdown, no explanation, no extra text outside JSON.",
+                            OutputSchema = "{\r\n  \"title\": \"string\",\r\n  \"totalDailyCalories\": \"number\",\r\n  \"notes\": \"string\",\r\n  \"days\": [\r\n    {\r\n      \"date\": \"YYYY-MM-DD\",\r\n      \"meals\": [\r\n        {\r\n          \"mealType\": \"BREAKFAST|LUNCH|DINNER|SNACK\",\r\n          \"itemName\": \"string\",\r\n          \"portionText\": \"string\",\r\n          \"caloriesKcal\": \"number\",\r\n          \"notes\": \"string|null\",\r\n          \"recipe\": {\r\n            \"title\": \"string\",\r\n            \"instructions\": \"string\",\r\n            \"servings\": \"number\",\r\n            \"prepMinutes\": \"number\",\r\n            \"cookMinutes\": \"number\"\r\n          },\r\n          \"nutrients\": [\r\n            { \"code\": \"string\", \"amount\": \"number\" }\r\n          ]\r\n        }\r\n      ]\r\n    }\r\n  ]\r\n}",
+                            SystemRules = "You are a certified prenatal nutritionist AI assistant.\r\nRespond in Vietnamese.\r\nOutput ONLY valid JSON matching the provided schema.\r\nNo markdown, no explanation, no extra text outside JSON.",
                             Temperature = 0.7m,
                             TemplateKey = "nutrition.meal_plan",
                             UpdatedAt = new DateTime(2026, 3, 1, 0, 0, 0, 0, DateTimeKind.Utc),
@@ -415,13 +415,7 @@ namespace FPT.EXE201.Infrastructure.Migrations
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<Guid?>("ReceiverId")
-                        .HasColumnType("char(36)");
-
                     b.Property<Guid?>("ReceiverUserId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<Guid>("SenderId")
                         .HasColumnType("char(36)");
 
                     b.Property<Guid>("SenderUserId")
@@ -436,10 +430,6 @@ namespace FPT.EXE201.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("AttachmentFileId");
-
-                    b.HasIndex("ReceiverId");
-
-                    b.HasIndex("SenderId");
 
                     b.ToTable("ChatMessages");
                 });
@@ -4942,20 +4932,83 @@ namespace FPT.EXE201.Infrastructure.Migrations
                     b.ToTable("storage_files", (string)null);
                 });
 
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.Subscription", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("end_date");
+
+                    b.Property<long>("OrderCode")
+                        .HasColumnType("bigint")
+                        .HasColumnName("order_code");
+
+                    b.Property<string>("PaymentTransactionId")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("payment_transaction_id");
+
+                    b.Property<string>("Plan")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("plan");
+
+                    b.Property<decimal>("Price")
+                        .HasColumnType("DECIMAL(12,2)")
+                        .HasColumnName("price");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("start_date");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("DATETIME(6)")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("CHAR(36)")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderCode")
+                        .IsUnique()
+                        .HasDatabaseName("uk_subscriptions_order_code");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_subscriptions_user_id");
+
+                    b.HasIndex("UserId", "Status")
+                        .HasDatabaseName("ix_subscriptions_user_status");
+
+                    b.ToTable("subscriptions", (string)null);
+                });
+
             modelBuilder.Entity("FPT.EXE201.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)")
                         .HasColumnName("id");
-
-                    b.Property<string>("AuthProvider")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)")
-                        .HasDefaultValue("local")
-                        .HasColumnName("auth_provider");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)")
@@ -4973,11 +5026,6 @@ namespace FPT.EXE201.Infrastructure.Migrations
 
                     b.Property<string>("EmailNormalized")
                         .HasColumnType("longtext");
-
-                    b.Property<string>("GoogleId")
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)")
-                        .HasColumnName("google_id");
 
                     b.Property<bool>("IsEmailVerified")
                         .ValueGeneratedOnAdd()
@@ -5023,10 +5071,6 @@ namespace FPT.EXE201.Infrastructure.Migrations
 
                     b.HasIndex("Email")
                         .IsUnique();
-
-                    b.HasIndex("GoogleId")
-                        .IsUnique()
-                        .HasDatabaseName("uk_users_google_id");
 
                     b.HasIndex("Phone")
                         .IsUnique();
@@ -5323,25 +5367,10 @@ namespace FPT.EXE201.Infrastructure.Migrations
 
             modelBuilder.Entity("FPT.EXE201.Domain.Entities.ChatMessage", b =>
                 {
-                    b.HasOne("FPT.EXE201.Domain.Entities.StorageFile", "AttachmentFile")
+                    b.HasOne("FPT.EXE201.Domain.Entities.StorageFile", null)
                         .WithMany()
-                        .HasForeignKey("AttachmentFileId");
-
-                    b.HasOne("FPT.EXE201.Domain.Entities.User", "Receiver")
-                        .WithMany()
-                        .HasForeignKey("ReceiverId");
-
-                    b.HasOne("FPT.EXE201.Domain.Entities.User", "Sender")
-                        .WithMany()
-                        .HasForeignKey("SenderId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("AttachmentFile");
-
-                    b.Navigation("Receiver");
-
-                    b.Navigation("Sender");
+                        .HasForeignKey("AttachmentFileId")
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("FPT.EXE201.Domain.Entities.DocumentFile", b =>
@@ -5766,6 +5795,17 @@ namespace FPT.EXE201.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Owner");
+                });
+
+            modelBuilder.Entity("FPT.EXE201.Domain.Entities.Subscription", b =>
+                {
+                    b.HasOne("FPT.EXE201.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("FPT.EXE201.Domain.Entities.UserProfile", b =>

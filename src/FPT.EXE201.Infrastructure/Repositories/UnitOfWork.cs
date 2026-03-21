@@ -51,6 +51,9 @@ namespace FPT.EXE201.Infrastructure.Repositories
         private IWeightAlertRepository? _weightAlerts;
         private IMotivationalTemplateRepository? _motivationalTemplates;
 
+        // Week 7 — Premium Subscription
+        private ISubscriptionRepository? _subscriptions;
+
         // Week 7 — Nutrition + Meal Planning
         private IRefFoodItemRepository? _refFoodItems;
         private IRefNutrientRepository? _refNutrients;
@@ -105,6 +108,9 @@ namespace FPT.EXE201.Infrastructure.Repositories
         public IWeightGoalRangeRepository WeightGoalRanges => _weightGoalRanges ??= new WeightGoalRangeRepository(_context);
         public IWeightAlertRepository WeightAlerts => _weightAlerts ??= new WeightAlertRepository(_context);
         public IMotivationalTemplateRepository MotivationalTemplates => _motivationalTemplates ??= new MotivationalTemplateRepository(_context);
+
+        // Week 7 — Premium Subscription
+        public ISubscriptionRepository Subscriptions => _subscriptions ??= new SubscriptionRepository(_context);
 
         // Week 7 — Nutrition + Meal Planning
         public IRefFoodItemRepository RefFoodItems => _refFoodItems ??= new RefFoodItemRepository(_context);

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -16,10 +16,6 @@ namespace FPT.EXE201.Domain.Entities
 
         // DB: VARBINARY(255)
         public byte[] PasswordHash { get; set; } = Array.Empty<byte>();
-
-        // Google OAuth
-        public string? GoogleId { get; set; }           // Google "sub" field
-        public string AuthProvider { get; set; } = "local"; // "local" | "google"
 
         public UserStatus Status { get; set; } = UserStatus.Pending;
         public bool IsEmailVerified { get; set; }

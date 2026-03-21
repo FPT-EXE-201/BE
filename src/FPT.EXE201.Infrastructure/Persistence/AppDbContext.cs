@@ -50,6 +50,9 @@ namespace FPT.EXE201.Infrastructure.Persistence
         public DbSet<MotivationalTemplate> MotivationalTemplates { get; set; }
         public DbSet<MotivationalTemplateTranslation> MotivationalTemplateTranslations { get; set; }
 
+        // Week 7 — Premium Subscription
+        public DbSet<Subscription> Subscriptions { get; set; }
+
         // Week 7 — Nutrition + Meal Planning
         public DbSet<RefFoodItem> RefFoodItems { get; set; }
         public DbSet<RefFoodItemTranslation> RefFoodItemTranslations { get; set; }

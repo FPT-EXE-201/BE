@@ -107,19 +107,7 @@ namespace FPT.EXE201.Infrastructure.Repositories
                 defaultSort: null,
                 cancellationToken: ct);
         }
-        public async Task<User?> GetByGoogleIdAsync(string googleId, bool includeProfile = false, CancellationToken ct = default)
-        {
-            Func<IQueryable<User>, IQueryable<User>>? include = null;
-            if (includeProfile)
-                include = query => query.Include(u => u.Profile);
 
-            return await GetSingleAsync(
-                u => u.GoogleId == googleId,
-                include: include,
-                includeDeleted: false,
-                cancellationToken: ct);
-        }
-    
         public async Task<IEnumerable<User>> GetByRoleAsync(string roleCode, CancellationToken ct = default)
         {
             return await ((AppDbContext)_context).Users

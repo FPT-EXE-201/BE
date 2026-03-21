@@ -67,7 +67,7 @@ namespace FPT.EXE201.Infrastructure
                     new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", serviceKey);
             });
 
-            services.AddScoped<IGoogleTokenVerifier, GoogleTokenVerifier>();
+            // Week 4 — Infrastructure Services
             services.AddScoped<IOcrService, OcrService>();
 
             services.AddHttpClient<IAiProvider, GeminiAiProvider>(client =>
@@ -90,6 +90,11 @@ namespace FPT.EXE201.Infrastructure
             services.AddSingleton<IMealPlanJobQueue, MealPlanJobQueue>();
             services.AddHostedService<MealPlanBackgroundService>();
             services.AddScoped<IWeightOcrService, WeightOcrService>();
+
+            // Subscription + PayOS
+            services.AddScoped<IPaymentService, PayOsService>();
+            services.AddScoped<PayOsService>();
+            services.AddHostedService<SubscriptionExpiryBackgroundService>();
             #endregion
 
             // Add JWT Authentication

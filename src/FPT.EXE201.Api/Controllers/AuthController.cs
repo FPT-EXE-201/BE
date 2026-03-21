@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using FPT.EXE201.Application.DTOs.Auth;
 using FPT.EXE201.Application.DTOs.Common;
 using FPT.EXE201.Application.Exceptions;
@@ -118,23 +118,6 @@ namespace FPT.EXE201.Api.Controllers
             var user = await _authService.GetMeAsync(userId, ct);
             return Success(user, "User information retrieved successfully");
         }
-
-        /// <summary>
-        /// Sign in or auto-register via Google (mobile). Gửi idToken từ Flutter google_sign_in.
-        /// </summary>
-        [HttpPost("google")]
-        [AllowAnonymous]
-        [ProducesResponseType(typeof(ApiResponse<AuthResponseDto>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
-        public async Task<IActionResult> GoogleSignIn([FromBody] GoogleSignInRequestDto request, CancellationToken ct)
-        {
-            var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
-            var ua = HttpContext.Request.Headers.UserAgent.ToString();
-            var response = await _authService.GoogleSignInAsync(request, ip, ua, ct);
-            return Success(response, "Google sign-in successful");
-        }
-
 
         /// <summary>
         /// Update current user profile (fullName, dateOfBirth, preferredLanguage, phone, avatar image)
