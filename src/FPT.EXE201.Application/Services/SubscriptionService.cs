@@ -15,7 +15,7 @@ public class SubscriptionService : ISubscriptionService
     // Pricing configuration (VND)
     private static readonly Dictionary<SubscriptionPlan, (decimal Price, int Months, string Name)> PlanConfig = new()
     {
-        [SubscriptionPlan.Monthly] = (2_000m, 1, "Gói tháng"),
+        [SubscriptionPlan.Monthly] = (39_000m, 1, "Gói tháng"),
         [SubscriptionPlan.SixMonths] = (199_000m, 6, "Gói 6 tháng"),
         [SubscriptionPlan.Yearly] = (399_000m, 12, "Gói năm"),
     };
