@@ -41,7 +41,20 @@ public class SubscriptionsController : BaseApiController
     [RequirePermission("subscription.purchase")]
     public async Task<IActionResult> Purchase([FromBody] PurchaseSubscriptionDto dto, CancellationToken ct)
     {
-        var result = await _subscriptionService.PurchaseAsync(GetCurrentUserId(), dto, ct);
+        // Tự động nhận diện Web hay Mobile dựa trên Origin/User-Agent
+        var origin = Request.Headers["Origin"].ToString();
+        var userAgent = Request.Headers["User-Agent"].ToString();
+
+        // 1. Nếu có Origin và không phải từ các scheme mobile (capacitor, ionic) -> Web
+        // 2. Nếu User-Agent chứa các trình duyệt phổ biến và không chứa mobile app keywords
+        bool isWeb = !string.IsNullOrEmpty(origin) && !origin.StartsWith("capacitor://") && !origin.StartsWith("ionic://");
+        
+        if (string.IsNullOrEmpty(origin) && (userAgent.Contains("Mozilla") || userAgent.Contains("Chrome") || userAgent.Contains("Safari")))
+        {
+            isWeb = true;
+        }
+
+        var result = await _subscriptionService.PurchaseAsync(GetCurrentUserId(), dto, isWeb, ct);
         return Created(result, "Payment link created. Redirect user to CheckoutUrl.");
     }
 
@@ -109,5 +122,18 @@ public class SubscriptionsController : BaseApiController
     {
         var status = await _subscriptionService.VerifyAndActivateAsync(GetCurrentUserId(), orderCode, ct);
         return Success(status);
+    }
+
+    /// <summary>
+    /// POST /api/subscriptions/setup-webhook — Đăng ký Webhook URL với PayOS Dashboard.
+    /// Quyền: admin.all hoặc subscription.purchase (tùy cấu hình, ở đây dùng subscription.purchase để dev test).
+    /// </summary>
+    [HttpPost("setup-webhook")]
+    [RequirePermission("subscription.purchase")]
+    public async Task<IActionResult> SetupWebhook(CancellationToken ct)
+    {
+        var success = await _subscriptionService.RegisterWebhookAsync(ct);
+        if (!success) return BadRequest("Failed to register webhook with PayOS.");
+        return Success<object?>(null, "Webhook registered successfully with PayOS.");
     }
 }
