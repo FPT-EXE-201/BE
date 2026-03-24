@@ -11,7 +11,7 @@ public interface IPaymentService
     Task<PaymentCreateResult> CreatePaymentLinkAsync(Subscription subscription, bool isWeb = false, CancellationToken ct = default);
 
     /// <summary>Đăng ký webhook URL với PayOS.</summary>
-    Task<bool> RegisterWebhookAsync(string webhookUrl);
+    Task<bool> RegisterWebhookAsync(string? webhookUrl = null);
 
     /// <summary>Verify webhook signature từ PayOS.</summary>
     bool VerifyWebhookSignature(string rawBody, string signature);
