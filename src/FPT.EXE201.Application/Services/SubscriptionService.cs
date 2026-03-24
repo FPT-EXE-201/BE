@@ -30,7 +30,7 @@ public class SubscriptionService : ISubscriptionService
         _paymentService = paymentService;
     }
 
-    public async Task<PurchaseResultDto> PurchaseAsync(Guid userId, PurchaseSubscriptionDto dto, CancellationToken ct = default)
+    public async Task<PurchaseResultDto> PurchaseAsync(Guid userId, PurchaseSubscriptionDto dto, bool isWeb = false, CancellationToken ct = default)
     {
         // 1. Parse plan
         if (!Enum.TryParse<SubscriptionPlan>(dto.Plan, true, out var plan) || !PlanConfig.ContainsKey(plan))
@@ -67,7 +67,7 @@ public class SubscriptionService : ISubscriptionService
         };
 
         // 6. Create PayOS payment link first
-        var paymentResult = await _paymentService.CreatePaymentLinkAsync(subscription, ct);
+        var paymentResult = await _paymentService.CreatePaymentLinkAsync(subscription, isWeb, ct);
         subscription.OrderCode = paymentResult.OrderCode;
 
         // 7. Save to DB (Single save)
@@ -179,6 +179,11 @@ public class SubscriptionService : ISubscriptionService
             SavePercent = kv.Key == SubscriptionPlan.Monthly ? null
                 : (int)Math.Round((1 - kv.Value.Price / kv.Value.Months / PlanConfig[SubscriptionPlan.Monthly].Price) * 100),
         }).ToList();
+    }
+
+    public async Task<bool> RegisterWebhookAsync(CancellationToken ct = default)
+    {
+        return await _paymentService.RegisterWebhookAsync();
     }
 
     public async Task CheckExpiredSubscriptionsAsync(CancellationToken ct = default)

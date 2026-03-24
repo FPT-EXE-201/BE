@@ -4,8 +4,8 @@ namespace FPT.EXE201.Application.IServices;
 
 public interface ISubscriptionService
 {
-    /// <summary>Tạo subscription + payment link PayOS.</summary>
-    Task<PurchaseResultDto> PurchaseAsync(Guid userId, PurchaseSubscriptionDto dto, CancellationToken ct = default);
+    /// <summary>Tạo subscription + payment link PayOS (tự động chọn Web/App).</summary>
+    Task<PurchaseResultDto> PurchaseAsync(Guid userId, PurchaseSubscriptionDto dto, bool isWeb = false, CancellationToken ct = default);
 
     /// <summary>Xử lý PayOS webhook callback.</summary>
     Task HandlePaymentWebhookAsync(long orderCode, string? transactionId, bool isSuccess, CancellationToken ct = default);
@@ -24,6 +24,9 @@ public interface ISubscriptionService
 
     /// <summary>Background job: expire hết hạn + remove PREMIUM role.</summary>
     Task CheckExpiredSubscriptionsAsync(CancellationToken ct = default);
+
+    /// <summary>Đăng ký Webhook URL từ cấu hình lên PayOS Dashboard qua SDK.</summary>
+    Task<bool> RegisterWebhookAsync(CancellationToken ct = default);
 
     /// <summary>Verify payment status từ PayOS (dùng khi user quay về app sau checkout).</summary>
     Task<SubscriptionStatusDto> VerifyAndActivateAsync(Guid userId, long orderCode, CancellationToken ct = default);

@@ -8,7 +8,10 @@ namespace FPT.EXE201.Application.IServices;
 public interface IPaymentService
 {
     /// <summary>Tạo payment link qua PayOS.</summary>
-    Task<PaymentCreateResult> CreatePaymentLinkAsync(Subscription subscription, CancellationToken ct = default);
+    Task<PaymentCreateResult> CreatePaymentLinkAsync(Subscription subscription, bool isWeb = false, CancellationToken ct = default);
+
+    /// <summary>Đăng ký webhook URL với PayOS.</summary>
+    Task<bool> RegisterWebhookAsync(string webhookUrl);
 
     /// <summary>Verify webhook signature từ PayOS.</summary>
     bool VerifyWebhookSignature(string rawBody, string signature);

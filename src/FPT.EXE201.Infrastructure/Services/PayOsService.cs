@@ -11,8 +11,11 @@ namespace FPT.EXE201.Infrastructure.Services;
 public class PayOsService : IPaymentService
 {
     private readonly PayOS _payOs;
-    private readonly string _returnUrl;
-    private readonly string _cancelUrl;
+    private readonly string _mobileReturnUrl;
+    private readonly string _mobileCancelUrl;
+    private readonly string _webReturnUrl;
+    private readonly string _webCancelUrl;
+    private readonly string _webhookUrl;
     private readonly ILogger<PayOsService> _logger;
 
     private static readonly Dictionary<SubscriptionPlan, string> PlanDescriptions = new()
@@ -33,15 +36,21 @@ public class PayOsService : IPaymentService
         var checksumKey = configuration["PayOS:ChecksumKey"]
             ?? throw new InvalidOperationException("PayOS:ChecksumKey is required.");
 
-        _returnUrl = configuration["PayOS:ReturnUrl"]
-            ?? throw new InvalidOperationException("PayOS:ReturnUrl is required. Use deep link for mobile app.");
-        _cancelUrl = configuration["PayOS:CancelUrl"]
-            ?? throw new InvalidOperationException("PayOS:CancelUrl is required. Use deep link for mobile app.");
+        _mobileReturnUrl = configuration["PayOS:MobileReturnUrl"]
+            ?? throw new InvalidOperationException("PayOS:MobileReturnUrl is required.");
+        _mobileCancelUrl = configuration["PayOS:MobileCancelUrl"]
+            ?? throw new InvalidOperationException("PayOS:MobileCancelUrl is required.");
+        _webReturnUrl = configuration["PayOS:WebReturnUrl"]
+            ?? throw new InvalidOperationException("PayOS:WebReturnUrl is required.");
+        _webCancelUrl = configuration["PayOS:WebCancelUrl"]
+            ?? throw new InvalidOperationException("PayOS:WebCancelUrl is required.");
+        _webhookUrl = configuration["PayOS:WebhookUrl"]
+            ?? throw new InvalidOperationException("PayOS:WebhookUrl is required.");
 
         _payOs = new PayOS(clientId, apiKey, checksumKey);
     }
 
-    public async Task<PaymentCreateResult> CreatePaymentLinkAsync(Subscription subscription, CancellationToken ct = default)
+    public async Task<PaymentCreateResult> CreatePaymentLinkAsync(Subscription subscription, bool isWeb = false, CancellationToken ct = default)
     {
         // PayOS orderCode: positive long, unique per merchant
         // Use timestamp (seconds) * 10000 + random to avoid collisions
@@ -61,8 +70,8 @@ public class PayOsService : IPaymentService
             amount: (int)subscription.Price,
             description: description,
             items: items,
-            cancelUrl: _cancelUrl,
-            returnUrl: _returnUrl
+            cancelUrl: isWeb ? _webCancelUrl : _mobileCancelUrl,
+            returnUrl: isWeb ? _webReturnUrl : _mobileReturnUrl
         );
 
         var createPaymentResult = await _payOs.createPaymentLink(paymentData);
@@ -118,6 +127,25 @@ public class PayOsService : IPaymentService
         {
             _logger.LogWarning(ex, "PayOS webhook verification failed");
             return null;
+        }
+    }
+
+    /// <summary>
+    /// Đăng ký Webhook URL với PayOS Dashboard qua SDK.
+    /// </summary>
+    public async Task<bool> RegisterWebhookAsync(string? webhookUrl = null)
+    {
+        try
+        {
+            var urlToRegister = webhookUrl ?? _webhookUrl;
+            await _payOs.confirmWebhook(urlToRegister);
+            _logger.LogInformation("Successfully registered PayOS webhook: {WebhookUrl}", urlToRegister);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to register PayOS webhook");
+            return false;
         }
     }
 
