@@ -47,4 +47,11 @@ public class SubscriptionRepository : GenericRepository<Subscription>, ISubscrip
             .Where(s => s.UserId == userId && s.Status == SubscriptionStatus.Pending && s.DeletedAt == null)
             .FirstOrDefaultAsync(ct);
     }
+
+    public async Task<Subscription?> GetByAppleOriginalTransactionIdAsync(string originalTransactionId, CancellationToken ct = default)
+    {
+        return await _dbSet
+            .Where(s => s.AppleOriginalTransactionId == originalTransactionId && s.DeletedAt == null)
+            .FirstOrDefaultAsync(ct);
+    }
 }

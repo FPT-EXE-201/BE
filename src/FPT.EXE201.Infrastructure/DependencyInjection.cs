@@ -95,6 +95,14 @@ namespace FPT.EXE201.Infrastructure
             services.AddScoped<IPaymentService, PayOsService>();
             services.AddScoped<PayOsService>();
             services.AddHostedService<SubscriptionExpiryBackgroundService>();
+
+            // Apple IAP
+            services.AddMemoryCache();
+            services.AddHttpClient<IAppleAppStoreService, AppleAppStoreService>(client =>
+            {
+                client.BaseAddress = new Uri("https://appleid.apple.com/");
+                client.Timeout = TimeSpan.FromSeconds(10);
+            });
             #endregion
 
             // Add JWT Authentication

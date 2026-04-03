@@ -11,6 +11,7 @@ public class SubscriptionService : ISubscriptionService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IUserRoleService _userRoleService;
     private readonly IPaymentService _paymentService;
+    private readonly IAppleAppStoreService _appleAppStoreService;
 
     // Pricing configuration (VND)
     private static readonly Dictionary<SubscriptionPlan, (decimal Price, int Months, string Name)> PlanConfig = new()
@@ -23,11 +24,13 @@ public class SubscriptionService : ISubscriptionService
     public SubscriptionService(
         IUnitOfWork unitOfWork,
         IUserRoleService userRoleService,
-        IPaymentService paymentService)
+        IPaymentService paymentService,
+        IAppleAppStoreService appleAppStoreService)
     {
         _unitOfWork = unitOfWork;
         _userRoleService = userRoleService;
         _paymentService = paymentService;
+        _appleAppStoreService = appleAppStoreService;
     }
 
     public async Task<PurchaseResultDto> PurchaseAsync(Guid userId, PurchaseSubscriptionDto dto, bool isWeb = false, CancellationToken ct = default)
@@ -246,6 +249,13 @@ public class SubscriptionService : ISubscriptionService
         }
     }
 
+    /// <summary>
+    /// Sinh OrderCode am duy nhat cho Apple IAP (tranh trung voi PayOS duong).
+    /// Dung negative Unix timestamp ms + random offset de dam bao unique.
+    /// </summary>
+    private static long GenerateAppleOrderCode()
+        => -(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() % 1_000_000_000L + new Random().Next(1, 999));
+
     private async Task RemovePremiumRoleAsync(Guid userId, CancellationToken ct)
     {
         var premiumRole = await _unitOfWork.Roles.GetByCodeAsync("PREMIUM", ct: ct);
@@ -257,4 +267,155 @@ public class SubscriptionService : ISubscriptionService
             await _userRoleService.RemoveRoleFromUserAsync(userId, premiumRole.Id, ct);
         }
     }
+
+    // ── Apple IAP ──
+
+    public async Task<SubscriptionStatusDto> ActivateAppleIapSandboxAsync(Guid userId, string plan, string fakeTransactionId, CancellationToken ct = default)
+    {
+        if (!Enum.TryParse<SubscriptionPlan>(plan, true, out var subscriptionPlan) || !PlanConfig.ContainsKey(subscriptionPlan))
+            throw new BadRequestException($"Invalid plan: {plan}. Valid: Monthly, SixMonths, Yearly");
+
+        var user = await _unitOfWork.Users.GetByIdAsync(userId, cancellationToken: ct);
+        if (user == null) throw new NotFoundException("User not found");
+
+        var txId = string.IsNullOrEmpty(fakeTransactionId)
+            ? $"SANDBOX_{Guid.NewGuid():N}"
+            : fakeTransactionId;
+
+        // Idempotency
+        var existing = await _unitOfWork.Subscriptions.GetByAppleOriginalTransactionIdAsync(txId, ct);
+        if (existing != null) return await GetStatusAsync(userId, ct);
+
+        // Huy pending PayOS neu co
+        var pendingSub = await _unitOfWork.Subscriptions.GetPendingByUserIdAsync(userId, ct);
+        if (pendingSub != null)
+        {
+            pendingSub.Status = SubscriptionStatus.Cancelled;
+            _unitOfWork.Subscriptions.Update(pendingSub);
+        }
+
+        var config = PlanConfig[subscriptionPlan];
+        var subscription = new Subscription
+        {
+            UserId = userId,
+            Plan = subscriptionPlan,
+            Price = config.Price,
+            StartDate = DateTime.UtcNow,
+            EndDate = DateTime.UtcNow.AddMonths(config.Months),
+            Status = SubscriptionStatus.Active,
+            OrderCode = GenerateAppleOrderCode(),
+            PaymentTransactionId = txId,
+            AppleOriginalTransactionId = txId,
+            AppleProductId = $"com.pregtap.subscription.{subscriptionPlan.ToString().ToLower()}",
+        };
+
+        await _unitOfWork.Subscriptions.AddAsync(subscription, ct);
+        await _unitOfWork.SaveChangesAsync(ct);
+        await AssignPremiumRoleAsync(userId, ct);
+
+        return await GetStatusAsync(userId, ct);
+    }
+
+    public async Task<SubscriptionStatusDto> VerifyAppleIapAsync(Guid userId, AppleIapVerifyDto dto, CancellationToken ct = default)
+    {
+        // 1. Verify JWS voi Apple JWKS
+        var txInfo = await _appleAppStoreService.VerifyAndDecodeTransactionAsync(dto.SignedTransactionInfo);
+
+        // 2. Idempotency: neu da xu ly transaction nay roi thi tra ve trang thai hien tai
+        var existing = await _unitOfWork.Subscriptions.GetByAppleOriginalTransactionIdAsync(txInfo.OriginalTransactionId, ct);
+        if (existing != null)
+            return await GetStatusAsync(userId, ct);
+
+        // 3. Check user ton tai
+        var user = await _unitOfWork.Users.GetByIdAsync(userId, cancellationToken: ct);
+        if (user == null)
+            throw new NotFoundException("User not found");
+
+        // 4. Map productId sang SubscriptionPlan
+        var plan = _appleAppStoreService.MapProductIdToPlan(txInfo.ProductId);
+        var config = PlanConfig[plan];
+
+        // 5. Huy subscription pending cu neu co (PayOS pending)
+        var pendingSub = await _unitOfWork.Subscriptions.GetPendingByUserIdAsync(userId, ct);
+        if (pendingSub != null)
+        {
+            pendingSub.Status = SubscriptionStatus.Cancelled;
+            _unitOfWork.Subscriptions.Update(pendingSub);
+        }
+
+        // 6. Tao subscription Active ngay (khong qua Pending vi Apple da charge xong)
+        var startDate = DateTimeOffset.FromUnixTimeMilliseconds(txInfo.PurchaseDateMs).UtcDateTime;
+        var endDate = txInfo.ExpiresDateMs.HasValue
+            ? DateTimeOffset.FromUnixTimeMilliseconds(txInfo.ExpiresDateMs.Value).UtcDateTime
+            : startDate.AddMonths(config.Months);
+
+        var subscription = new Subscription
+        {
+            UserId = userId,
+            Plan = plan,
+            Price = config.Price,
+            StartDate = startDate,
+            EndDate = endDate,
+            Status = SubscriptionStatus.Active,
+            OrderCode = GenerateAppleOrderCode(),
+            PaymentTransactionId = txInfo.TransactionId,
+            AppleOriginalTransactionId = txInfo.OriginalTransactionId,
+            AppleProductId = txInfo.ProductId,
+        };
+
+        await _unitOfWork.Subscriptions.AddAsync(subscription, ct);
+        await _unitOfWork.SaveChangesAsync(ct);
+
+        // 7. Cap quyen PREMIUM
+        await AssignPremiumRoleAsync(userId, ct);
+
+        return await GetStatusAsync(userId, ct);
+    }
+
+    public async Task HandleAppleNotificationAsync(string notificationType, string subtype,
+        string originalTransactionId, string productId, long? expiresDateMs, CancellationToken ct = default)
+    {
+        var subscription = await _unitOfWork.Subscriptions.GetByAppleOriginalTransactionIdAsync(originalTransactionId, ct);
+        if (subscription == null) return;
+
+        switch (notificationType.ToUpperInvariant())
+        {
+            case "DID_RENEW":
+                subscription.Status = SubscriptionStatus.Active;
+                if (expiresDateMs.HasValue)
+                    subscription.EndDate = DateTimeOffset.FromUnixTimeMilliseconds(expiresDateMs.Value).UtcDateTime;
+                _unitOfWork.Subscriptions.Update(subscription);
+                await _unitOfWork.SaveChangesAsync(ct);
+                await AssignPremiumRoleAsync(subscription.UserId, ct);
+                break;
+
+            case "EXPIRED":
+            case "GRACE_PERIOD_EXPIRED":
+                subscription.Status = SubscriptionStatus.Expired;
+                _unitOfWork.Subscriptions.Update(subscription);
+                await _unitOfWork.SaveChangesAsync(ct);
+                await RemovePremiumRoleAsync(subscription.UserId, ct);
+                break;
+
+            case "REFUND":
+                subscription.Status = SubscriptionStatus.Cancelled;
+                _unitOfWork.Subscriptions.Update(subscription);
+                await _unitOfWork.SaveChangesAsync(ct);
+                await RemovePremiumRoleAsync(subscription.UserId, ct);
+                break;
+
+            case "GRACE_PERIOD_INITIATED":
+                subscription.Status = SubscriptionStatus.GracePeriod;
+                _unitOfWork.Subscriptions.Update(subscription);
+                await _unitOfWork.SaveChangesAsync(ct);
+                break;
+
+            case "DID_FAIL_TO_RENEW":
+                subscription.Status = SubscriptionStatus.BillingRetry;
+                _unitOfWork.Subscriptions.Update(subscription);
+                await _unitOfWork.SaveChangesAsync(ct);
+                break;
+        }
+    }
+
 }

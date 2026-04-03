@@ -305,12 +305,48 @@ using (var scope = app.Services.CreateScope())
             Log.Information("Database is up to date — no pending migrations");
         }
 
+        // Hotfix: dam bao 2 cot Apple IAP ton tai (phong truong hop migration record da insert nhung ALTER TABLE chua chay)
+        await EnsureAppleIapColumnsAsync(context);
+
         await DatabaseSeeder.SeedAsync(context);
         Log.Information("Database seeding completed successfully");
     }
     catch (Exception ex)
     {
         Log.Error(ex, "An error occurred while migrating/seeding the database");
+    }
+}
+
+async Task EnsureAppleIapColumnsAsync(AppDbContext context)
+{
+    try
+    {
+        var conn = context.Database.GetDbConnection();
+        await conn.OpenAsync();
+        using var cmd = conn.CreateCommand();
+
+        // Kiem tra cot da ton tai chua
+        cmd.CommandText = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'subscriptions' AND COLUMN_NAME = 'apple_original_transaction_id'";
+        var count = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+
+        if (count == 0)
+        {
+            Log.Information("Adding missing Apple IAP columns to subscriptions table...");
+            cmd.CommandText = @"
+                ALTER TABLE subscriptions
+                  ADD COLUMN apple_original_transaction_id VARCHAR(200) NULL,
+                  ADD COLUMN apple_product_id VARCHAR(200) NULL;
+                CREATE INDEX ix_subscriptions_apple_original_transaction_id
+                  ON subscriptions (apple_original_transaction_id);";
+            await cmd.ExecuteNonQueryAsync();
+            Log.Information("Apple IAP columns added successfully.");
+        }
+
+        await conn.CloseAsync();
+    }
+    catch (Exception ex)
+    {
+        Log.Warning(ex, "EnsureAppleIapColumns failed — columns may already exist or there was a DB error");
     }
 }
 
