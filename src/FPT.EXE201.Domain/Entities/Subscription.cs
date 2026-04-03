@@ -35,6 +35,12 @@ public class Subscription : BaseEntity
     /// <summary>Mã giao dịch từ PayOS (sau khi thanh toán thành công).</summary>
     public string? PaymentTransactionId { get; set; }
 
+    /// <summary>Apple originalTransactionId — idempotency key khi verify và renewal từ StoreKit 2.</summary>
+    public string? AppleOriginalTransactionId { get; set; }
+
+    /// <summary>Apple productId — com.pregtap.subscription.monthly/sixmonths/yearly.</summary>
+    public string? AppleProductId { get; set; }
+
     // ── Navigation ──
     public User User { get; set; } = null!;
 }

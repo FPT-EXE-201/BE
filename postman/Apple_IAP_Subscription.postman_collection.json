@@ -1,0 +1,608 @@
+﻿{
+    "info":  {
+                 "_postman_id":  "apple-iap-subscription-test",
+                 "name":  "Apple IAP Subscription Test",
+                 "description":  "Test luong Apple IAP. Thu tu: TC01 Register \u003e TC02 Login \u003e TC03 Activate \u003e TC04 Status \u003e TC06 Cancel",
+                 "schema":  "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+             },
+    "variable":  [
+                     {
+                         "key":  "baseUrl",
+                         "value":  "http://cinezone.info:24466",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "token",
+                         "value":  "",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "testEmail",
+                         "value":  "tester_apple_iap@example.com",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "testPassword",
+                         "value":  "Test@123456",
+                         "type":  "string"
+                     }
+                 ],
+    "item":  [
+                 {
+                     "name":  "1. Authentication",
+                     "item":  [
+                                  {
+                                      "name":  "TC01 - Register (bo qua neu da ton tai)",
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "const res = pm.response.json();",
+                                                                                    "const s = pm.response.code;",
+                                                                                    "if (s === 201) { pm.collectionVariables.set(\u0027token\u0027, res.data.accessToken); console.log(\u0027Registered OK - token saved\u0027); }",
+                                                                                    "else if (s === 409 || s === 400) { console.log(\u0027User exists - chay TC02 de login\u0027); }",
+                                                                                    "else { console.log(\u0027Unexpected:\u0027, s, JSON.stringify(res)); }"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ],
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\"email\": \"{{testEmail}}\", \"password\": \"{{testPassword}}\", \"fullName\": \"Apple IAP Tester\", \"phone\": \"0912345678\", \"preferredLanguage\": \"vi\"}"
+                                                               },
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/auth/register",
+                                                                  "host":  [
+                                                                               "{{baseUrl}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "auth",
+                                                                               "register"
+                                                                           ]
+                                                              }
+                                                  }
+                                  },
+                                  {
+                                      "name":  "TC02 - Login",
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "const res = pm.response.json();",
+                                                                                    "if (pm.response.code === 200) { pm.collectionVariables.set(\u0027token\u0027, res.data.accessToken); console.log(\u0027Login OK - token saved\u0027); }",
+                                                                                    "else { console.log(\u0027Login FAILED:\u0027, JSON.stringify(res)); }"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ],
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\"emailOrPhone\": \"{{testEmail}}\", \"password\": \"{{testPassword}}\"}"
+                                                               },
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/auth/login",
+                                                                  "host":  [
+                                                                               "{{baseUrl}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "auth",
+                                                                               "login"
+                                                                           ]
+                                                              }
+                                                  }
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "2. Apple IAP - Sandbox Test",
+                     "item":  [
+                                  {
+                                      "name":  "TC03 - Get Plans (public)",
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027200 OK\u0027, () =\u003e pm.response.to.have.status(200));",
+                                                                                    "const res = pm.response.json();",
+                                                                                    "pm.test(\u00273 plans\u0027, () =\u003e pm.expect(res.data.length).to.eql(3));",
+                                                                                    "res.data.forEach(p =\u003e console.log(p.plan + \u0027: \u0027 + p.price + \u0027 VND - \u0027 + p.durationMonths + \u0027 thang\u0027));"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ],
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/subscriptions/plans",
+                                                                  "host":  [
+                                                                               "{{baseUrl}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "subscriptions",
+                                                                               "plans"
+                                                                           ]
+                                                              }
+                                                  }
+                                  },
+                                  {
+                                      "name":  "TC04a - [SANDBOX] Activate Monthly",
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027200 OK\u0027, () =\u003e pm.response.to.have.status(200));",
+                                                                                    "const res = pm.response.json();",
+                                                                                    "pm.test(\u0027isPremium=true\u0027, () =\u003e pm.expect(res.data.isPremium).to.be.true);",
+                                                                                    "pm.test(\u0027plan=Monthly\u0027, () =\u003e pm.expect(res.data.plan).to.eql(\u0027Monthly\u0027));",
+                                                                                    "console.log(\u0027Activated:\u0027, JSON.stringify(res.data, null, 2));"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ],
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{token}}"
+                                                                     }
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\"plan\": \"Monthly\", \"fakeTransactionId\": \"TEST_MONTHLY_001\"}"
+                                                               },
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/subscriptions/apple/test-activate",
+                                                                  "host":  [
+                                                                               "{{baseUrl}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "subscriptions",
+                                                                               "apple",
+                                                                               "test-activate"
+                                                                           ]
+                                                              }
+                                                  }
+                                  },
+                                  {
+                                      "name":  "TC04b - [SANDBOX] Activate SixMonths",
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027200 OK\u0027, () =\u003e pm.response.to.have.status(200));",
+                                                                                    "const res = pm.response.json();",
+                                                                                    "pm.test(\u0027isPremium=true\u0027, () =\u003e pm.expect(res.data.isPremium).to.be.true);",
+                                                                                    "pm.test(\u0027plan=SixMonths\u0027, () =\u003e pm.expect(res.data.plan).to.eql(\u0027SixMonths\u0027));"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ],
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{token}}"
+                                                                     }
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\"plan\": \"SixMonths\", \"fakeTransactionId\": \"TEST_6M_001\"}"
+                                                               },
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/subscriptions/apple/test-activate",
+                                                                  "host":  [
+                                                                               "{{baseUrl}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "subscriptions",
+                                                                               "apple",
+                                                                               "test-activate"
+                                                                           ]
+                                                              }
+                                                  }
+                                  },
+                                  {
+                                      "name":  "TC04c - [SANDBOX] Activate Yearly",
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027200 OK\u0027, () =\u003e pm.response.to.have.status(200));",
+                                                                                    "const res = pm.response.json();",
+                                                                                    "pm.test(\u0027isPremium=true\u0027, () =\u003e pm.expect(res.data.isPremium).to.be.true);",
+                                                                                    "pm.test(\u0027plan=Yearly\u0027, () =\u003e pm.expect(res.data.plan).to.eql(\u0027Yearly\u0027));"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ],
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{token}}"
+                                                                     }
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\"plan\": \"Yearly\", \"fakeTransactionId\": \"TEST_YEARLY_001\"}"
+                                                               },
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/subscriptions/apple/test-activate",
+                                                                  "host":  [
+                                                                               "{{baseUrl}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "subscriptions",
+                                                                               "apple",
+                                                                               "test-activate"
+                                                                           ]
+                                                              }
+                                                  }
+                                  },
+                                  {
+                                      "name":  "TC04d - [Idempotency] Same TX no duplicate",
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027200 OK no duplicate\u0027, () =\u003e pm.response.to.have.status(200));",
+                                                                                    "const res = pm.response.json();",
+                                                                                    "pm.test(\u0027isPremium still true\u0027, () =\u003e pm.expect(res.data.isPremium).to.be.true);",
+                                                                                    "console.log(\u0027Idempotency OK\u0027);"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ],
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{token}}"
+                                                                     }
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\"plan\": \"Monthly\", \"fakeTransactionId\": \"TEST_MONTHLY_001\"}"
+                                                               },
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/subscriptions/apple/test-activate",
+                                                                  "host":  [
+                                                                               "{{baseUrl}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "subscriptions",
+                                                                               "apple",
+                                                                               "test-activate"
+                                                                           ]
+                                                              }
+                                                  }
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "3. Kiem tra trang thai",
+                     "item":  [
+                                  {
+                                      "name":  "TC05 - Get Status",
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027200 OK\u0027, () =\u003e pm.response.to.have.status(200));",
+                                                                                    "const res = pm.response.json();",
+                                                                                    "console.log(\u0027Status:\u0027, JSON.stringify(res.data, null, 2));",
+                                                                                    "if (res.data.isPremium) { pm.test(\u0027endDate exists\u0027, () =\u003e pm.expect(res.data.endDate).to.exist); pm.test(\u0027daysRemaining\u003e0\u0027, () =\u003e pm.expect(res.data.daysRemaining).to.be.above(0)); }"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ],
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{token}}"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/subscriptions/status",
+                                                                  "host":  [
+                                                                               "{{baseUrl}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "subscriptions",
+                                                                               "status"
+                                                                           ]
+                                                              }
+                                                  }
+                                  },
+                                  {
+                                      "name":  "TC06 - Get History",
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027200 OK\u0027, () =\u003e pm.response.to.have.status(200));",
+                                                                                    "const res = pm.response.json();",
+                                                                                    "pm.test(\u0027has records\u0027, () =\u003e pm.expect(res.data.length).to.be.above(0));",
+                                                                                    "res.data.forEach((s,i) =\u003e console.log(\u0027Sub\u0027+(i+1)+\u0027: \u0027+s.plan+\u0027 | \u0027+s.status));"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ],
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{token}}"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/subscriptions/history",
+                                                                  "host":  [
+                                                                               "{{baseUrl}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "subscriptions",
+                                                                               "history"
+                                                                           ]
+                                                              }
+                                                  }
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "4. Cancel",
+                     "item":  [
+                                  {
+                                      "name":  "TC07 - Cancel",
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027200 OK\u0027, () =\u003e pm.response.to.have.status(200));",
+                                                                                    "console.log(\u0027Cancelled. Chay TC07b.\u0027);"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ],
+                                      "request":  {
+                                                      "method":  "DELETE",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{token}}"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/subscriptions/cancel",
+                                                                  "host":  [
+                                                                               "{{baseUrl}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "subscriptions",
+                                                                               "cancel"
+                                                                           ]
+                                                              }
+                                                  }
+                                  },
+                                  {
+                                      "name":  "TC07b - Status sau cancel (isPremium=false)",
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027200 OK\u0027, () =\u003e pm.response.to.have.status(200));",
+                                                                                    "const res = pm.response.json();",
+                                                                                    "pm.test(\u0027isPremium=false\u0027, () =\u003e pm.expect(res.data.isPremium).to.be.false);",
+                                                                                    "console.log(\u0027Cancel OK. isPremium:\u0027, res.data.isPremium);"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ],
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{token}}"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/subscriptions/status",
+                                                                  "host":  [
+                                                                               "{{baseUrl}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "subscriptions",
+                                                                               "status"
+                                                                           ]
+                                                              }
+                                                  }
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "5. Error Cases",
+                     "item":  [
+                                  {
+                                      "name":  "TC08 - Invalid plan -\u003e 400",
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027400\u0027, () =\u003e pm.response.to.have.status(400));",
+                                                                                    "console.log(\u0027Error:\u0027, pm.response.json().message);"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ],
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{token}}"
+                                                                     }
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\"plan\": \"InvalidPlan\", \"fakeTransactionId\": \"ERR001\"}"
+                                                               },
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/subscriptions/apple/test-activate",
+                                                                  "host":  [
+                                                                               "{{baseUrl}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "subscriptions",
+                                                                               "apple",
+                                                                               "test-activate"
+                                                                           ]
+                                                              }
+                                                  }
+                                  },
+                                  {
+                                      "name":  "TC09 - Cancel no sub -\u003e 404",
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027404\u0027, () =\u003e pm.response.to.have.status(404));",
+                                                                                    "console.log(\u0027Error:\u0027, pm.response.json().message);"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ],
+                                      "request":  {
+                                                      "method":  "DELETE",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{token}}"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/subscriptions/cancel",
+                                                                  "host":  [
+                                                                               "{{baseUrl}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "subscriptions",
+                                                                               "cancel"
+                                                                           ]
+                                                              }
+                                                  }
+                                  },
+                                  {
+                                      "name":  "TC10 - No token -\u003e 401",
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027401\u0027, () =\u003e pm.response.to.have.status(401));"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ],
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\"plan\": \"Monthly\"}"
+                                                               },
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/subscriptions/apple/test-activate",
+                                                                  "host":  [
+                                                                               "{{baseUrl}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "subscriptions",
+                                                                               "apple",
+                                                                               "test-activate"
+                                                                           ]
+                                                              }
+                                                  }
+                                  }
+                              ]
+                 }
+             ]
+}

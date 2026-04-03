@@ -30,4 +30,17 @@ public interface ISubscriptionService
 
     /// <summary>Verify payment status từ PayOS (dùng khi user quay về app sau checkout).</summary>
     Task<SubscriptionStatusDto> VerifyAndActivateAsync(Guid userId, long orderCode, CancellationToken ct = default);
+
+    /// <summary>Verify signedTransactionInfo JWS từ StoreKit 2, tạo subscription Active và cấp quyền PREMIUM.</summary>
+    Task<SubscriptionStatusDto> VerifyAppleIapAsync(Guid userId, AppleIapVerifyDto dto, CancellationToken ct = default);
+
+    /// <summary>Xử lý App Store Server Notification V2 (DID_RENEW, EXPIRED, REFUND, GRACE_PERIOD...).</summary>
+    Task HandleAppleNotificationAsync(string notificationType, string subtype,
+        string originalTransactionId, string productId, long? expiresDateMs, CancellationToken ct = default);
+
+    /// <summary>
+    /// [SANDBOX ONLY] Kích hoạt Apple IAP subscription trực tiếp không cần JWS.
+    /// Chỉ hoạt động khi AppStore:Environment = Sandbox. Dùng để test backend.
+    /// </summary>
+    Task<SubscriptionStatusDto> ActivateAppleIapSandboxAsync(Guid userId, string plan, string fakeTransactionId, CancellationToken ct = default);
 }

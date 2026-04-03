@@ -15,5 +15,11 @@ public enum SubscriptionStatus
     Expired,
 
     /// <summary>User hủy</summary>
-    Cancelled
+    Cancelled,
+
+    /// <summary>Apple billing thất bại, đang trong grace period (vẫn còn quyền tạm thời)</summary>
+    GracePeriod,
+
+    /// <summary>Apple đang thử charge lại sau khi billing thất bại</summary>
+    BillingRetry
 }

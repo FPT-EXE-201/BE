@@ -43,6 +43,12 @@ public class SubscriptionConfiguration : IEntityTypeConfiguration<Subscription>
         builder.Property(s => s.PaymentTransactionId)
             .HasColumnName("payment_transaction_id").HasMaxLength(255);
 
+        builder.Property(s => s.AppleOriginalTransactionId)
+            .HasColumnName("apple_original_transaction_id").HasMaxLength(200);
+
+        builder.Property(s => s.AppleProductId)
+            .HasColumnName("apple_product_id").HasMaxLength(200);
+
         // ── Timestamps (BaseEntity) ──
         builder.Property(s => s.CreatedAt)
             .HasColumnName("created_at").HasColumnType("DATETIME(6)");
@@ -59,6 +65,7 @@ public class SubscriptionConfiguration : IEntityTypeConfiguration<Subscription>
         builder.HasIndex(s => s.UserId).HasDatabaseName("ix_subscriptions_user_id");
         builder.HasIndex(s => s.OrderCode).IsUnique().HasDatabaseName("uk_subscriptions_order_code");
         builder.HasIndex(s => new { s.UserId, s.Status }).HasDatabaseName("ix_subscriptions_user_status");
+        builder.HasIndex(s => s.AppleOriginalTransactionId).HasDatabaseName("ix_subscriptions_apple_original_transaction_id");
 
         // ── Relationships ──
         builder.HasOne(s => s.User)

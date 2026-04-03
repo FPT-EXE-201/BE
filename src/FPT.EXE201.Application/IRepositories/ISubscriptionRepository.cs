@@ -18,4 +18,7 @@ public interface ISubscriptionRepository : IGenericRepository<Subscription>
 
     /// <summary>Lấy subscription Pending của user (chưa thanh toán).</summary>
     Task<Subscription?> GetPendingByUserIdAsync(Guid userId, CancellationToken ct = default);
+
+    /// <summary>Lấy subscription theo Apple originalTransactionId (dùng cho idempotency check và notification handling).</summary>
+    Task<Subscription?> GetByAppleOriginalTransactionIdAsync(string originalTransactionId, CancellationToken ct = default);
 }
