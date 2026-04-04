@@ -171,5 +171,20 @@ namespace FPT.EXE201.Api.Controllers
             await _userProfileService.ChangePasswordAsync(GetCurrentUserId(), request, ct);
             return Success<object?>(null, "Password changed successfully");
         }
+
+        /// <summary>
+        /// Permanently delete the current user's account (self-service). Any authenticated role. Requires password and confirmation phrase.
+        /// </summary>
+        [HttpPost("delete-account")]
+        [Authorize]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> DeleteAccount([FromBody] DeleteAccountRequestDto request, CancellationToken ct)
+        {
+            await _authService.DeleteAccountAsync(GetCurrentUserId(), request, ct);
+            return Success<object?>(null, "Account deleted successfully");
+        }
     }
 }

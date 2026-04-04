@@ -22,6 +22,8 @@ namespace FPT.EXE201.Application.Services
         private readonly IPasswordHasher _passwordHasher;
         private readonly IJwtTokenService _jwtTokenService;
         private readonly IUserRoleService _userRoleService;
+        private readonly IUserDataErasureService _userDataErasureService;
+        private readonly IFileStorageService _fileStorageService;
         private readonly IMapper _mapper;
 
         public AuthService(
@@ -29,12 +31,16 @@ namespace FPT.EXE201.Application.Services
             IPasswordHasher passwordHasher,
             IJwtTokenService jwtTokenService,
             IUserRoleService userRoleService,
+            IUserDataErasureService userDataErasureService,
+            IFileStorageService fileStorageService,
             IMapper mapper)
         {
             _unitOfWork = unitOfWork;
             _passwordHasher = passwordHasher;
             _jwtTokenService = jwtTokenService;
             _userRoleService = userRoleService;
+            _userDataErasureService = userDataErasureService;
+            _fileStorageService = fileStorageService;
             _mapper = mapper;
         }
 
@@ -245,6 +251,56 @@ namespace FPT.EXE201.Application.Services
         public async Task LogoutAsync(Guid userId, Guid refreshTokenId, CancellationToken ct = default)
         {
             await _jwtTokenService.RevokeByIdAsync(refreshTokenId, ct);
+        }
+
+        public async Task DeleteAccountAsync(Guid userId, DeleteAccountRequestDto request, CancellationToken ct = default)
+        {
+            await _unitOfWork.BeginTransactionAsync(ct);
+            try
+            {
+                var profile = await _unitOfWork.UserProfiles.GetByUserIdTrackedAsync(userId, ct)
+                    ?? throw new NotFoundException("User not found");
+                var user = profile.User ?? throw new NotFoundException("User not found");
+
+                if (user.DeletedAt != null || user.Status == UserStatus.Deleted)
+                    throw new NotFoundException("Account already deleted");
+
+                if (user.Status != UserStatus.Active)
+                    throw new UnauthorizedException($"Account is {user.Status}");
+
+                if (!_passwordHasher.VerifyPassword(request.Password, user.PasswordHash))
+                    throw new UnauthorizedException("Invalid password");
+
+                await _fileStorageService.DeleteByPublicUrlIfKnownAsync(profile.AvatarUrl, ct);
+                await _jwtTokenService.RevokeAllUserTokensAsync(userId, ct);
+                await _userDataErasureService.EraseUserPersonalDataAsync(userId, ct);
+
+                var userRoles = await _unitOfWork.UserRoles.GetByUserIdAsync(userId, ct);
+                if (userRoles.Count > 0)
+                    await _unitOfWork.UserRoles.RemoveRangeAsync(userRoles, ct);
+
+                user.Email = null;
+                user.EmailNormalized = null;
+                user.Phone = null;
+                user.PasswordHash = _passwordHasher.HashPassword(Guid.NewGuid().ToString("N"));
+                user.Status = UserStatus.Deleted;
+                user.IsEmailVerified = false;
+                user.IsPhoneVerified = false;
+                user.DeletedAt = DateTime.UtcNow;
+                _unitOfWork.Users.Update(user);
+
+                profile.FullName = null;
+                profile.DateOfBirth = null;
+                profile.AvatarUrl = null;
+                await _unitOfWork.UserProfiles.SoftDeleteAsync(profile, ct);
+
+                await _unitOfWork.CommitTransactionAsync(ct);
+            }
+            catch
+            {
+                await _unitOfWork.RollbackTransactionAsync(ct);
+                throw;
+            }
         }
 
         #region Helper Methods

@@ -56,6 +56,14 @@ public class StubFileStorageService : IFileStorageService
         return Task.CompletedTask;
     }
 
+    public Task DeleteByPublicUrlIfKnownAsync(string? publicUrl, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrEmpty(publicUrl) || publicUrl[0] != '/')
+            return Task.CompletedTask;
+        var key = publicUrl.TrimStart('/');
+        return DeleteAsync(key, cancellationToken);
+    }
+
     public string GetPublicUrl(string objectKey)
     {
         return $"/{objectKey}";

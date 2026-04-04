@@ -52,6 +52,7 @@ namespace FPT.EXE201.Infrastructure
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IJwtTokenService, JwtTokenService>();
             services.AddScoped<IPasswordHasher, PasswordHasher>();
+            services.AddScoped<IUserDataErasureService, UserDataErasureService>();
 
             // Week 5 — Supabase Storage
             services.AddHttpClient<IFileStorageService, SupabaseStorageService>(client =>

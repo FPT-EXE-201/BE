@@ -91,6 +91,19 @@ public class SupabaseStorageService : IFileStorageService
         }
     }
 
+    public Task DeleteByPublicUrlIfKnownAsync(string? publicUrl, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrEmpty(publicUrl))
+            return Task.CompletedTask;
+
+        var prefix = $"{_publicBaseUrl.TrimEnd('/')}/{_bucketName}/";
+        if (!publicUrl.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            return Task.CompletedTask;
+
+        var objectKey = publicUrl[prefix.Length..];
+        return DeleteAsync(objectKey, cancellationToken);
+    }
+
     public string GetPublicUrl(string objectKey)
     {
         return $"{_publicBaseUrl.TrimEnd('/')}/{_bucketName}/{objectKey}";
