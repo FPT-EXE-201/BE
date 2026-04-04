@@ -10,6 +10,7 @@ using FPT.EXE201.Application;
 using FPT.EXE201.Application.Exceptions;
 using FPT.EXE201.Application.IRepositories;
 using FPT.EXE201.Domain.Entities;
+using FPT.EXE201.Domain.Enums;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 
@@ -229,11 +230,19 @@ namespace FPT.EXE201.Infrastructure.Services
                 throw new UnauthorizedException("Refresh token has been revoked due to suspected reuse");
             }
 
-            // 4. Load user
-            var user = existingToken.User ?? await _unitOfWork.Users.GetByIdAsync(existingToken.UserId, cancellationToken: ct);
+            // 4. Load user (include soft-deleted so we can reject consistently)
+            var user = await _unitOfWork.Users.GetByIdAsync(
+                existingToken.UserId,
+                includeDeleted: true,
+                cancellationToken: ct);
             if (user == null)
             {
                 throw new NotFoundException("User not found");
+            }
+
+            if (user.Status != UserStatus.Active || user.DeletedAt != null)
+            {
+                throw new UnauthorizedException($"Account is not active ({user.Status})");
             }
 
             // 5. Revoke the old token

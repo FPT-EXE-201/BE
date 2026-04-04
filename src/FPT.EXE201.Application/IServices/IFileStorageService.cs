@@ -19,6 +19,12 @@ public interface IFileStorageService
     /// <summary>Xóa file khỏi storage.</summary>
     Task DeleteAsync(string objectKey, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Best-effort delete using the public URL returned from <see cref="UploadAsync"/> (stub or Supabase).
+    /// No-op if URL format is unknown.
+    /// </summary>
+    Task DeleteByPublicUrlIfKnownAsync(string? publicUrl, CancellationToken cancellationToken = default);
+
     /// <summary>Tạo URL công khai cho file.</summary>
     string GetPublicUrl(string objectKey);
 }

@@ -48,6 +48,11 @@ namespace FPT.EXE201.Application.IServices
         Task LogoutAsync(Guid userId, Guid refreshTokenId, CancellationToken ct = default);
 
         Task<UserResponseDto> GetMeAsync(Guid userId, CancellationToken ct = default);
+
+        /// <summary>
+        /// Permanently close the current user's account (soft-delete + PII scrub). Any authenticated role may call for self only.
+        /// </summary>
+        Task DeleteAccountAsync(Guid userId, DeleteAccountRequestDto request, CancellationToken ct = default);
     }
 }
 
