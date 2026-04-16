@@ -1,4 +1,5 @@
 using FPT.EXE201.Domain.Entities;
+using FPT.EXE201.Domain.Enums;
 
 namespace FPT.EXE201.Application.IRepositories;
 
@@ -21,4 +22,11 @@ public interface ISubscriptionRepository : IGenericRepository<Subscription>
 
     /// <summary>Lấy subscription theo Apple originalTransactionId (dùng cho idempotency check và notification handling).</summary>
     Task<Subscription?> GetByAppleOriginalTransactionIdAsync(string originalTransactionId, CancellationToken ct = default);
+
+    /// <summary>Lấy tất cả các giao dịch kèm thông tin User & Profile (dùng cho Admin, hỗ trợ lọc).</summary>
+    Task<List<Subscription>> GetAllWithUserAndProfileAsync(
+        DateTime? startDate = null, 
+        DateTime? endDate = null, 
+        SubscriptionStatus? status = null,
+        CancellationToken ct = default);
 }

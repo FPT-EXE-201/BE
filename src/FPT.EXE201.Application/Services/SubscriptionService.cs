@@ -3,6 +3,9 @@ using FPT.EXE201.Application.Exceptions;
 using FPT.EXE201.Application.IServices;
 using FPT.EXE201.Domain.Entities;
 using FPT.EXE201.Domain.Enums;
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
 
 namespace FPT.EXE201.Application.Services;
 
@@ -177,6 +180,8 @@ public class SubscriptionService : ISubscriptionService
             Plan = kv.Key.ToString(),
             Name = kv.Value.Name,
             Price = kv.Value.Price,
+            // App dùng ProductId này để mua qua StoreKit.
+            AppleProductId = _appleAppStoreService.GetProductIdByPlan(kv.Key),
             DurationMonths = kv.Value.Months,
             PricePerMonth = Math.Round(kv.Value.Price / kv.Value.Months, 0),
             SavePercent = kv.Key == SubscriptionPlan.Monthly ? null
@@ -418,4 +423,148 @@ public class SubscriptionService : ISubscriptionService
         }
     }
 
+    public async Task<List<TransactionAdminDto>> GetAllTransactionsForAdminAsync(
+        DateTime? startDate = null, 
+        DateTime? endDate = null, 
+        SubscriptionStatus? status = null, 
+        CancellationToken ct = default)
+    {
+        var subscriptions = await _unitOfWork.Subscriptions.GetAllWithUserAndProfileAsync(startDate, endDate, status, ct);
+
+        return subscriptions.Select(s =>
+        {
+            var fullName = s.User?.Profile?.FullName ?? "";
+            var nameParts = fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            
+            var firstName = nameParts.Length > 0 ? nameParts[^1] : "";
+            var lastName = nameParts.Length > 1 ? string.Join(" ", nameParts.Take(nameParts.Length - 1)) : (nameParts.Length == 1 ? "" : "");
+
+            return new TransactionAdminDto
+            {
+                Id = s.Id,
+                OrderCode = s.OrderCode.ToString(),
+                ReferenceCode = s.PaymentTransactionId ?? s.AppleOriginalTransactionId,
+                TransferAmount = s.Price,
+                OriginalAmount = s.Price,
+                TransactionDate = s.CreatedAt,
+                Status = s.Status.ToString(),
+                UserFirstName = firstName,
+                UserLastName = lastName,
+                UserEmail = s.User?.Email,
+                ProExpiresAt = s.EndDate,
+                PackageName = PlanConfig.TryGetValue(s.Plan, out var config) ? config.Name : s.Plan.ToString(),
+                PackageType = s.Plan.ToString()
+            };
+        }).ToList();
+    }
+
+    public async Task<byte[]> ExportTransactionsPdfAsync(
+        DateTime? startDate = null, 
+        DateTime? endDate = null, 
+        SubscriptionStatus? status = null, 
+        CancellationToken ct = default)
+    {
+        var transactions = await GetAllTransactionsForAdminAsync(startDate, endDate, status, ct);
+
+        var document = Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Size(PageSizes.A4.Landscape());
+                page.Margin(1, Unit.Centimetre);
+                page.PageColor(Colors.White);
+                page.DefaultTextStyle(x => x.FontSize(9).FontFamily("Arial"));
+
+                page.Header().Column(col =>
+                {
+                    col.Item().Text("BÁO CÁO GIAO DỊCH SUBSCRIPTION")
+                        .SemiBold().FontSize(18).FontColor(Colors.Blue.Medium);
+
+                    if (startDate.HasValue || endDate.HasValue)
+                    {
+                        var filterText = "Bộ lọc: ";
+                        if (startDate.HasValue) filterText += $"Từ {startDate:dd/MM/yyyy} ";
+                        if (endDate.HasValue) filterText += $"Đến {endDate:dd/MM/yyyy} ";
+                        
+                        col.Item().Text(filterText).FontSize(10).Italic();
+                    }
+                });
+
+                page.Content().PaddingVertical(10).Table(table =>
+                {
+                    table.ColumnsDefinition(columns =>
+                    {
+                        columns.ConstantColumn(30);  // STT
+                        columns.RelativeColumn(3);   // Reference Code
+                        columns.RelativeColumn(1.5f); // Transfer Amount
+                        columns.RelativeColumn(1.5f); // Original Amount
+                        columns.RelativeColumn(2);   // Transaction Date
+                        columns.ConstantColumn(40);  // Status
+                        columns.RelativeColumn(1.5f); // First Name
+                        columns.RelativeColumn(1.5f); // Last Name
+                        columns.RelativeColumn(3);   // Email
+                        columns.RelativeColumn(2);   // Pro Expires At
+                        columns.RelativeColumn(1.5f); // Package Name
+                        columns.RelativeColumn(1.5f); // Package Type
+                    });
+
+                    table.Header(header =>
+                    {
+                        header.Cell().Element(CellStyle).Text("STT");
+                        header.Cell().Element(CellStyle).Text("Reference Code");
+                        header.Cell().Element(CellStyle).Text("Transfer Amount");
+                        header.Cell().Element(CellStyle).Text("Original Amount");
+                        header.Cell().Element(CellStyle).Text("Transaction Date");
+                        header.Cell().Element(CellStyle).Text("Status");
+                        header.Cell().Element(CellStyle).Text("First Name");
+                        header.Cell().Element(CellStyle).Text("Last Name");
+                        header.Cell().Element(CellStyle).Text("User Email");
+                        header.Cell().Element(CellStyle).Text("Pro Expires At");
+                        header.Cell().Element(CellStyle).Text("Package Name");
+                        header.Cell().Element(CellStyle).Text("Package Type");
+
+                        static IContainer CellStyle(IContainer container)
+                        {
+                            return container.DefaultTextStyle(x => x.SemiBold())
+                                .PaddingVertical(5)
+                                .BorderBottom(1)
+                                .BorderColor(Colors.Black);
+                        }
+                    });
+
+                    int index = 1;
+                    foreach (var item in transactions)
+                    {
+                        table.Cell().Element(RowStyle).Text(index++.ToString());
+                        table.Cell().Element(RowStyle).Text(item.ReferenceCode ?? item.OrderCode);
+                        table.Cell().Element(RowStyle).Text(item.TransferAmount.ToString("N0"));
+                        table.Cell().Element(RowStyle).Text(item.OriginalAmount.ToString("N0"));
+                        table.Cell().Element(RowStyle).Text(item.TransactionDate.AddHours(7).ToString("MM/dd/yyyy HH:mm"));
+                        table.Cell().Element(RowStyle).Text(item.Status);
+                        table.Cell().Element(RowStyle).Text(item.UserFirstName);
+                        table.Cell().Element(RowStyle).Text(item.UserLastName);
+                        table.Cell().Element(RowStyle).Text(item.UserEmail);
+                        table.Cell().Element(RowStyle).Text(item.ProExpiresAt.AddHours(7).ToString("MM/dd/yyyy HH:mm"));
+                        table.Cell().Element(RowStyle).Text(item.PackageName);
+                        table.Cell().Element(RowStyle).Text(item.PackageType);
+
+                        static IContainer RowStyle(IContainer container)
+                        {
+                            return container.BorderBottom(1)
+                                .BorderColor(Colors.Grey.Lighten2)
+                                .PaddingVertical(5);
+                        }
+                    }
+                });
+
+                page.Footer().AlignCenter().Text(x =>
+                {
+                    x.Span("Trang ");
+                    x.CurrentPageNumber();
+                });
+            });
+        });
+
+        return document.GeneratePdf();
+    }
 }

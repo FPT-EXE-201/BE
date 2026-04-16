@@ -54,4 +54,35 @@ public class SubscriptionRepository : GenericRepository<Subscription>, ISubscrip
             .Where(s => s.AppleOriginalTransactionId == originalTransactionId && s.DeletedAt == null)
             .FirstOrDefaultAsync(ct);
     }
+
+    public async Task<List<Subscription>> GetAllWithUserAndProfileAsync(
+        DateTime? startDate = null, 
+        DateTime? endDate = null, 
+        SubscriptionStatus? status = null,
+        CancellationToken ct = default)
+    {
+        var query = _dbSet
+            .Include(s => s.User)
+            .ThenInclude(u => u.Profile)
+            .Where(s => s.DeletedAt == null);
+
+        // Exclude test/sandbox transactions (reference starting with TEST_ or SANDBOX_)
+        query = query.Where(s => 
+            (string.IsNullOrEmpty(s.AppleOriginalTransactionId) || (!s.AppleOriginalTransactionId.StartsWith("TEST_") && !s.AppleOriginalTransactionId.StartsWith("SANDBOX_"))) &&
+            (string.IsNullOrEmpty(s.PaymentTransactionId) || (!s.PaymentTransactionId.StartsWith("TEST_") && !s.PaymentTransactionId.StartsWith("SANDBOX_")))
+        );
+
+        if (startDate.HasValue)
+            query = query.Where(s => s.CreatedAt >= startDate.Value);
+
+        if (endDate.HasValue)
+            query = query.Where(s => s.CreatedAt <= endDate.Value);
+
+        if (status.HasValue)
+            query = query.Where(s => s.Status == status.Value);
+
+        return await query
+            .OrderByDescending(s => s.CreatedAt)
+            .ToListAsync(ct);
+    }
 }

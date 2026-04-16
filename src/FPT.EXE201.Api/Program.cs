@@ -9,6 +9,10 @@ using Serilog;
 using Serilog.Formatting.Compact;
 using Microsoft.OpenApi.Models;
 using DotNetEnv;
+using QuestPDF.Infrastructure;
+
+// Set QuestPDF License
+QuestPDF.Settings.License = LicenseType.Community;
 
 // Configure Serilog
 Log.Logger = new LoggerConfiguration()

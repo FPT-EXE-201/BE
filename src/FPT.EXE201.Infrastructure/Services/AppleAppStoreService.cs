@@ -119,6 +119,27 @@ public class AppleAppStoreService : IAppleAppStoreService
         throw new BadRequestException($"Unknown Apple productId: {productId}");
     }
 
+    public string GetProductIdByPlan(SubscriptionPlan plan)
+    {
+        // AppleProductIds được cấu hình trong appsettings (Sandbox/Production không phụ thuộc nhau ở đây).
+        var monthly = _configuration["AppStore:ProductIds:Monthly"];
+        var sixMonths = _configuration["AppStore:ProductIds:SixMonths"];
+        var yearly = _configuration["AppStore:ProductIds:Yearly"];
+
+        var productId = plan switch
+        {
+            SubscriptionPlan.Monthly => monthly,
+            SubscriptionPlan.SixMonths => sixMonths,
+            SubscriptionPlan.Yearly => yearly,
+            _ => null
+        };
+
+        if (string.IsNullOrWhiteSpace(productId))
+            throw new BadRequestException($"Missing AppStore productId mapping for plan '{plan}'. Check AppStore:ProductIds in appsettings.json.");
+
+        return productId;
+    }
+
     // ── Private helpers ──
 
     private async Task<IDictionary<string, object>> ValidateAndExtractClaimsAsync(string jws)
