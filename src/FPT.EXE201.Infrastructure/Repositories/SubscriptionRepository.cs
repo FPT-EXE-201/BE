@@ -85,4 +85,52 @@ public class SubscriptionRepository : GenericRepository<Subscription>, ISubscrip
             .OrderByDescending(s => s.CreatedAt)
             .ToListAsync(ct);
     }
+
+    public async Task<int> CountActiveProUsersAsync(CancellationToken ct = default)
+    {
+        var now = DateTime.UtcNow;
+        return await _dbSet
+            .Where(s => s.Status == SubscriptionStatus.Active
+                        && s.EndDate > now
+                        && s.DeletedAt == null)
+            .Select(s => s.UserId)
+            .Distinct()
+            .CountAsync(ct);
+    }
+
+    public async Task<int> CountExpiredProUsersAsync(CancellationToken ct = default)
+    {
+        var now = DateTime.UtcNow;
+
+        // UserId có ít nhất 1 sub Expired
+        var expiredUserIds = await _dbSet
+            .Where(s => s.Status == SubscriptionStatus.Expired && s.DeletedAt == null)
+            .Select(s => s.UserId)
+            .Distinct()
+            .ToListAsync(ct);
+
+        // Trừ đi những user vẫn còn Active
+        var activeUserIds = await _dbSet
+            .Where(s => s.Status == SubscriptionStatus.Active
+                        && s.EndDate > now
+                        && s.DeletedAt == null)
+            .Select(s => s.UserId)
+            .Distinct()
+            .ToListAsync(ct);
+
+        return expiredUserIds.Except(activeUserIds).Count();
+    }
+
+    public async Task<List<Subscription>> GetActiveSubscriptionsByUserIdsAsync(
+        List<Guid> userIds,
+        CancellationToken ct = default)
+    {
+        var now = DateTime.UtcNow;
+        return await _dbSet
+            .Where(s => userIds.Contains(s.UserId)
+                        && s.Status == SubscriptionStatus.Active
+                        && s.EndDate > now
+                        && s.DeletedAt == null)
+            .ToListAsync(ct);
+    }
 }

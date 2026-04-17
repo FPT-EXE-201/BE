@@ -95,8 +95,12 @@ namespace FPT.EXE201.Infrastructure.Repositories
                 );
             };
 
-            // Include profile by default for user management
-            Func<IQueryable<User>, IQueryable<User>> include = query => query.Include(u => u.Profile);
+            // Include profile + roles for user management table
+            Func<IQueryable<User>, IQueryable<User>> include = query =>
+                query
+                    .Include(u => u.Profile)
+                    .Include(u => u.UserRoles)
+                        .ThenInclude(ur => ur.Role);
 
             return await GetPagedAsync(
                 options,
@@ -107,6 +111,7 @@ namespace FPT.EXE201.Infrastructure.Repositories
                 defaultSort: null,
                 cancellationToken: ct);
         }
+
 
         public async Task<IEnumerable<User>> GetByRoleAsync(string roleCode, CancellationToken ct = default)
         {
