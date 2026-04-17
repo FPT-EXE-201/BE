@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using FPT.EXE201.Application.Authorization;
 using FPT.EXE201.Application.DTOs.Subscriptions;
 using FPT.EXE201.Application.IServices;
+using FPT.EXE201.Domain.Enums;
 using FPT.EXE201.Infrastructure.Services;
 using Microsoft.Extensions.Configuration;
 using Net.payOS.Types;
@@ -202,6 +203,49 @@ public class SubscriptionsController : BaseApiController
             ct);
 
         return Success(status, "[SANDBOX] Apple IAP activated for testing.");
+    }
+
+    /// <summary>
+    /// GET /api/subscriptions/admin/transactions — Lấy toàn bộ danh sách giao dịch (Public).
+    /// </summary>
+    [HttpGet("admin/transactions")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetAllTransactions(
+        [FromQuery] string? startDate, 
+        [FromQuery] string? endDate, 
+        [FromQuery] SubscriptionStatus? status, 
+        CancellationToken ct)
+    {
+        DateTime? start = null;
+        DateTime? end = null;
+
+        if (DateTime.TryParse(startDate, out var s)) start = s;
+        if (DateTime.TryParse(endDate, out var e)) end = e;
+
+        var transactions = await _subscriptionService.GetAllTransactionsForAdminAsync(start, end, status, ct);
+        return Success(transactions);
+    }
+
+    /// <summary>
+    /// GET /api/subscriptions/admin/transactions/pdf — Xuất báo cáo PDF giao dịch (Public).
+    /// </summary>
+    [HttpGet("admin/transactions/pdf")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ExportTransactionsPdf(
+        [FromQuery] string? startDate, 
+        [FromQuery] string? endDate, 
+        [FromQuery] SubscriptionStatus? status, 
+        CancellationToken ct)
+    {
+        DateTime? start = null;
+        DateTime? end = null;
+
+        if (DateTime.TryParse(startDate, out var s)) start = s;
+        if (DateTime.TryParse(endDate, out var e)) end = e;
+
+        var pdfBytes = await _subscriptionService.ExportTransactionsPdfAsync(start, end, status, ct);
+        var fileName = $"Transactions_Report_{DateTime.UtcNow:yyyyMMddHHmmss}.pdf";
+        return File(pdfBytes, "application/pdf", fileName);
     }
 }
 

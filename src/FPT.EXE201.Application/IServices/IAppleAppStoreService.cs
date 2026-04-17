@@ -25,6 +25,11 @@ public interface IAppleAppStoreService
     /// Nem exception neu productId khong khop.
     /// </summary>
     SubscriptionPlan MapProductIdToPlan(string productId);
+
+    /// <summary>
+    /// Lấy Apple productId tu SubscriptionPlan dua tren AppStore:ProductIds config.
+    /// </summary>
+    string GetProductIdByPlan(SubscriptionPlan plan);
 }
 
 /// <summary>Thong tin transaction da duoc Apple verify.</summary>

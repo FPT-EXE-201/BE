@@ -1,4 +1,5 @@
 using FPT.EXE201.Application.DTOs.Subscriptions;
+using FPT.EXE201.Domain.Enums;
 
 namespace FPT.EXE201.Application.IServices;
 
@@ -43,4 +44,18 @@ public interface ISubscriptionService
     /// Chỉ hoạt động khi AppStore:Environment = Sandbox. Dùng để test backend.
     /// </summary>
     Task<SubscriptionStatusDto> ActivateAppleIapSandboxAsync(Guid userId, string plan, string fakeTransactionId, CancellationToken ct = default);
+
+    /// <summary>Lấy tất cả các giao dịch kèm thông tin User (dành cho Admin, hỗ trợ lọc).</summary>
+    Task<List<TransactionAdminDto>> GetAllTransactionsForAdminAsync(
+        DateTime? startDate = null, 
+        DateTime? endDate = null, 
+        SubscriptionStatus? status = null, 
+        CancellationToken ct = default);
+
+    /// <summary>Xuất danh sách giao dịch ra file PDF (hỗ trợ lọc).</summary>
+    Task<byte[]> ExportTransactionsPdfAsync(
+        DateTime? startDate = null, 
+        DateTime? endDate = null, 
+        SubscriptionStatus? status = null, 
+        CancellationToken ct = default);
 }

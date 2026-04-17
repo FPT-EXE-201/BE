@@ -182,6 +182,7 @@ namespace FPT.EXE201.Infrastructure.Persistence
             // Subscription permissions
             await SeedPermissionIfNotExists(context, "subscription.purchase", "Purchase Subscription", "User can purchase a premium subscription");
             await SeedPermissionIfNotExists(context, "subscription.read", "Read Subscription", "User can view their subscription status and history");
+            await SeedPermissionIfNotExists(context, "subscription.read_all", "Read All Subscriptions", "Admin can view all subscription transactions");
 
             // Week 3 - Pregnancy Core Permissions (used by controllers)
             await SeedPermissionIfNotExists(context, "pregnancy.read", "Read Pregnancy", "User can read their own pregnancy data");
