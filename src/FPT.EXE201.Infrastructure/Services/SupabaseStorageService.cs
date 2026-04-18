@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using Microsoft.Extensions.Configuration;
+using FPT.EXE201.Application.Exceptions;
 using FPT.EXE201.Application.IServices;
 
 namespace FPT.EXE201.Infrastructure.Services;
@@ -28,6 +29,8 @@ public class SupabaseStorageService : IFileStorageService
         Stream fileStream, string fileName, string contentType, long sizeBytes,
         Guid? ownerUserId = null, CancellationToken cancellationToken = default)
     {
+        var normalizedContentType = NormalizeContentType(contentType, fileName);
+
         // 1. Generate unique object key (same format as StubFileStorageService)
         var extension = Path.GetExtension(fileName);
         var objectKey = $"{DateTime.UtcNow:yyyy/MM/dd}/{Guid.NewGuid()}{extension}";
@@ -43,13 +46,20 @@ public class SupabaseStorageService : IFileStorageService
         // 3. Upload to Supabase Storage
         var uploadUrl = $"object/{_bucketName}/{objectKey}";
         using var content = new StreamContent(fileStream);
-        content.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+        content.Headers.ContentType = new MediaTypeHeaderValue(normalizedContentType);
 
         var response = await _httpClient.PostAsync(uploadUrl, content, cancellationToken);
 
         if (!response.IsSuccessStatusCode)
         {
             var error = await response.Content.ReadAsStringAsync(cancellationToken);
+            if (response.StatusCode == System.Net.HttpStatusCode.UnsupportedMediaType
+                || error.Contains("invalid_mime_type", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new BadRequestException(
+                    $"Unsupported file type '{contentType}'. Please use JPEG, PNG, or WEBP images.");
+            }
+
             throw new InvalidOperationException(
                 $"Supabase upload failed ({response.StatusCode}): {error}");
         }
@@ -59,7 +69,7 @@ public class SupabaseStorageService : IFileStorageService
             ObjectKey: objectKey,
             PublicUrl: GetPublicUrl(objectKey),
             OriginalFileName: fileName,
-            MimeType: contentType,
+            MimeType: normalizedContentType,
             FileSizeBytes: sizeBytes,
             ChecksumSha256: checksum
         );
@@ -107,5 +117,26 @@ public class SupabaseStorageService : IFileStorageService
     public string GetPublicUrl(string objectKey)
     {
         return $"{_publicBaseUrl.TrimEnd('/')}/{_bucketName}/{objectKey}";
+    }
+
+    private static string NormalizeContentType(string? contentType, string fileName)
+    {
+        var normalized = (contentType ?? string.Empty).Trim().ToLowerInvariant();
+
+        if (normalized == "image/jpg")
+            return "image/jpeg";
+
+        if (!string.IsNullOrWhiteSpace(normalized) && normalized != "application/octet-stream")
+            return normalized;
+
+        return Path.GetExtension(fileName).ToLowerInvariant() switch
+        {
+            ".jpg" => "image/jpeg",
+            ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".webp" => "image/webp",
+            ".pdf" => "application/pdf",
+            _ => string.IsNullOrWhiteSpace(normalized) ? "application/octet-stream" : normalized
+        };
     }
 }
