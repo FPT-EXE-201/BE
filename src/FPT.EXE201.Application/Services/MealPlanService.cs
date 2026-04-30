@@ -20,6 +20,7 @@ public class MealPlanService : IMealPlanService
 
     private const string TemplateKey = "nutrition.meal_plan";
     private const int DailyRateLimit = 15;
+    private static readonly SemaphoreSlim QueueMutationLock = new(1, 1);
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -51,16 +52,11 @@ public class MealPlanService : IMealPlanService
         // Step 1: Verify ownership
         var pregnancy = await VerifyPregnancyOwnership(pregnancyId, userId, ct);
 
-        // Step 2: Validate duration
-        if (dto.DurationWeeks < 1 || dto.DurationWeeks > 4)
-            throw new BadRequestException("Duration must be between 1 and 4 weeks.");
+        var planDate = dto.StartDate ?? DateOnly.FromDateTime(DateTime.UtcNow);
 
-        // Step 3: Rate limit check
-        var todayCount = await _unitOfWork.AiRequestLogs.CountTodayByUserAsync(userId, ct);
-        var remaining = DailyRateLimit - todayCount;
-        if (remaining < dto.DurationWeeks)
-            throw new BadRequestException(
-                $"Daily AI limit: need {dto.DurationWeeks} calls, remaining {remaining}/{DailyRateLimit}. Try again tomorrow.");
+        // Step 2: Validate date
+        if (planDate < DateOnly.FromDateTime(DateTime.UtcNow))
+            throw new BadRequestException("Meal plan date must be today or in the future.");
 
         // Step 4: Validate BMI data exists (fail-fast before queuing)
         var currentWeight = await GetCurrentWeight(pregnancyId, ct);
@@ -69,53 +65,88 @@ public class MealPlanService : IMealPlanService
             throw new BadRequestException(
                 "Pre-pregnancy weight (or current weight) and height are required for calorie calculation.");
 
-        // Step 5: Handle overlap
-        // - Same start date → soft-delete old plan (regenerate)
-        // - Different start date → reject (no partial overlap allowed)
-        var endDate = dto.StartDate.AddDays(dto.DurationWeeks * 7 - 1);
-        var overlapping = await _unitOfWork.MealPlans
-            .GetOverlappingAsync(pregnancyId, dto.StartDate, endDate, ct);
-        foreach (var existing in overlapping)
-        {
-            if (existing.StartDate == dto.StartDate)
-            {
-                await _unitOfWork.MealPlans.SoftDeleteAsync(existing, ct);
-                _logger.LogInformation(
-                    "Replaced meal plan {PlanId} (same start date {Date})",
-                    existing.Id, dto.StartDate);
-            }
-            else
-            {
-                throw new BadRequestException(
-                    $"Đã có meal plan từ {existing.StartDate:yyyy-MM-dd} đến {existing.EndDate:yyyy-MM-dd}. " +
-                    $"Chỉ được tạo lại từ cùng ngày bắt đầu ({existing.StartDate:yyyy-MM-dd}) " +
-                    $"hoặc chọn ngày sau {existing.EndDate:yyyy-MM-dd}.");
-            }
-        }
+        // Step 5: Replace any active plan covering this date (regenerate day).
+        var endDate = planDate;
+        var replacementPlanIds = new List<Guid>();
+        MealPlan mealPlan;
 
-        // Step 6: Create MealPlan entity with Pending status
-        var mealPlan = new MealPlan
+        await QueueMutationLock.WaitAsync(ct);
+        try
         {
-            PregnancyId = pregnancyId,
-            StartDate = dto.StartDate,
-            EndDate = endDate,
-            Source = MealPlanSource.AI,
-            Status = MealPlanStatus.Pending,
-            TotalWeeks = dto.DurationWeeks,
-            CompletedWeeks = 0,
-            Notes = dto.AdditionalNotes
-        };
-        await _unitOfWork.MealPlans.AddAsync(mealPlan, ct);
-        await _unitOfWork.SaveChangesAsync(ct);
+            var todayCount = await _unitOfWork.AiRequestLogs.CountTodayByUserAsync(userId, ct);
+            var remaining = DailyRateLimit - todayCount;
+            if (remaining < 1)
+                throw new BadRequestException(
+                    $"Daily AI limit reached ({DailyRateLimit}/day). Try again tomorrow.");
+
+            var overlapping = await _unitOfWork.MealPlans
+                .GetOverlappingAsync(pregnancyId, planDate, endDate, ct);
+            foreach (var existing in overlapping)
+            {
+                if (existing.Status is MealPlanStatus.Pending or MealPlanStatus.Generating)
+                    throw new BadRequestException(
+                        $"Meal plan generation is already queued for {planDate:yyyy-MM-dd}. Please poll its status.");
+
+                if (existing.Status == MealPlanStatus.Failed)
+                {
+                    await _unitOfWork.MealPlans.SoftDeleteAsync(existing, ct);
+                    continue;
+                }
+
+                if (existing.StartDate <= planDate && existing.EndDate >= planDate)
+                {
+                    replacementPlanIds.Add(existing.Id);
+                    _logger.LogInformation(
+                        "Meal plan {PlanId} will be replaced after successful generation for {Date}",
+                        existing.Id, planDate);
+                }
+                else
+                {
+                    throw new BadRequestException(
+                        $"Đã có meal plan từ {existing.StartDate:yyyy-MM-dd} đến {existing.EndDate:yyyy-MM-dd}. " +
+                        $"Chỉ được tạo lại từ cùng ngày bắt đầu ({existing.StartDate:yyyy-MM-dd}) " +
+                        $"hoặc chọn ngày sau {existing.EndDate:yyyy-MM-dd}.");
+                }
+            }
+
+            // Step 6: Create MealPlan entity with Pending status
+            var aiLog = new AiRequestLog
+            {
+                Feature = AiFeature.NutritionMealPlan,
+                PregnancyId = pregnancyId,
+                UserId = userId,
+                Status = AiRequestStatus.Pending
+            };
+            await _unitOfWork.AiRequestLogs.AddAsync(aiLog, ct);
+
+            mealPlan = new MealPlan
+            {
+                PregnancyId = pregnancyId,
+                AiRequestLogId = aiLog.Id,
+                StartDate = planDate,
+                EndDate = endDate,
+                Source = MealPlanSource.AI,
+                Status = MealPlanStatus.Pending,
+                TotalWeeks = 1,
+                CompletedWeeks = 0,
+                Notes = dto.AdditionalNotes
+            };
+            await _unitOfWork.MealPlans.AddAsync(mealPlan, ct);
+            await _unitOfWork.SaveChangesAsync(ct);
+        }
+        finally
+        {
+            QueueMutationLock.Release();
+        }
 
         // Step 7: Enqueue for background processing
         await _jobQueue.EnqueueAsync(new MealPlanJobItem(
             mealPlan.Id, pregnancyId, userId,
-            dto.DurationWeeks, dto.AdditionalNotes), ct);
+            planDate, dto.AdditionalNotes, replacementPlanIds), ct);
 
         _logger.LogInformation(
-            "Meal plan {PlanId} queued for generation ({Weeks} weeks)",
-            mealPlan.Id, dto.DurationWeeks);
+            "Daily meal plan {PlanId} queued for generation ({Date})",
+            mealPlan.Id, planDate);
 
         return MapToStatusDto(mealPlan);
     }
@@ -163,47 +194,34 @@ public class MealPlanService : IMealPlanService
             .GetActiveWithTranslationsAsync("vi", ct);
         var nutrientMap = allNutrients.ToDictionary(n => n.Code, n => n.Id);
 
-        // Transaction — Generate week by week
+        // Transaction — generate a single day.
         await _unitOfWork.BeginTransactionAsync(ct);
         int week = 0;
         try
         {
-            string? previousWeekSummary = null;
-
-            for (week = 0; week < job.DurationWeeks; week++)
+            for (week = 0; week < 1; week++)
             {
-                var weekStart = mealPlan.StartDate.AddDays(week * 7);
-                var weekEnd = weekStart.AddDays(6);
-
-                // Create AiRequestLog
-                var aiLog = new AiRequestLog
-                {
-                    Feature = AiFeature.NutritionMealPlan,
-                    PregnancyId = job.PregnancyId,
-                    UserId = job.UserId,
-                    TemplateId = template.Id,
-                    Status = AiRequestStatus.Processing
-                };
-                await _unitOfWork.AiRequestLogs.AddAsync(aiLog, ct);
-
-                if (week == 0) mealPlan.AiRequestLogId = aiLog.Id;
+                var weekStart = job.PlanDate;
+                var weekEnd = job.PlanDate;
 
                 // Build prompt
                 var contextText = FormatNutritionContext(
                     pregnancy, foodPrefs, nutritionNotes, conditions,
                     currentWeight, bmi, gestWeek, targetCalories);
-                var userMessage = BuildWeekPrompt(
-                    week, weekStart, weekEnd, targetCalories,
-                    previousWeekSummary, job.AdditionalNotes);
+                var userMessage = BuildDayPrompt(
+                    weekStart, targetCalories, job.AdditionalNotes);
 
                 var prompt = PromptBuilder.FromTemplate(template)
                     .WithContext("NUTRITION PROFILE", contextText)
                     .WithUserMessage(userMessage)
                     .Build();
 
+                var aiLog = await GetOrCreateAiLogAsync(
+                    mealPlan, job, template.Id, prompt, ct);
+
                 _logger.LogInformation(
-                    "Generating meal plan week {Week}/{Total} for pregnancy {Id}",
-                    week + 1, job.DurationWeeks, job.PregnancyId);
+                    "Generating daily meal plan for {Date} and pregnancy {Id}",
+                    job.PlanDate, job.PregnancyId);
 
                 // Call Gemini
                 var aiResponse = await _aiProvider.GenerateAsync(prompt, ct);
@@ -233,24 +251,24 @@ public class MealPlanService : IMealPlanService
                 aiLog.ResponsePayload = aiResponse.Content;
 
                 _logger.LogInformation(
-                    "Week {Week} generated. Tokens: {In}+{Out}={Total}",
-                    week + 1, aiResponse.PromptTokens,
+                    "Daily meal plan generated. Tokens: {In}+{Out}={Total}",
+                    aiResponse.PromptTokens,
                     aiResponse.CompletionTokens, aiResponse.TotalTokens);
 
                 // Update progress (visible to polling)
                 mealPlan.CompletedWeeks = week + 1;
                 await _unitOfWork.SaveChangesAsync(ct);
 
-                previousWeekSummary = BuildWeekSummary(weekPlan);
             }
 
             // All weeks done → Succeeded
+            await SoftDeleteReplacedPlansAsync(job, ct);
             mealPlan.Status = MealPlanStatus.Succeeded;
             await _unitOfWork.CommitTransactionAsync(ct);
 
             _logger.LogInformation(
-                "Meal plan {PlanId} generated successfully ({Weeks} weeks)",
-                mealPlan.Id, job.DurationWeeks);
+                "Daily meal plan {PlanId} generated successfully for {Date}",
+                mealPlan.Id, job.PlanDate);
         }
         catch (Exception ex)
         {
@@ -259,7 +277,7 @@ public class MealPlanService : IMealPlanService
             _logger.LogError(ex,
                 "Meal plan generation failed for pregnancy {Id}. " +
                 "Completed {CompletedWeeks}/{TotalWeeks} weeks before failure.",
-                job.PregnancyId, week, job.DurationWeeks);
+                job.PregnancyId, week, 1);
 
             // Update MealPlan status → Failed (AFTER rollback, separate save)
             try
@@ -274,18 +292,7 @@ public class MealPlanService : IMealPlanService
                     failedPlan.CompletedWeeks = week;
                 }
 
-                // Also persist a Failed AiRequestLog
-                var failedLog = new AiRequestLog
-                {
-                    Feature = AiFeature.NutritionMealPlan,
-                    PregnancyId = job.PregnancyId,
-                    UserId = job.UserId,
-                    TemplateId = template.Id,
-                    Status = AiRequestStatus.Failed,
-                    ResponsePayload = System.Text.Json.JsonSerializer.Serialize(
-                        new { error = ex.Message })
-                };
-                await _unitOfWork.AiRequestLogs.AddAsync(failedLog, ct);
+                await MarkAiLogFailedAsync(failedPlan, job, template.Id, ex, ct);
                 await _unitOfWork.SaveChangesAsync(ct);
             }
             catch (Exception logEx)
@@ -369,6 +376,20 @@ public class MealPlanService : IMealPlanService
 
         var day = await _unitOfWork.MealPlanDays
             .GetByPlanIdAndDateAsync(planId, date, ct)
+            ?? throw new NotFoundException(
+                $"No meal plan data for date {date:yyyy-MM-dd}.");
+
+        return MapToDayDetailDto(day, langCode);
+    }
+
+    public async Task<MealDayDetailDto> GetDayByPregnancyDateAsync(
+        Guid pregnancyId, DateOnly date, Guid userId,
+        string langCode = "vi", CancellationToken ct = default)
+    {
+        await VerifyPregnancyOwnership(pregnancyId, userId, ct);
+
+        var day = await _unitOfWork.MealPlanDays
+            .GetByPregnancyIdAndDateAsync(pregnancyId, date, ct)
             ?? throw new NotFoundException(
                 $"No meal plan data for date {date:yyyy-MM-dd}.");
 
@@ -477,6 +498,28 @@ public class MealPlanService : IMealPlanService
         return parts.Any() ? string.Join("\n", parts) : "Không có thông tin đặc biệt.";
     }
 
+    private static string BuildDayPrompt(
+        DateOnly planDate, int targetCalories, string? additionalNotes)
+    {
+        var sb = new System.Text.StringBuilder();
+
+        sb.AppendLine($"Tao thuc don cho dung 1 ngay: {planDate:yyyy-MM-dd}.");
+        sb.AppendLine();
+        sb.AppendLine($"Muc tieu: ~{targetCalories} kcal/ngay.");
+        sb.AppendLine("BAT BUOC: Tra ve dung 1 phan tu trong mang 'days' voi date trung ngay yeu cau.");
+        sb.AppendLine("Ngay nay can dung 4 bua: BREAKFAST, LUNCH, DINNER, SNACK.");
+        sb.AppendLine("Moi mon phai co recipe day du (title, instructions, servings, prepMinutes, cookMinutes).");
+        sb.AppendLine("Giu response ngan gon, chi tra ve JSON hop le theo schema, khong them markdown.");
+
+        if (!string.IsNullOrWhiteSpace(additionalNotes))
+        {
+            sb.AppendLine();
+            sb.AppendLine($"Yeu cau them tu nguoi dung: {additionalNotes}");
+        }
+
+        return sb.ToString();
+    }
+
     private static string BuildWeekPrompt(
         int weekIndex, DateOnly weekStart, DateOnly weekEnd,
         int targetCalories, string? previousWeekSummary,
@@ -533,6 +576,95 @@ public class MealPlanService : IMealPlanService
     // ═══════════════════════════════════════════════════
     // PRIVATE: JSON Parsing + Entity Creation
     // ═══════════════════════════════════════════════════
+
+    private async Task<AiRequestLog> GetOrCreateAiLogAsync(
+        MealPlan mealPlan,
+        MealPlanJobItem job,
+        Guid templateId,
+        object prompt,
+        CancellationToken ct)
+    {
+        AiRequestLog? aiLog = null;
+        if (mealPlan.AiRequestLogId.HasValue)
+        {
+            aiLog = await _unitOfWork.AiRequestLogs
+                .GetByIdTrackedAsync(mealPlan.AiRequestLogId.Value, cancellationToken: ct);
+        }
+
+        if (aiLog == null)
+        {
+            aiLog = new AiRequestLog
+            {
+                Feature = AiFeature.NutritionMealPlan,
+                PregnancyId = job.PregnancyId,
+                UserId = job.UserId
+            };
+            await _unitOfWork.AiRequestLogs.AddAsync(aiLog, ct);
+            mealPlan.AiRequestLogId = aiLog.Id;
+        }
+
+        aiLog.TemplateId = templateId;
+        aiLog.Status = AiRequestStatus.Processing;
+        aiLog.RequestPayload = JsonSerializer.Serialize(prompt, JsonOptions);
+        return aiLog;
+    }
+
+    private async Task SoftDeleteReplacedPlansAsync(
+        MealPlanJobItem job,
+        CancellationToken ct)
+    {
+        foreach (var planId in (job.ReplacedMealPlanIds ?? Array.Empty<Guid>()).Distinct())
+        {
+            if (planId == job.MealPlanId) continue;
+
+            var replacedPlan = await _unitOfWork.MealPlans
+                .GetByIdTrackedAsync(planId, cancellationToken: ct);
+            if (replacedPlan == null
+                || replacedPlan.PregnancyId != job.PregnancyId
+                || replacedPlan.Status != MealPlanStatus.Succeeded
+                || replacedPlan.StartDate > job.PlanDate
+                || replacedPlan.EndDate < job.PlanDate)
+            {
+                continue;
+            }
+
+            await _unitOfWork.MealPlans.SoftDeleteAsync(replacedPlan, ct);
+            _logger.LogInformation(
+                "Replaced meal plan {PlanId} after successful generation for {Date}",
+                replacedPlan.Id, job.PlanDate);
+        }
+    }
+
+    private async Task MarkAiLogFailedAsync(
+        MealPlan? failedPlan,
+        MealPlanJobItem job,
+        Guid templateId,
+        Exception ex,
+        CancellationToken ct)
+    {
+        AiRequestLog? failedLog = null;
+        if (failedPlan?.AiRequestLogId != null)
+        {
+            failedLog = await _unitOfWork.AiRequestLogs
+                .GetByIdTrackedAsync(failedPlan.AiRequestLogId.Value, cancellationToken: ct);
+        }
+
+        if (failedLog == null)
+        {
+            failedLog = new AiRequestLog
+            {
+                Feature = AiFeature.NutritionMealPlan,
+                PregnancyId = job.PregnancyId,
+                UserId = job.UserId
+            };
+            await _unitOfWork.AiRequestLogs.AddAsync(failedLog, ct);
+        }
+
+        failedLog.TemplateId = templateId;
+        failedLog.Status = AiRequestStatus.Failed;
+        failedLog.ErrorMessage = ex.Message.Length > 500 ? ex.Message[..500] : ex.Message;
+        failedLog.ResponsePayload = JsonSerializer.Serialize(new { error = ex.Message });
+    }
 
     private AiWeekResponse ParseMealPlanResponse(string content)
     {
@@ -600,108 +732,102 @@ public class MealPlanService : IMealPlanService
         Dictionary<string, Guid> nutrientMap)
     {
         var newDays = new List<MealPlanDay>();
+        if (weekPlan.Days.Count != 1)
+            throw new BadRequestException("AI must return exactly one meal plan day.");
 
-        for (int dayIndex = 0; dayIndex < weekPlan.Days.Count; dayIndex++)
+        var dayResponse = weekPlan.Days[0];
+        if (!DateOnly.TryParse(dayResponse.Date, out var responseDate) || responseDate != weekStart)
+            throw new BadRequestException($"AI returned meal plan for the wrong date. Expected {weekStart:yyyy-MM-dd}.");
+
+        if (dayResponse.Meals == null || dayResponse.Meals.Count != 4)
+            throw new BadRequestException("AI must return exactly four meals for the requested day.");
+
+        var parsedMeals = new List<(AiMealResponse Response, MealType MealType)>();
+        foreach (var mealResponse in dayResponse.Meals)
         {
-            var dayResponse = weekPlan.Days[dayIndex];
+            if (!Enum.TryParse<MealType>(mealResponse.MealType, true, out var mealType))
+                throw new BadRequestException($"AI returned an invalid meal type: {mealResponse.MealType}.");
 
-            // Parse date from AI response, fallback to sequential
-            DateOnly planDate;
-            if (DateOnly.TryParse(dayResponse.Date, out var parsed))
-                planDate = parsed;
-            else
-                planDate = weekStart.AddDays(dayIndex);
-
-            var planDay = new MealPlanDay
-            {
-                MealPlanId = mealPlan.Id,
-                PlanDate = planDate
-            };
-            mealPlan.Days.Add(planDay);
-            newDays.Add(planDay);
-
-            if (dayResponse.Meals == null) continue;
-
-            foreach (var mealResponse in dayResponse.Meals)
-            {
-                // Create Recipe (REQUIRED by business rule)
-                Recipe? recipe = null;
-                if (mealResponse.Recipe != null)
-                {
-                    recipe = new Recipe
-                    {
-                        PregnancyId = mealPlan.PregnancyId,
-                        Title = mealResponse.Recipe.Title ?? mealResponse.ItemName ?? "Untitled",
-                        Instructions = mealResponse.Recipe.Instructions,
-                        Servings = mealResponse.Recipe.Servings,
-                        PrepMinutes = mealResponse.Recipe.PrepMinutes,
-                        CookMinutes = mealResponse.Recipe.CookMinutes
-                    };
-                }
-
-                // Parse MealType
-                if (!Enum.TryParse<MealType>(mealResponse.MealType, true, out var mealType))
-                    mealType = MealType.Snack; // Fallback
-
-                var mealItem = new MealItem
-                {
-                    MealDayId = planDay.Id,
-                    MealType = mealType,
-                    RecipeId = recipe?.Id,
-                    ItemName = mealResponse.ItemName,
-                    PortionText = mealResponse.PortionText,
-                    CaloriesKcal = mealResponse.CaloriesKcal,
-                    Notes = mealResponse.Notes,
-                    Recipe = recipe
-                };
-                planDay.Items.Add(mealItem);
-
-                // Create MealItemNutrients
-                if (mealResponse.Nutrients != null)
-                {
-                    foreach (var nutrientResponse in mealResponse.Nutrients)
-                    {
-                        if (!nutrientMap.TryGetValue(nutrientResponse.Code, out var nutrientId))
-                        {
-                            _logger.LogWarning(
-                                "Unknown nutrient code '{Code}' — skipping",
-                                nutrientResponse.Code);
-                            continue;
-                        }
-
-                        mealItem.Nutrients.Add(new MealItemNutrient
-                        {
-                            NutrientId = nutrientId,
-                            Amount = nutrientResponse.Amount
-                        });
-                    }
-                }
-            }
+            parsedMeals.Add((mealResponse, mealType));
         }
 
-        // Fill in any missing days (AI sometimes returns fewer than 7)
-        var existingDates = newDays.Select(d => d.PlanDate).ToHashSet();
-        for (int d = 0; d < 7; d++)
+        var requiredMealTypes = new[] { MealType.Breakfast, MealType.Lunch, MealType.Dinner, MealType.Snack };
+        if (parsedMeals.Select(m => m.MealType).Distinct().Count() != 4
+            || requiredMealTypes.Any(required => parsedMeals.All(m => m.MealType != required)))
+            throw new BadRequestException("AI must return one BREAKFAST, one LUNCH, one DINNER, and one SNACK.");
+
+        var planDay = new MealPlanDay
         {
-            var date = weekStart.AddDays(d);
-            if (!existingDates.Contains(date))
+            MealPlanId = mealPlan.Id,
+            PlanDate = weekStart
+        };
+        mealPlan.Days.Add(planDay);
+        newDays.Add(planDay);
+
+        foreach (var (mealResponse, mealType) in parsedMeals)
+        {
+            if (string.IsNullOrWhiteSpace(mealResponse.ItemName))
+                throw new BadRequestException("AI meal item name is required.");
+
+            if (!HasCompleteRecipe(mealResponse.Recipe))
+                throw new BadRequestException($"AI meal '{mealResponse.ItemName}' must include a complete recipe.");
+
+            var recipe = new Recipe
             {
-                var emptyDay = new MealPlanDay
+                PregnancyId = mealPlan.PregnancyId,
+                Title = mealResponse.Recipe!.Title,
+                Instructions = mealResponse.Recipe.Instructions,
+                Servings = mealResponse.Recipe.Servings,
+                PrepMinutes = mealResponse.Recipe.PrepMinutes,
+                CookMinutes = mealResponse.Recipe.CookMinutes
+            };
+
+            var mealItem = new MealItem
+            {
+                MealDayId = planDay.Id,
+                MealType = mealType,
+                RecipeId = recipe.Id,
+                ItemName = mealResponse.ItemName,
+                PortionText = mealResponse.PortionText,
+                CaloriesKcal = mealResponse.CaloriesKcal,
+                Notes = mealResponse.Notes,
+                Recipe = recipe
+            };
+            planDay.Items.Add(mealItem);
+
+            if (mealResponse.Nutrients == null) continue;
+
+            foreach (var nutrientResponse in mealResponse.Nutrients)
+            {
+                if (string.IsNullOrWhiteSpace(nutrientResponse.Code)
+                    || !nutrientMap.TryGetValue(nutrientResponse.Code, out var nutrientId))
                 {
-                    MealPlanId = mealPlan.Id,
-                    PlanDate = date
-                };
-                mealPlan.Days.Add(emptyDay);
-                newDays.Add(emptyDay);
+                    _logger.LogWarning(
+                        "Unknown nutrient code '{Code}' - skipping",
+                        nutrientResponse.Code);
+                    continue;
+                }
+
+                mealItem.Nutrients.Add(new MealItemNutrient
+                {
+                    NutrientId = nutrientId,
+                    Amount = nutrientResponse.Amount
+                });
             }
         }
 
         return newDays;
     }
 
-    // ═══════════════════════════════════════════════════
-    // PRIVATE: JSON Cleanup (reuse pattern from MedicalRecordAiService)
-    // ═══════════════════════════════════════════════════
+    private static bool HasCompleteRecipe(AiRecipeResponse? recipe)
+    {
+        return recipe != null
+               && !string.IsNullOrWhiteSpace(recipe.Title)
+               && !string.IsNullOrWhiteSpace(recipe.Instructions)
+               && recipe.Servings.HasValue
+               && recipe.PrepMinutes.HasValue
+               && recipe.CookMinutes.HasValue;
+    }
 
     private static string CleanAiJsonResponse(string content)
     {

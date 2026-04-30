@@ -33,4 +33,7 @@ public interface IMealPlanService
     Task<MealDayDetailDto> GetDayDetailAsync(
         Guid planId, DateOnly date, Guid userId,
         string langCode = "vi", CancellationToken ct = default);
+    Task<MealDayDetailDto> GetDayByPregnancyDateAsync(
+        Guid pregnancyId, DateOnly date, Guid userId,
+        string langCode = "vi", CancellationToken ct = default);
 }

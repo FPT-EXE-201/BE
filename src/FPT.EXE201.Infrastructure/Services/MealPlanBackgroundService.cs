@@ -38,8 +38,8 @@ public class MealPlanBackgroundService : BackgroundService
                 job = await _jobQueue.DequeueAsync(stoppingToken);
 
                 _logger.LogInformation(
-                    "Processing meal plan job: MealPlanId={MealPlanId}, Weeks={Weeks}",
-                    job.MealPlanId, job.DurationWeeks);
+                    "Processing meal plan job: MealPlanId={MealPlanId}, Date={Date}",
+                    job.MealPlanId, job.PlanDate);
 
                 using var scope = _scopeFactory.CreateScope();
                 var mealPlanService = scope.ServiceProvider.GetRequiredService<IMealPlanService>();

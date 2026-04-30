@@ -8,13 +8,8 @@ public class GenerateMealPlanDtoValidator : AbstractValidator<GenerateMealPlanDt
     public GenerateMealPlanDtoValidator()
     {
         RuleFor(x => x.StartDate)
-            .NotEmpty().WithMessage("Start date is required.")
-            .GreaterThanOrEqualTo(DateOnly.FromDateTime(DateTime.UtcNow))
+            .Must(date => !date.HasValue || date.Value >= DateOnly.FromDateTime(DateTime.UtcNow))
             .WithMessage("Start date must be today or in the future.");
-
-        RuleFor(x => x.DurationWeeks)
-            .InclusiveBetween(1, 4)
-            .WithMessage("Duration must be between 1 and 4 weeks.");
 
         RuleFor(x => x.AdditionalNotes)
             .MaximumLength(500).WithMessage("Additional notes cannot exceed 500 characters.");

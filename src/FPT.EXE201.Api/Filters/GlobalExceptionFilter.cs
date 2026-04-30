@@ -69,16 +69,16 @@ public class GlobalExceptionFilter : IExceptionFilter
             case BadRequestException ex:
                 statusCode = 400;
                 apiResponse = new ApiResponse(false, ex.Message, statusCode, ex.Errors);
-                _logger.LogWarning(ex, 
-                    "Bad request. User: {UserId}, Path: {RequestPath}, Method: {RequestMethod}, Errors: {@Errors}, TraceId: {TraceId}",
-                    userId ?? "Anonymous", requestPath, requestMethod, ex.Errors, requestId);
+                _logger.LogWarning(
+                    "Bad request. User: {UserId}, Path: {RequestPath}, Method: {RequestMethod}, Message: {Message}, Errors: {@Errors}, TraceId: {TraceId}",
+                    userId ?? "Anonymous", requestPath, requestMethod, ex.Message, ex.Errors, requestId);
                 break;
 
             case ValidationException ex:
                 statusCode = 400;
                 var errors = ex.Errors?.Select(e => e.ErrorMessage).ToList();
                 apiResponse = new ApiResponse(false, "Validation failed", statusCode, errors);
-                _logger.LogWarning(ex, 
+                _logger.LogWarning(
                     "Validation failed. User: {UserId}, Path: {RequestPath}, Method: {RequestMethod}, ValidationErrors: {@ValidationErrors}, TraceId: {TraceId}",
                     userId ?? "Anonymous", requestPath, requestMethod, ex.Errors, requestId);
                 break;

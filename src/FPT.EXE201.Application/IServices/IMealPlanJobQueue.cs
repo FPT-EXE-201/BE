@@ -19,6 +19,7 @@ public record MealPlanJobItem(
     Guid MealPlanId,
     Guid PregnancyId,
     Guid UserId,
-    int DurationWeeks,
-    string? AdditionalNotes = null
+    DateOnly PlanDate,
+    string? AdditionalNotes = null,
+    IReadOnlyList<Guid>? ReplacedMealPlanIds = null
 );

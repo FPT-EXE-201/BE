@@ -27,7 +27,7 @@ public class MealPlansController : BaseApiController
     }
 
     /// <summary>
-    /// Queue AI meal plan generation (1-4 weeks). Returns 202 Accepted.
+    /// Queue AI meal plan generation for a single day. Returns 202 Accepted.
     /// Poll GET /api/meal-plans/{id}/status for progress.
     /// Rate limited: 15 AI calls/day.
     /// </summary>
@@ -38,7 +38,7 @@ public class MealPlansController : BaseApiController
     {
         var result = await _mealPlanService.GenerateAsync(
             pregnancyId, GetCurrentUserId(), dto, ct);
-        return Accepted(result, "Meal plan generation queued. Poll /status for progress.");
+        return Accepted(result, "Daily meal plan generation queued. Poll /status for progress.");
     }
 
     /// <summary>
@@ -94,6 +94,20 @@ public class MealPlansController : BaseApiController
     {
         var result = await _mealPlanService.GetDayDetailAsync(
             planId, date, GetCurrentUserId(), lang, ct);
+        return Success(result);
+    }
+
+    /// <summary>
+    /// Get daily meal detail by pregnancy/date without requiring FE to know planId.
+    /// </summary>
+    [HttpGet("pregnancies/{pregnancyId:guid}/meal-days/{date}")]
+    [RequirePermission("meal_plan.read")]
+    public async Task<IActionResult> GetDayByPregnancyDate(
+        Guid pregnancyId, DateOnly date,
+        [FromQuery] string lang = "vi", CancellationToken ct = default)
+    {
+        var result = await _mealPlanService.GetDayByPregnancyDateAsync(
+            pregnancyId, date, GetCurrentUserId(), lang, ct);
         return Success(result);
     }
 

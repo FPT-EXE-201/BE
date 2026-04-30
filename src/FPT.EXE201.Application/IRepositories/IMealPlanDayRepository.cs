@@ -6,4 +6,6 @@ public interface IMealPlanDayRepository : IGenericRepository<MealPlanDay>
 {
     Task<MealPlanDay?> GetByPlanIdAndDateAsync(
         Guid planId, DateOnly date, CancellationToken ct = default);
+    Task<MealPlanDay?> GetByPregnancyIdAndDateAsync(
+        Guid pregnancyId, DateOnly date, CancellationToken ct = default);
 }
